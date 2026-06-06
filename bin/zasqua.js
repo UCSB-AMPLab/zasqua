@@ -2,7 +2,7 @@
 /**
  * Zasqua CLI
  *
- * This is the command-line entry point for the @ampl/zasqua
+ * This is the command-line entry point for the @ucsb-ampl/zasqua
  * engine. It exposes six commands — `build`, `fetch`, `dev`, `init`,
  * `validate`, and `import` — that wrap the build pipeline, setup helpers,
  * and data importers through the engine + instance directory structure.

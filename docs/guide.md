@@ -59,11 +59,11 @@ cd my-archive
 npm install
 ```
 
-`npm install` pulls `@ampl/zasqua` and its toolchain from the npm registry.
+`npm install` pulls `@ucsb-ampl/zasqua` and its toolchain from the npm registry.
 The engine binary is then available as `zasqua` via `npx` or directly from
 `node_modules/.bin/`.
 
-You receive engine updates by bumping the `@ampl/zasqua` version in your
+You receive engine updates by bumping the `@ucsb-ampl/zasqua` version in your
 `package.json` and reinstalling — not by syncing the fork. The fork holds
 only your instance's configuration, data, and theme; the engine is a
 versioned npm dependency you upgrade on your own schedule.

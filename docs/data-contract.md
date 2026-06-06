@@ -22,7 +22,7 @@
 that a Zasqua instance consumes. Every importer, cataloguing system, and
 data-preparation tool that feeds Zasqua must produce files conforming to
 this contract. The contract is versioned independently of the
-`@ampl/zasqua` engine package version.
+`@ucsb-ampl/zasqua` engine package version.
 
 ## Versioning
 
