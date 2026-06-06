@@ -1,0 +1,30 @@
+{{/*
+  Zasqua breadcrumb partial
+
+  Renders a breadcrumb trail with a localized "Inicio" root (from
+  ui.breadcrumb.home), followed by a `>` separator per intermediate
+  crumb, then the current crumb — as a link if the crumb has a url,
+  else as plain text.
+
+  Context expected: `.breadcrumbs` — an array of `{title, url?}` objects.
+  Invoke from page templates as:
+    {{`{{`}} partial "breadcrumb.html" (dict "breadcrumbs" .Params.breadcrumbs) {{`}}`}}
+
+  Inert until a page template calls it — not wired into baseof.html.
+
+  Version: v1.0.0
+*/}}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/" class="text-sm text-stone-400 hover:text-burgundy-light">{{ i18n "breadcrumb.home" }}</a>
+    {{ range .breadcrumbs }}
+      <span class="breadcrumb-separator text-stone-400">&rsaquo;</span>
+      {{ if .url }}
+        <a href="{{ .url }}" class="text-sm text-stone-400 hover:text-burgundy-light">{{ .title }}</a>
+      {{ else }}
+        <span class="text-sm text-stone-500">{{ .title }}</span>
+      {{ end }}
+    {{ end }}
+  </div>
+</nav>
+{{/* Version: v1.0.0 */}}

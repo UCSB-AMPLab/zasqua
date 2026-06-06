@@ -1,0 +1,352 @@
+{{/*
+  Zasqua description detail template
+
+  Renders one page per archival description — the core detail view.
+  Routed via content/descripcion/_content.gotmpl.
+
+  Structure:
+  - Breadcrumb built from the pre-computed ancestor_chain
+  - detail-header with title + level badge + date + reference code
+  - Two-column layout:
+    - Left: sections driven by the active standard profile (resolve-profile.html)
+      — Description, Bibliographic, Entities, Places, Access conditions,
+      Related materials, Notes, Control, Reuse (with copy-to-clipboard
+      buttons for METS and IIIF URLs)
+    - Right aside: IIIF viewer (TIFY) when iiif_manifest_url is set,
+      otherwise a not-digitised notice pointing at the custodial
+      repository
+  - Full-width below: Miller-columns children tree when has_children
+
+  The active profile is resolved by partial "resolve-profile.html" from
+  the repository's descriptive_standard field (default: isadg). The
+  profile supplies field labels, section headers, level labels, and an
+  ordered field list with render discriminators (special / mono /
+  pipelist / plain) and visibility flags.
+
+  All field values arrive via .Params from the content adapter's
+  pre-computed shard (date_formatted, entity_links, place_links,
+  ancestor_chain are shaped upstream; this template is presentation-only).
+
+  The IIIF viewer element (.desc-viewer) carries a data-i18n blob with
+  the TIFY control labels description.js injects. Each copy button
+  carries data-i18n-copied for the "Copied" confirmation flash — blob-only,
+  no Spanish fallback. Spanish lives only in es.toml; en.toml
+  mirrors it.
+
+  Version: v1.3.0
+*/}}
+{{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
+{{ define "main" }}
+
+{{ $repo := .Params.repository }}
+{{ $profile := partial "resolve-profile.html" . }}
+{{ $levelLabel := index $profile.levels .Params.description_level }}
+{{ if not $levelLabel }}{{ $levelLabel = .Params.description_level }}{{ end }}
+
+{{/* Breadcrumb */}}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/">{{ i18n "breadcrumb.home" }}</a>
+    {{ range .Params.ancestor_chain }}
+      <span class="breadcrumb-separator">&rsaquo;</span>
+      <a href="/{{ .reference_code }}/">{{ .title }}</a>
+    {{ end }}
+    <span class="breadcrumb-separator">&rsaquo;</span>
+    <span>{{ .Title }}</span>
+  </div>
+</nav>
+
+{{/* Header */}}
+<div class="detail-header">
+  <div class="container">
+    <h1 class="detail-title font-sans font-semibold text-stone-900">{{ .Title }}</h1>
+    <div class="detail-meta text-sm text-stone-500">
+      <span class="level-badge">{{ $levelLabel }}</span>
+      {{ with .Params.date_formatted }} &middot; {{ . }}{{ end }}
+      &middot; <span class="detail-value-mono">{{ .Params.reference_code }}</span>
+    </div>
+  </div>
+</div>
+
+{{/* Two-column layout */}}
+<div class="detail-content">
+  <div class="container">
+    <div class="desc-layout">
+
+      {{/* Left column: metadata */}}
+      <div class="desc-metadata">
+
+        {{/* ------------------------------------------------------------------ */}}
+        {{/* Profile-driven field sections: description, bibliographic, related, */}}
+        {{/* notes — rendered by iterating $profile.fields.                     */}}
+        {{/*                                                                     */}}
+        {{/* Section headings are emitted lazily (first renderable field in a   */}}
+        {{/* new section triggers the heading) so empty sections produce no     */}}
+        {{/* HTML — preserving the current {{ if or ... }} guard behaviour.     */}}
+        {{/*                                                                     */}}
+        {{/* Fields are rendered when:                                           */}}
+        {{/*   show: true  AND  (value present OR required: true)               */}}
+        {{/*                                                                     */}}
+        {{/* render discriminators:                                             */}}
+        {{/*   special   — repository link or reproduction_conditions sub-blocks*/}}
+        {{/*   mono      — reference_code with monospace value class            */}}
+        {{/*   pipelist  — pipe-split list (scope_content, extent, notes)       */}}
+        {{/*   plain     — label + value span                                   */}}
+        {{/*                                                                     */}}
+        {{/* Sections entities / places / access / control / reuse are outside  */}}
+        {{/* this loop and rendered explicitly below.                           */}}
+        {{/* ------------------------------------------------------------------ */}}
+        {{ $page := . }}
+        {{/* Pass 1 — description + bibliographic sections ONLY. These render   */}}
+        {{/* BEFORE the cross-standard entities/places blocks (anchor order).   */}}
+        {{/* access/related/notes are deferred to after entities/places: access */}}
+        {{/* is the explicit always-rendered block below, related+notes are     */}}
+        {{/* Pass 2 (after access). Per-field markup is in the shared partial    */}}
+        {{/* _partials/descripcion-field.html (single source of render truth).  */}}
+        {{ $currentSection := "" }}
+        {{ range $profile.fields }}
+          {{ if not .show }}{{ continue }}{{ end }}
+          {{ if not (in (slice "description" "bibliographic") .section) }}{{ continue }}{{ end }}
+
+          {{ $value := index $page.Params .key }}
+          {{/* Skip empty non-required fields */}}
+          {{ if and (not .required) (not $value) }}{{ continue }}{{ end }}
+
+          {{/* Open section on boundary (lazy heading) */}}
+          {{ if ne .section $currentSection }}
+            {{ if $currentSection }}
+              </div>{{/* close previous detail-section */}}
+            {{ end }}
+            {{ if eq .section "description" }}
+              <div class="detail-section">
+                <h3 class="font-semibold text-stone-400">{{ index $profile.sections "description" }}</h3>
+            {{ else }}
+              <div class="detail-section">
+                <h3>{{ index $profile.sections .section }}</h3>
+            {{ end }}
+            {{ $currentSection = .section }}
+          {{ end }}
+
+          {{ partial "descripcion-field.html" (dict "field" . "value" $value "repo" $repo) }}
+
+        {{ end }}
+        {{/* Close the last Pass-1 section if any was opened */}}
+        {{ if $currentSection }}</div>{{ end }}
+
+        {{/* Section: Personas y entidades — cross-standard, not a profile field */}}
+        {{ if and .Params.entity_links (gt (len .Params.entity_links) 0) }}
+          <div class="detail-section">
+            <h3>{{ i18n "description.entitiesHeader" }}</h3>
+            {{ range .Params.entity_links }}
+              <div class="detail-field">
+                <a href="/{{ .entity_code }}/">{{ .display_name }}</a>
+                {{ with .role_label }}
+                 &mdash; <em class="text-stone-400">{{ . }}</em>
+                {{ end }}
+              </div>
+            {{ end }}
+          </div>
+        {{ end }}
+
+        {{/* Section: Lugares — cross-standard, not a profile field */}}
+        {{ if and .Params.place_links (gt (len .Params.place_links) 0) }}
+          <div class="detail-section">
+            <h3>{{ i18n "description.placesHeader" }}</h3>
+            {{ range .Params.place_links }}
+              <div class="detail-field">
+                <a href="/{{ .place_code }}/">{{ .display_name }}</a>
+              </div>
+            {{ end }}
+          </div>
+        {{ end }}
+
+        {{/* Section: Condiciones de acceso — ALWAYS rendered.                  */}}
+        {{/* access_conditions and language are conditional; the                */}}
+        {{/* reproduction_conditions row is always present (catalogues/free-    */}}
+        {{/* access sub-block is unconditional; originals sub-block conditional */}}
+        {{/* on reproduction_conditions value; images sub-block conditional on  */}}
+        {{/* iiif_manifest_url + $repo).                                        */}}
+        {{/* Labels sourced from the active profile (access section fields).    */}}
+        {{ $accessLabel := "" }}
+        {{ $reproLabel := "" }}
+        {{ $langFieldLabel := "" }}
+        {{ range $profile.fields }}
+          {{ if eq .key "access_conditions" }}{{ $accessLabel = .label }}{{ end }}
+          {{ if eq .key "reproduction_conditions" }}{{ $reproLabel = .label }}{{ end }}
+          {{ if eq .key "language" }}{{ $langFieldLabel = .label }}{{ end }}
+        {{ end }}
+        <div class="detail-section">
+          <h3>{{ index $profile.sections "access" }}</h3>
+
+          {{ with .Params.access_conditions }}
+            <div class="detail-field">
+              <span class="detail-label">{{ $accessLabel }}</span>
+              <span class="detail-value">{{ . }}</span>
+            </div>
+          {{ end }}
+
+          <div class="detail-field">
+            <span class="detail-label">{{ $reproLabel }}</span>
+            <div class="detail-value">
+              <div class="repro-subsection">
+                <strong class="repro-subheading">{{ i18n "description.catalogSubheading" }}</strong>
+                <span>{{ i18n "description.catalogFreeAccess" }}</span>
+              </div>
+              {{ with .Params.reproduction_conditions }}
+                <div class="repro-subsection">
+                  <strong class="repro-subheading">{{ i18n "description.originalsSubheading" }}</strong>
+                  <span>{{ . }}</span>
+                </div>
+              {{ end }}
+              {{ if and .Params.iiif_manifest_url $repo }}
+                <div class="repro-subsection">
+                  <strong class="repro-subheading">{{ i18n "description.imagesSubheading" }}</strong>
+                  <span>{{ $repo.image_reproduction_text }}</span>
+                </div>
+              {{ end }}
+            </div>
+          </div>
+
+          {{ with .Params.language }}
+            <div class="detail-field">
+              <span class="detail-label">{{ $langFieldLabel }}</span>
+              <span class="detail-value">{{ . }}</span>
+            </div>
+          {{ end }}
+        </div>
+
+        {{/* Pass 2 — related + notes sections. These render AFTER the access  */}}
+        {{/* block (anchor order: Acceso → Materiales relacionados → Notas).    */}}
+        {{ $currentSection2 := "" }}
+        {{ range $profile.fields }}
+          {{ if not .show }}{{ continue }}{{ end }}
+          {{ if not (in (slice "related" "notes") .section) }}{{ continue }}{{ end }}
+
+          {{ $value := index $page.Params .key }}
+          {{ if and (not .required) (not $value) }}{{ continue }}{{ end }}
+
+          {{ if ne .section $currentSection2 }}
+            {{ if $currentSection2 }}
+              </div>{{/* close previous detail-section */}}
+            {{ end }}
+            <div class="detail-section">
+              <h3>{{ index $profile.sections .section }}</h3>
+            {{ $currentSection2 = .section }}
+          {{ end }}
+
+          {{ partial "descripcion-field.html" (dict "field" . "value" $value "repo" $repo) }}
+
+        {{ end }}
+        {{/* Close the last Pass-2 section if any was opened */}}
+        {{ if $currentSection2 }}</div>{{ end }}
+
+        {{/* Section: Control de la descripción — ISAD(G) 3.7.3 revision date */}}
+        <div class="detail-section">
+          <h3>{{ index $profile.sections "control" }}</h3>
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
+            <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" (.Lastmod.Format "2006-01-02") }}</span>
+          </div>
+        </div>
+
+        {{/* Section: Reutilizacion */}}
+        <div class="detail-section">
+          <h3>{{ index $profile.sections "reuse" }}</h3>
+          {{ if .Params.iiif_manifest_url }}
+            <p class="reuse-blurb">{{ i18n "description.reuseBlurbIiif" | safeHTML }}</p>
+          {{ else }}
+            <p class="reuse-blurb">{{ i18n "description.reuseBlurb" | safeHTML }}</p>
+          {{ end }}
+          {{ with .Params.mets_url }}
+            <div class="reuse-manifest">
+              <strong class="reuse-manifest-label">{{ i18n "description.metsLabel" }}</strong>
+              <div class="reuse-manifest-row">
+                <code class="reuse-manifest-url">{{ . }}</code>
+                <button class="reuse-copy-btn" data-copy-url="{{ . }}" data-i18n-copied="{{ i18n "description.copied" }}">
+                  <span class="material-symbols-outlined">content_copy</span>
+                  {{- i18n "description.copyButton" -}}
+                </button>
+              </div>
+            </div>
+          {{ end }}
+          {{ with .Params.iiif_manifest_url }}
+            <div class="reuse-manifest">
+              <strong class="reuse-manifest-label">{{ i18n "description.iiifLabel" }}</strong>
+              <div class="reuse-manifest-row">
+                <code class="reuse-manifest-url">{{ . }}</code>
+                <button class="reuse-copy-btn" data-copy-url="{{ . }}" data-i18n-copied="{{ i18n "description.copied" }}">
+                  <span class="material-symbols-outlined">content_copy</span>
+                  {{- i18n "description.copyButton" -}}
+                </button>
+              </div>
+            </div>
+          {{ end }}
+        </div>
+
+      </div>
+
+      {{/* Right column: aside */}}
+      {{ if or .Params.iiif_manifest_url (not .Params.has_children) }}
+        <div class="desc-aside">
+          {{ if .Params.iiif_manifest_url }}
+            <div class="desc-viewer" data-manifest="{{ .Params.iiif_manifest_url }}"
+                 {{ printf `data-i18n='%s'` (jsonify (dict
+                   "tifyExpand"          (i18n "description.tifyExpand")
+                   "tifyCollapse"        (i18n "description.tifyCollapse")
+                   "tifyFullscreen"      (i18n "description.tifyFullscreen")
+                   "tifyExitFullscreen"  (i18n "description.tifyExitFullscreen")
+                   "tifyThumbnails"      (i18n "description.tifyThumbnails")
+                 )) | safeHTMLAttr }}></div>
+          {{ else }}
+            <div class="desc-notice">
+              <span class="material-symbols-outlined desc-notice-icon">inventory_2</span>
+              <div class="desc-notice-title">{{ i18n "description.notDigitised" }}</div>
+              <p class="desc-notice-text">{{ i18n "description.notDigitisedText" }}</p>
+              {{ with $repo }}
+                <p class="desc-notice-repo">{{ .name }}{{ with .city }}, {{ . }}{{ end }}</p>
+              {{ end }}
+            </div>
+          {{ end }}
+        </div>
+      {{ end }}
+
+    </div>
+
+    {{/* Children (Miller columns) — full width, outside the two-column layout */}}
+    {{ if .Params.has_children }}
+      <div class="detail-section">
+        <h3>{{ i18n "description.childrenHeader" }}</h3>
+        <div class="tree-header">
+          <a href="/buscar/?ancestor={{ .Params.reference_code }}" class="search-collection-link">
+            <span class="material-symbols-outlined">search</span>
+            {{- i18n "description.searchUnit" -}}
+          </a>
+        </div>
+        <div id="collection-tree"
+             data-parent-id="{{ .Params.id }}"
+             {{ printf `data-level-labels='%s'` (jsonify $profile.levelsPlural) | safeHTMLAttr }}>
+        </div>
+      </div>
+    {{ end }}
+
+  </div>
+</div>
+
+{{ end }}
+
+{{ define "head" }}
+  {{ if .Params.iiif_manifest_url }}
+    <link rel="stylesheet" href="/vendor/tify/tify.css">
+  {{ end }}
+{{ end }}
+
+{{ define "scripts" }}
+  {{ if .Params.iiif_manifest_url }}
+    <script src="/vendor/tify/tify.js"></script>
+  {{ end }}
+  <script src="/js/description.js"></script>
+  {{ if .Params.has_children }}
+    <script src="/js/tree.js"></script>
+  {{ end }}
+{{ end }}
+{{/* Version: v1.4.0 */}}

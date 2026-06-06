@@ -1,0 +1,52 @@
+{{/*
+  Profile resolver — _partials/resolve-profile.html
+
+  Resolves the (standard, language) profile object from
+  themes/base/data/standards/. Called by
+  layouts/descripcion/single.html (and any other template that needs the
+  active profile) to obtain the profile map for the current page's
+  repository standard and the site language.
+
+  Returns a Go map with keys: sections, levels, levelsPlural, fields.
+
+  Input:  page context (reads .Params.repository.descriptive_standard)
+  Output: the profile map for (standard, langKey), via `return`.
+
+  Fallback chain (never returns nil, so a record can never crash the
+  build over a missing profile):
+    1. index hugo.Data.standards[$standard][$langKey]
+    2. index hugo.Data.standards[$standard]["es"]
+    3. index hugo.Data.standards.isadg["es"]
+
+  An unknown descriptive_standard falls back to isadg — never errors
+  the build.
+
+  Language key is derived from site.Language.LanguageCode (NOT
+  site.Language.Lang, which strips the region suffix). "es-CO" → "es";
+  "en-US" → "en".
+
+  Version: v1.0.0
+*/}}
+{{ $standard := "isadg" }}
+{{ with .Params.repository }}
+  {{ with .descriptive_standard }}
+    {{ $standard = . }}
+  {{ end }}
+{{ end }}
+
+{{/* Normalize BCP-47 to profile key: "es-CO" → "es", "en-US" → "en" */}}
+{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
+
+{{ $standardData := index hugo.Data.standards $standard }}
+{{ $profile := index $standardData $langKey }}
+{{/* Fallback 1: lang key not found — try "es" */}}
+{{ if not $profile }}
+  {{ $profile = index $standardData "es" }}
+{{ end }}
+{{/* Fallback 2: standard unknown or "es" also absent — use isadg.es baseline */}}
+{{ if not $profile }}
+  {{ $profile = index hugo.Data.standards.isadg "es" }}
+{{ end }}
+
+{{ return $profile }}
+{{/* Version: v1.0.0 */}}

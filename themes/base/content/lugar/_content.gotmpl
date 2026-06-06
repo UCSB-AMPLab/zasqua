@@ -1,0 +1,86 @@
+{{/*
+  Zasqua places content adapter
+
+  Turns the enriched places JSON into one Hugo page per place authority
+  record — cities, administrative divisions, geographical features,
+  and rivers. Reads assets/hugo-data/places.json (a single file, ~2.4
+  MB, produced by scripts/generate-content.js) and calls AddPage once
+  per record, rooting each page at /{place_code}/ (e.g. /nl-qfsbu/).
+  Places are not sharded — the full file is small enough to load in a
+  single parse.
+
+  Module gating: the entire adapter is wrapped in a
+  hugo.Data.manifest.modules.places check. When places is false in
+  zasqua.manifest.toml, no place pages are emitted — AddPage is never
+  called and no /place-code/ URLs are created. Truthiness is used
+  (not eq-true) so the "auto" string value also reads as on.
+  The descriptions adapter (Core) is left ungated.
+
+  The try/.Err/errorf triple surfaces load failures loudly so a missing
+  or corrupt places.json cannot silently produce an empty build.
+
+  Per-record modified_at ISO dates from the backend flow into Hugo's
+  .Lastmod via the page dict's dates.lastmod field, which drives both
+  ETag stability and the provenance line at the bottom of the
+  Reutilización block in layouts/lugar/single.html. When modified_at
+  is absent the dates key is omitted so Hugo falls back to its
+  build/git date rather than stamping the epoch zero-time.
+
+  Hugo docs: https://gohugo.io/content-management/content-adapters/
+
+  Version: v1.2.0
+*/}}
+
+{{ if hugo.Data.manifest.modules.places }}
+{{ $data := slice }}
+{{ with try (resources.Get "hugo-data/places.json") }}
+  {{ with .Err }}
+    {{ errorf "[lugar adapter] Unable to read hugo-data/places.json: %s" . }}
+  {{ else }}
+    {{ with try (.Value | transform.Unmarshal) }}
+      {{ with .Err }}
+        {{ errorf "[lugar adapter] Unable to parse hugo-data/places.json: %s" . }}
+      {{ else }}
+        {{ $data = .Value }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ range $data }}
+  {{ $params := dict
+      "id" .id
+      "place_code" .place_code
+      "label" .label
+      "display_name" .display_name
+      "place_type" .place_type
+      "fclass" .fclass
+      "latitude" .latitude
+      "longitude" .longitude
+      "country_code" .country_code
+      "name_variants" .name_variants
+      "wikidata_id" .wikidata_id
+      "whg_id" .whg_id
+      "tgn_id" .tgn_id
+      "hgis_id" .hgis_id
+      "admin_level_1" .admin_level_1
+      "admin_level_2" .admin_level_2
+      "colonial_gobernacion" .colonial_gobernacion
+      "colonial_partido" .colonial_partido
+      "colonial_region" .colonial_region
+      "_linked_count" ._linked_count
+  }}
+  {{ $page := dict
+      "kind" "page"
+      "path" .place_code
+      "title" .display_name
+      "params" $params
+      "content" (dict "mediaType" "text/html" "value" "")
+  }}
+  {{/* Set lastmod only when modified_at is present — avoids epoch zero-time */}}
+  {{ with .modified_at }}{{ $page = merge $page (dict "dates" (dict "lastmod" (time.AsTime .))) }}{{ end }}
+  {{/* Flat short-code URL override — /nl-xxxxxx/ not /lugar/nl-xxxxxx/ */}}
+  {{ $page = merge $page (dict "url" (printf "/%s/" .place_code)) }}
+  {{ $.AddPage $page }}
+{{ end }}
+{{ end }}{{/* end manifest.modules.places gate */}}

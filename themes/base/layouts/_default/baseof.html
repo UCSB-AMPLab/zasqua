@@ -1,0 +1,68 @@
+{{/*
+  Base HTML shell
+
+  The HTML skeleton every page inherits. Renders the <head> block (meta,
+  fonts, styles), the <body> with header and footer partials, a
+  <main class="page-content"> block for page-specific content, and the
+  header interaction script. Page templates fill the "main" block (and
+  optionally "title", "head", and "scripts") to slot their content into
+  this chassis.
+
+  The Cloudflare Web Analytics beacon is included conditionally: if
+  site.Params.cf_analytics_token is set in hugo.toml, the beacon script
+  is rendered with that token; if the param is absent the beacon is
+  omitted entirely. This keeps the engine identity-neutral — no literal
+  token lives in this file.
+
+  The <html lang> attribute uses site.Language.LanguageCode (the full
+  BCP-47 locale, e.g. "es-CO") rather than site.Language.Lang (the base
+  language key, e.g. "es"). Hugo 0.160.1 maps the languageCode / locale
+  config value to LanguageCode; the build pipeline injects a
+  HUGO_LANGUAGECODE environment variable so this is set at build time
+  from the manifest [ui].language value. The base language key alone
+  would drop the region suffix and render the wrong locale tag.
+
+  Version: v2.2.0
+*/}}
+<!DOCTYPE html>
+<html lang="{{ site.Language.LanguageCode }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ block "title" . }}{{ if .Title }}{{ .Title }} | {{ end }}{{ site.Title }}{{ end }}</title>
+  <meta name="description" content="{{ with .Params.description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
+  <link rel="canonical" href="{{ .Permalink }}">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=Crimson+Text:wght@400;700&family=Cormorant+Garamond:wght@300;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+
+  <!-- Styles -->
+  {{ with (templates.Defer (dict "key" "global")) }}
+    {{ partial "css.html" . }}
+  {{ end }}
+
+  {{ block "head" . }}{{ end }}
+</head>
+<body class="bg-bg font-sans text-stone-600">
+  {{ partial "header.html" . }}
+
+  <main class="page-content">
+    {{ block "main" . }}{{ end }}
+  </main>
+
+  {{ partial "footer.html" . }}
+
+  <script src="/js/header.js"></script>
+  {{ block "scripts" . }}{{ end }}
+
+  {{ with site.Params.cf_analytics_token }}
+  <!-- Cloudflare Web Analytics -->
+  <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "{{ . }}"}'></script>
+  <!-- End Cloudflare Web Analytics -->
+  {{ end }}
+</body>
+</html>
+{{/* Version: v2.1.0 */}}

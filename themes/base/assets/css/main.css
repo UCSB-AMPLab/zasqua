@@ -1,0 +1,24 @@
+/*
+ * Engine base theme — CSS entry point
+ *
+ * This is the entry point Hugo's css.TailwindCSS pipeline resolves as
+ * `assets/css/main.css` when the engine base theme is built standalone
+ * (with no instance identity applied). It is intentionally thin: it only
+ * pulls in the real Tailwind layer from `base.css`.
+ *
+ * Why the split (Hugo theme composition):
+ *   When an instance composes this theme under a higher-priority overlay
+ *   (theme = ["<instance-theme>", "base"]), that overlay also exposes
+ *   `assets/css/main.css`, which shadows this file in Hugo's unioned asset
+ *   filesystem — so the overlay cannot `@import` the base layer by the
+ *   `main.css` path (it would resolve back to itself). By keeping the base
+ *   layer in a distinct `base.css`, both this entry point and the overlay
+ *   entry point can `@import "base.css"` and resolve it unambiguously
+ *   through the asset union. See base.css for the layer.
+ *
+ * @version v1.0.0
+ */
+
+@import "base.css";
+
+/* Version: v1.0.0 */

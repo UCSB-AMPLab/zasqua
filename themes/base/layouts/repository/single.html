@@ -1,0 +1,86 @@
+{{/*
+  Repository landing template (neutral base)
+
+  Renders one repository page per entry in assets/hugo-data/
+  repositories.json (routed via the content adapter at content/
+  repository/_content.gotmpl). Title, subtitle, and image are read
+  from the repository record's own params fields; no per-code overrides
+  live in this base file. Identity-specific editorial overrides are
+  supplied by the instance theme.
+
+  Visual structure:
+  - Breadcrumb: Inicio > {repoTitle}
+  - Hero section with background-image from .Params.image (empty-safe)
+  - Search-collection link to /buscar/?ancestor={code}
+  - Miller columns tree container OR a 'no collections' fallback
+
+  data-level-labels: injected from the default ISAD(G) profile via
+  resolve-profile.html. Uses levelsPlural (plural forms)
+  so tree.js can render e.g. "fondos" in collection-count labels.
+  Keys are canonical codes; values are language-appropriate plural labels.
+
+  <title> falls back to site.Title because no "title" block is defined.
+
+  Version: v2.2.0
+*/}}
+{{ define "main" }}
+
+{{/* Resolve the profile for level labels. Pass the real page
+     context (as descripcion/single.html does): a repository page has no
+     .Params.repository.descriptive_standard, so resolve-profile.html falls
+     through to the isadg baseline. The previous synthetic empty-dict context
+     resolved levelsPlural to null (data-level-labels=null); the real context
+     resolves the populated isadg profile correctly. */}}
+{{ $defaultProfile := partial "resolve-profile.html" . }}
+
+{{ $repoTitle := .Params.name }}
+{{ $repoSubtitle := .Params.subtitle | default "" }}
+{{ $repoImage := .Params.image | default "" }}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/" class="text-sm text-stone-400 hover:text-burgundy-light">{{ i18n "nav.home" }}</a>
+    <span class="breadcrumb-separator text-stone-400">›</span>
+    <span class="text-sm text-stone-500">{{ $repoTitle }}</span>
+  </div>
+</nav>
+
+<section class="repo-header"{{ with $repoImage }} style="background-image: url('{{ . }}')"{{ end }}>
+  <div class="repo-header-overlay">
+    <div class="container">
+      <h1 class="repo-header-title font-sans text-white">{{ $repoTitle }}</h1>
+      {{ with $repoSubtitle }}
+        <p class="repo-header-subtitle text-white">{{ . }}</p>
+      {{ end }}
+      <p class="repo-header-stats text-stone-300">{{ lang.FormatNumber 0 (default 0 .Params.description_count) }} {{ i18n "repository.itemsCount" }}</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="tree-header">
+      <a href="/buscar/?ancestor={{ .Params.code }}" class="search-collection-link">
+        <span class="material-symbols-outlined">search</span>
+        {{- i18n "repository.searchCollection" -}}
+      </a>
+    </div>
+
+    {{ if and .Params.root_descriptions (gt (len .Params.root_descriptions) 0) }}
+      <div id="collection-tree"
+           data-repo-code="{{ .Params.code }}"
+           {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levelsPlural) | safeHTMLAttr }}>
+      </div>
+
+      <script type="application/json" id="root-descriptions-data">
+        {{ jsonify .Params.root_descriptions | safeJS }}
+      </script>
+    {{ else }}
+      <p class="text-muted text-center">{{ i18n "repository.noCollections" }}</p>
+    {{ end }}
+  </div>
+</section>
+
+<script src="/js/tree.js"></script>
+{{ end }}
+{{/* Version: v2.3.0 */}}

@@ -1,0 +1,16 @@
+{{/*
+  Default section-listing template
+
+  Bridge template that gives Hugo a concrete page template to extend
+  baseof.html for any section that lacks a more specific list template.
+  Without this, Hugo's lookup rules fall through to the built-in
+  default renderer, which does not inherit from baseof and the
+  chassis (fonts, header, footer) never renders.
+
+  Currently empty body by design — the chassis + an empty main block
+  is all a fallback section needs.
+
+  Version: v1.0.0
+*/}}
+{{ define "main" }}{{ end }}
+{{/* Version: v1.0.0 */}}

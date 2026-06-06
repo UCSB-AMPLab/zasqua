@@ -1,0 +1,101 @@
+# Controlled vocabulary labels — US English
+#
+# This file holds the controlled-vocabulary labels in US English: the names
+# for entity roles (creator, witness, notary, and so on), role groups,
+# place roles, entity types, and place types. These labels are
+# cross-standard — they apply no matter which descriptive standard a
+# deployment uses. Templates inject them as data-role-labels,
+# data-role-group-labels, data-place-role-labels, data-entity-type-labels,
+# and data-place-types attributes so the client-side JavaScript can render
+# filter labels without hardcoding English strings.
+#
+# The schema mirrors data/vocab/es.yaml exactly — the same top-level keys
+# and the same entry keys within each section — so the two language files
+# stay in lockstep.
+#
+# The top-level keys use flat names (entityTypes, placeTypes) rather than
+# nested entity.types / place.types. This matters because Hugo replaces a
+# whole top-level data map across the theme chain: flat names keep these
+# labels from colliding with the entity: and place: blocks in ui.yaml.
+#
+# To override for a deployment, copy this entire file to
+# instance/themes/{name}/data/vocab/en.yaml and edit it. Always ship the
+# full file — Hugo replaces the whole top-level key, so a partial override
+# would silently drop the sibling sections.
+
+# Entity roles — complete 29-role vocabulary (US English)
+roles:
+  creator:    "Creator"
+  contributor: "Contributor"
+  publisher:  "Publisher"
+  subject:    "Subject"
+  mentioned:  "Mentioned"
+  sender:     "Sender"
+  recipient:  "Recipient"
+  defendant:  "Defendant"
+  plaintiff:  "Plaintiff"
+  witness:    "Witness"
+  official:   "Official"
+  scribe:     "Scribe"
+  notary:     "Notary"
+  judge:      "Judge"
+  author:     "Author"
+  buyer:      "Buyer"
+  seller:     "Seller"
+  guarantor:  "Guarantor"
+  petitioner: "Petitioner"
+  appellant:  "Appellant"
+  executor:   "Executor"
+  guardian:   "Guardian"
+  attorney:   "Attorney"
+  interpreter: "Interpreter"
+  appraiser:  "Appraiser"
+  lessee:     "Lessee"
+  lessor:     "Lessor"
+  debtor:     "Debtor"
+  creditor:   "Creditor"
+
+# Role-group taxonomy labels — entity explorer accordion filter
+roleGroups:
+  production:    "Production and mentions"
+  correspondence: "Correspondence"
+  notarial:      "Notarial attestation"
+  legal:         "Legal proceedings"
+  family:        "Family and succession"
+  transactions:  "Transactions"
+  visual:        "Visual materials"
+  otros:         "Other"
+
+# Place-role labels — place detail linked-descriptions filter
+placeRoles:
+  subject:      "Place mentioned"
+  mentioned:    "Place mentioned"
+  production:   "Place of production"
+  venue:        "Place of production"
+  origin:       "Origin"
+  destination:  "Destination"
+  jurisdiction: "Jurisdiction"
+  unknown:      "No role"
+
+# Entity type labels — ISAAR(CPF)
+# Flat key: entityTypes (not entity.types) — avoids a whole-map collision
+# with ui.yaml's entity: block
+entityTypes:
+  person:         "Person"
+  corporate_body: "Corporate body"
+  corporate:      "Corporate body"
+  family:         "Family"
+
+# Place type labels
+# Flat key: placeTypes (not place.types) — avoids a whole-map collision
+# with ui.yaml's place: block
+placeTypes:
+  city:                    "Populated place"
+  administrative_division: "Administrative division"
+  region:                  "Region"
+  country:                 "Country"
+  geographical_feature:    "Geographical feature"
+  river:                   "Body of water"
+  other:                   "Geographical feature"
+
+# Version: v1.0.0

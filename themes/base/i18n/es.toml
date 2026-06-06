@@ -1,0 +1,413 @@
+# Chrome strings — Colombian Spanish
+#
+# This file holds the Spanish interface text Hugo reads at render time:
+# navigation, search and facet copy, record sections, the entity and place
+# explorers, repository labels, footer copy, and the small shared chrome
+# strings. It is the original bundle; en.toml mirrors its key structure.
+#
+# These values are frozen to reproduce the live site's rendered output
+# byte-for-byte. Do not correct grammar or spelling here — any grammatically
+# imperfect phrasing (for example, always-plural labels) is intentional and
+# must stay as is. Idiomatic corrections belong in en.toml.
+#
+# Wording follows Colombian Spanish, tú-form, with §8.11 archival
+# terminology. Controlled-vocabulary keys (levels, levelsPlural, roles,
+# entity types, place types) are not in this bundle — they live in the data
+# files under data/.
+#
+# Version: v0.6.0
+
+[nav]
+home = "Inicio"
+search = "Buscar"
+about = "Acerca"
+catalogacion = "Catalogación"
+browse = "Explorar"
+documents = "Documentos"
+entities = "Entidades"
+places = "Lugares"
+
+[error404]
+title = "Página no encontrada"
+message = "La página solicitada no existe o fue trasladada."
+home = "Volver al inicio"
+search = "Buscar en el catálogo"
+
+[breadcrumb]
+home = "Inicio"
+
+[search]
+placeholder = "Buscar en el catálogo..."
+button = "Buscar"
+results = "{count} resultados"
+noResults = "No se encontraron resultados"
+clearFilters = "Limpiar filtros"
+filtersHeader = "Filtros"
+sidebarHeading = "Filtrar por:"
+sidebarSearch = "Buscar en resultados..."
+filterToggle = "Filtros"
+noResultsSuggestion = "Intenta limpiar los filtros o modificar la consulta."
+dateFrom = "Desde"
+dateTo = "Hasta"
+viewAll = "Ver todos"
+loadingFilters = "Cargando filtros adicionales…"
+landingP1 = "Zasqua tiene un sistema de búsqueda flexible a partir de filtros: escribe un término o selecciona un filtro en el panel de filtros para comenzar a explorar el catálogo. Luego agrega más hasta encontrar lo que buscas. El sistema ignorará tildes y diacríticos, y aproximará términos cercanos con la misma raíz."
+landingP2 = "Agrega términos escribiéndolos en el panel de filtros — selecciona <em>sí</em> o <em>no</em> para incluir o excluir, y presiona <em>+</em> o Enter. Cada término o filtro aparecerá como una etiqueta que puedes eliminar y reemplazar con facilidad, así que siéntete libre de experimentar."
+browsePromptCount = "{count} registros coinciden con estos filtros."
+refinePlaceholder = "Búsqueda..."
+opYes = "Sí"
+opNo = "No"
+addTextFilter = "Agregar filtro de texto"
+advancedActive = "Filtros avanzados activos"
+advancedDisable = "Desactivar"
+advancedActivate = "Activar filtros adicionales (repositorio, fecha, etc.)"
+advancedActivateNote = " — puede tardar algunos segundos"
+dateInitial = "Fecha (inicial)"
+notPrefix = "No: "
+onlyNotMessage = "Agrega al menos un término positivo para combinar con las exclusiones (p. ej. \"cacique -tunja\")."
+resultsCount = "{count} resultados"
+retry = "Intentar de nuevo"
+facetAncestor = "Ancestro"
+facetEntity = "Entidad"
+
+[search.digitalStatus]
+group = "Imágenes disponibles"
+inZasqua = "Sí, disponibles en Zasqua"
+external = "Sí, en repositorio externo"
+none = "No, sin digitalizar"
+
+# Active-filter pill labels — shorter variants of the [search.digitalStatus]
+# option labels, used when the choice is shown as a removable filter tag.
+[search.digitalStatusPill]
+inZasqua = "Disponibles en Zasqua"
+external = "Repositorio externo"
+none = "Sin digitalizar"
+
+[search.sort]
+label = "Ordenar por"
+relevance = "Relevancia"
+dateAsc = "Fecha (más antiguo)"
+dateDesc = "Fecha (más reciente)"
+titleAsc = "Título (A-Z)"
+title = "Título"
+code = "Código"
+date = "Fecha"
+
+[facets]
+repository = "Repositorio"
+level = "Nivel de descripción"
+dateRange = "Rango de fechas"
+hasDigital = "Copia digitalizada disponible"
+country = "País"
+
+[recordMeta]
+descriptionDateLabel = "Fecha de la descripción"
+descriptionDateValue = "Esta descripción se actualizó por última vez el {date}."
+
+[description]
+# metadataHeader, bibliographicHeader, accessConditionsHeader, relatedMaterialsHeader,
+# notesHeader, controlHeader, reuseHeader moved to the standards profiles.
+# entitiesHeader, placesHeader, childrenHeader are cross-standard — they stay here.
+entitiesHeader = "Personas y entidades relacionadas"
+placesHeader = "Lugares"
+metsLabel = "Metadatos METS"
+iiifLabel = "Manifiesto IIIF"
+childrenHeader = "Contenido"
+previous = "Anterior"
+next = "Siguiente"
+notDigitised = "Material no digitalizado"
+notDigitisedText = "Este documento no cuenta con copia digital. Para consultarlo, diríjase al repositorio de origen."
+externalDigital = "Copia digital disponible"
+externalDigitalText = "Este documento ha sido digitalizado y puede consultarse en el repositorio de la institución custodia."
+viewAllChildren = "Ver los {count} documentos"
+catalogSubheading = "Catálogos y descripciones"
+catalogFreeAccess = "Los catálogos y descripciones de Zasqua son de libre acceso."
+imagesSubheading = "Imágenes"
+reuseBlurbIiif = "Zasqua se inspira en los <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">principios FAIR</a> para hacer sus colecciones más abiertas y reutilizables. Utiliza el estándar <a href=\"https://www.loc.gov/standards/mets/\" target=\"_blank\" rel=\"noopener\">METS</a> para publicar metadatos e <a href=\"https://iiif.io\" target=\"_blank\" rel=\"noopener\">IIIF</a> para publicar imágenes. Copia la dirección del manifiesto IIIF a continuación para abrir o integrar este documento en otro visor o plataforma compatible, como <a href=\"https://telar.org\" target=\"_blank\" rel=\"noopener\">Telar</a>."
+reuseBlurb = "Zasqua se inspira en los <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">principios FAIR</a> para hacer sus colecciones más abiertas y reutilizables. Utiliza el estándar <a href=\"https://www.loc.gov/standards/mets/\" target=\"_blank\" rel=\"noopener\">METS</a> para publicar metadatos."
+originalsSubheading = "Documentos originales"
+searchUnit = "Buscar en esta unidad"
+copyButton = "Copiar"
+copied = " Copiado"
+tifyExpand = "Expandir"
+tifyCollapse = "Contraer"
+tifyFullscreen = "Pantalla completa"
+tifyExitFullscreen = "Cerrar pantalla completa"
+tifyThumbnails = "Miniaturas"
+
+[entity]
+noFunctionsRecorded = "Sin cargos registrados"
+breadcrumbParent = "Entidades"
+timelineHeader = "Apariciones en el archivo"
+linkedDescriptions = "Descripciones vinculadas"
+noLinkedDescriptions = "No se encontraron descripciones vinculadas a este registro."
+shardError = "No se pudieron cargar las descripciones vinculadas. Intente recargar la página."
+noDateLabel = "Sin fecha"
+explorerTitle = "Explorar entidades"
+explorerIntro = "Explora las {count} entidades vinculadas a las descripciones de Zasqua. Busca por nombre, filtra por tipo, fecha o rol."
+selectPrompt = "Selecciona una entidad para ver más detalles"
+viewportFilterLabel = "Filtrar por vista del explorador"
+viewportFilterActive = "Filtrando por vista del explorador"
+viewInExplorer = "Ver en explorador"
+reuseBlurb = "Zasqua se inspira en los <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">principios FAIR</a> para hacer sus registros de autoridad más abiertos y reutilizables. Utiliza el estándar <a href=\"https://eac.staatsbibliothek-berlin.de/\" target=\"_blank\" rel=\"noopener\">EAC-CPF</a> para publicar registros de autoridad en formato interoperable."
+comingSoon = "Disponible próximamente"
+timelineTab = "Línea de tiempo"
+graphTab = "Red de conexiones"
+exploreAll = "Explorar todas"
+filterByRole = "Filtrar por rol"
+graphEmpty = "Sin descripciones para mostrar"
+timelineFilteredEmpty = "No se encontraron descripciones vinculadas con estos filtros."
+openInExplorer = "Abrir en el explorador de relaciones"
+focalRoleTitle = "Filtrar conexiones a documentos por rol"
+variantsLabel = "También conocido como: "
+cardEyebrow = "Entidad seleccionada"
+cardLink = "Ver ficha completa →"
+deselect = "Deseleccionar entidad"
+searchPlaceholder = "Buscar entidades..."
+searchAria = "Buscar entidades"
+noResults = "No se encontraron entidades"
+noResultsSuggestion = "Intenta con otro término o elimina algunos filtros."
+errorTitle = "No se pudo cargar el índice"
+errorHint = "Recarga la página para intentarlo de nuevo."
+calculatingTotal = "Calculando total…"
+overloadCount = "{count} entidades coinciden con estos filtros."
+landingCount = "{count} entidades en el archivo."
+overloadHint = "Agrega más términos o filtros para acotar los resultados, o presiona:"
+landingHint = "Empieza a escribir para buscar, o explora filtrando por tipo o fecha, o presiona:"
+facetEntityType = "Tipo de entidad"
+facetPrimaryFunction = "Función principal"
+filterToggle = "Filtrar resultados"
+
+[entity.sections]
+identification = "Identificación"
+functions = "Cargos y funciones"
+history = "Historia"
+relations = "Relaciones"
+authorityLinks = "Identificadores externos"
+control = "Control"
+reuse = "Reutilización"
+sources = "Fuentes"
+
+[entity.fields]
+entityCode = "Identificador"
+name = "Nombre"
+normalizedName = "Nombre normalizado"
+type = "Tipo"
+datesOfExistence = "Fechas de existencia"
+primaryFunction = "Función principal"
+nameVariants = "Variantes del nombre"
+history = "Historia"
+roleInDocument = "Función en el documento"
+
+[entity.authorityLinks]
+dbe = "Ver en Diccionario Biográfico Español (DBE)"
+viaf = "Ver en VIAF"
+
+[entity.emptyState]
+prose1 = "Cada entidad del archivo — personas, familias e instituciones — se conecta con los documentos donde aparece. Selecciona una entidad para ver sus documentos vinculados; haz clic en un documento para descubrir las otras entidades que aparecen en él, y sigue así el hilo a través del archivo: del notario al testigo, del demandante al juez, de un convento a sus albaceas."
+prose2 = "Desplázate hacia abajo para buscar una entidad por nombre o filtrar el índice por tipo y fecha. O empieza con uno de estos ejemplos:"
+
+[entity.legend]
+person = "Persona"
+corporate = "Institución"
+corporateFamily = "Corporación / Familia"
+docExpandable = "Documento (expandible)"
+docPlain = "Documento"
+docFilled = "Descripción con más conexiones"
+doc = "Descripción sin más conexiones"
+
+[entity.focal]
+intro = "Esta {type} aparece vinculada a <strong>{count} descripciones</strong> en el archivo.<br>Ver como "
+viewTimeline = "una línea de tiempo"
+viewGraph = "una red"
+viewSearch = "un filtro en el sistema de búsquedas"
+sep = " o "
+tail = " de Zasqua."
+
+[place]
+breadcrumbParent = "Lugares"
+timelineHeader = "Apariciones en el archivo"
+map = "Mapa"
+linkedDescriptions = "Descripciones vinculadas"
+noLinkedDescriptions = "No se encontraron descripciones vinculadas a este registro."
+shardError = "No se pudieron cargar las descripciones vinculadas. Intente recargar la página."
+noDateLabel = "Sin fecha"
+noCoordinatesTitle = "Ubicación no disponible"
+noCoordinatesText = "Este lugar no cuenta con coordenadas geográficas en el registro de autoridad."
+explorerTitle = "Explorar lugares"
+explorerIntro = "Explora los {count} lugares vinculados a las descripciones de Zasqua. Busca por nombre, filtra por tipo o selecciona un lugar en el mapa."
+explorerExamplesPrefix = "Prueba con"
+explorerExamplesConj = "o"
+selectPrompt = "Selecciona un lugar para ver más detalles"
+viewportFilterLabel = "Filtrar por vista del mapa"
+viewportFilterActive = "Filtrando por vista del mapa"
+viewInExplorer = "Ver en explorador"
+reuseBlurb = "Zasqua se inspira en los <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">principios FAIR</a> para hacer sus registros de autoridad más abiertos y reutilizables. Utiliza el formato <a href=\"https://github.com/LinkedPasts/linked-places-format\" target=\"_blank\" rel=\"noopener\">Linked Places</a> para publicar registros geográficos en formato interoperable."
+comingSoon = "Disponible próximamente"
+associatedTo = "Asociado a {count} documentos"
+loadingPlaces = "Cargando lugares…"
+errorTitle = "No se pudo cargar el índice de lugares."
+errorHint = "Comprueba tu conexión e intenta recargar la página."
+searchPlaceholder = "Buscar por nombre de lugar…"
+clusterCount = "{count} lugares"
+cardLink = "Ver ficha →"
+countNoFilter = "{count} lugares"
+countOne = "1 lugar encontrado"
+countMany = "{count} lugares encontrados"
+sortChrono = "Cronológico"
+sortAlpha = "Alfabético"
+noResultsTitle = "Sin resultados"
+noResultsText = "No se encontraron lugares con estos criterios."
+zeroDocs = "· Sin documentos asociados"
+coordsTitle = "Con coordenadas"
+authorityBadge = "Autoridad"
+authorityTitle = "Con vínculo de autoridad"
+facetType = "Tipo de lugar"
+facetCoords = "Coordenadas"
+facetCoordsOnly = "Solo lugares con coordenadas"
+facetAuthorities = "Autoridades"
+facetAuthorityOnly = "Solo con autoridad externa"
+pillCoords = "Con coordenadas"
+pillAuthorities = "Con autoridades"
+filteredEmpty = "No se encontraron descripciones vinculadas con estos filtros."
+
+[place.sections]
+identification = "Identificación"
+externalIds = "Identificadores externos"
+control = "Control"
+reuse = "Reutilización"
+
+[place.fields]
+name = "Nombre"
+type = "Tipo"
+placeCode = "Identificador"
+nameVariants = "Variantes del nombre"
+coordinates = "Coordenadas"
+countryCode = "País"
+
+[place.document]
+one = "documento"
+other = "documentos"
+
+[place.linkedDescriptionsCount]
+one = "descripción vinculada"
+other = "descripciones vinculadas"
+
+[place.countries]
+COL = "Colombia"
+PER = "Perú"
+BOL = "Bolivia"
+ECU = "Ecuador"
+VEN = "Venezuela"
+ARG = "Argentina"
+BRA = "Brasil"
+CHL = "Chile"
+MEX = "México"
+USA = "Estados Unidos"
+ESP = "España"
+FRA = "Francia"
+GBR = "Reino Unido"
+PAN = "Panamá"
+
+# [fields] block removed — every ISAD(G) field label moved to the standards
+# profiles, and nothing else consumed fields.country, so it was dropped too.
+
+[repository]
+itemsCount = "documentos"
+dateRange = "Fechas extremas"
+collections = "Fondos y colecciones"
+noCollections = "No hay colecciones disponibles"
+searchCollection = "Buscar en esta colección"
+
+[footer]
+copyright = "© {year}"
+colofon_link_text = "Colofón"
+sourceLink = "Código fuente"
+
+[general]
+loading = "Cargando..."
+error = "Ha ocurrido un error"
+viewMore = "Ver más"
+back = "Volver"
+
+# Cross-surface chrome: strings used by two or more explorer/search surfaces
+# that have no existing key. Each is defined once here, and each surface
+# reads it from the shared data-i18n blob (there is no JavaScript fallback).
+[ui]
+removeFilter = "Eliminar filtro: {label}"
+pagination = "Paginación"
+closeFilters = "Cerrar filtros"
+sortBy = "Ordenar por:"
+retry = "Recargar"
+centuryLabel = "Siglo {roman}"
+decadeLabel = "{decade}s"
+dateConnector = " de "
+selectedClose = "Cerrar"
+browsePromptWarning = "Tomará algunos segundos en cargar."
+browsePromptHint = "Agrega más términos o filtros para acotar los resultados, o presiona:"
+sortName = "Nombre"
+sortDate = "Fecha"
+sortDocs = "Documentos"
+clearShort = "Limpiar"
+facetModalSearch = "Buscar..."
+
+[tree]
+contentLabel = "Contenido"
+filterPlaceholder = "Filtrar..."
+viewRecord = "Ver registro →"
+
+[tree.childUnit]
+one = "unidad"
+other = "unidades"
+
+[tree.childUnitCompuesta]
+one = "unidad compuesta"
+other = "unidades compuestas"
+
+[tree.childUnitSimple]
+one = "unidad simple"
+other = "unidades simples"
+
+[graph]
+expand = "Desplegar"
+loading = "Cargando…"
+more = "más"
+docsMore = "{count} documentos más"
+loadNextBatch = "Haz clic para cargar el siguiente lote"
+refocus = "Seleccionar y desplegar vínculos"
+linkedDocs = "{count} documentos vinculados"
+overflowDocs = "+{count} documentos"
+
+[graph.connectedTo]
+one = "Conectado a {count} entidad más."
+other = "Conectado a {count} entidades más."
+
+[graph.connectedToZasqua]
+one = "Conectado a {count} entidad más en Zasqua."
+other = "Conectado a {count} entidades más en Zasqua."
+
+# Count-bearing plural messages (one/other) — the client-side JavaScript
+# picks the right branch via Intl.PluralRules. The Spanish values reproduce
+# the live site's singular/plural branches verbatim.
+
+[ui.linkedDocLabel]
+one = "documento vinculado"
+other = "documentos vinculados"
+
+[entity.sharedDocsSentence]
+one = "Conectado con {name} por {count} documento."
+other = "Conectado con {name} por {count} documentos."
+
+[entity.connectedOtherDocs]
+one = "Esta {type} está conectada a otros {count} documento en Zasqua. "
+other = "Esta {type} está conectada a otros {count} documentos en Zasqua. "
+
+[entity.resultDocCount]
+one = "Asociado a {count} documento"
+other = "Asociado a {count} documentos"
+
+[entity.countLabel]
+one = "{count} entidad"
+other = "{count} entidades"
+
+# Version: v0.6.0

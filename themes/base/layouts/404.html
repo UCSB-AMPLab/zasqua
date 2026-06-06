@@ -1,0 +1,31 @@
+{{/*
+  Zasqua 404 page
+
+  Hugo's top-level layouts/404.html is the convention for 404 pages —
+  Hugo publishes this template to public/404.html during every build
+  and Cloudflare Pages serves it as the 404 handler for unknown URLs.
+
+  Because 404 has no backing content file, .Title is not set by Hugo.
+  The {{`{{`}} define "title" {{`}}`}} block below overrides baseof.html's
+  title block to produce `<title>Página no encontrada | Zasqua</title>`.
+
+  All error strings resolve from the i18n bundle selected by the
+  manifest [ui].language setting, so the same template renders in
+  English or Colombian Spanish without any hardcoded prose.
+
+  Version: v1.1.0
+*/}}
+{{ define "title" }}{{ i18n "error404.title" }} | {{ site.Title }}{{ end }}
+{{ define "main" }}
+<section class="section error-page">
+  <div class="container">
+    <h1 class="section-title font-display text-stone-900">{{ i18n "error404.title" }}</h1>
+    <p class="error-message text-stone-500">{{ i18n "error404.message" }}</p>
+    <div class="error-actions">
+      <a href="/" class="btn btn-primary btn-pill bg-burgundy-deep text-white hover:bg-burgundy">{{ i18n "error404.home" }}</a>
+      <a href="/buscar/" class="btn btn-secondary btn-pill">{{ i18n "error404.search" }}</a>
+    </div>
+  </div>
+</section>
+{{ end }}
+{{/* Version: v1.1.0 */}}

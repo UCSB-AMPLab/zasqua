@@ -1,0 +1,339 @@
+# DACS descriptive standard profile
+#
+# DACS (Describing Archives: A Content Standard) is the North American
+# archival description standard. This file is the DACS profile: the field
+# labels, level labels (fonds, series, file, item), section headers, and
+# the ordered list of fields with their visibility flags. Templates read it
+# at build time to render archival records under the DACS standard.
+#
+# The profile structure mirrors isadg.yaml — the same top-level schema and
+# the same field keys — so a single template loop renders any standard. The
+# DACS-specific labels and the `show: false` flags reflect the DACS 2019
+# element set, with the English labels checked against the published
+# standard at https://saa-ts-dacs.github.io/.
+#
+# The Spanish profile is a placeholder. Each Spanish label is copied from
+# the ISAD(G) profile and marked `[STUB]`; a qualified archivist must supply
+# vetted Colombian Spanish DACS terminology before these labels are used in
+# production.
+#
+# To override for a deployment, copy this entire file to
+# instance/themes/{name}/data/standards/dacs.yaml and edit it. Hugo replaces
+# whole top-level keys across the theme chain, so a partial override would
+# silently drop the sibling language block — always ship the full file.
+
+en:
+  sections:
+    description:   "Description"
+    bibliographic: "Bibliographic information"
+    access:        "Conditions of Access and Use"
+    related:       "Related Materials"
+    notes:         "Notes"
+    control:       "Control"
+    reuse:         "Reuse"
+  levels:
+    fonds:      "Fonds"
+    subfonds:   "Subfonds"
+    series:     "Series"
+    subseries:  "Subseries"
+    file:       "File"
+    item:       "Item"
+    collection: "Collection"
+    section:    "Section"
+    volume:     "Volume"
+  levelsPlural:
+    fonds:      "fonds"
+    subfonds:   "subfonds"
+    series:     "series"
+    subseries:  "subseries"
+    file:       "files"
+    item:       "items"
+    collection: "collections"
+    section:    "sections"
+    volume:     "volumes"
+    caja:       "boxes"
+    carpeta:    "folders"
+    legajo:     "bundles"
+    tomo:       "volumes"
+  fields:
+    - key: repository
+      label: "Name and Location of Repository"
+      section: description
+      render: special
+      show: true
+      required: false
+    - key: date_formatted
+      label: "Date"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: reference_code
+      label: "Reference Code"
+      section: description
+      render: mono
+      show: true
+      required: true
+    - key: scope_content
+      label: "Scope and Content"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: extent
+      label: "Extent"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: arrangement
+      label: "System of Arrangement"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: publication_title
+      label: "Publication"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: series_statement
+      label: "Series"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: uniform_title
+      label: "Uniform title"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: section_title
+      label: "Section"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: edition_statement
+      label: "Edition"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: imprint
+      label: "Publication Note"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: pages
+      label: "Pages"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: access_conditions
+      label: "Conditions Governing Access"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: reproduction_conditions
+      label: "Conditions Governing Reproduction and Use"
+      section: access
+      render: special
+      show: true
+      required: false
+    - key: language
+      label: "Languages and Scripts of the Material"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: location_of_originals
+      label: "Existence and Location of Originals"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: location_of_copies
+      label: "Existence and Location of Copies"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: related_materials
+      label: "Related Archival Materials"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: notes
+      label: "Notes"
+      section: notes
+      render: pipelist
+      show: true
+      required: false
+    - key: finding_aids
+      label: "Finding Aids"
+      section: notes
+      render: plain
+      show: true
+      required: false
+
+# Spanish DACS profile — placeholder. Every label below is copied from the
+# ISAD(G) Spanish profile and marked [STUB]; it needs vetted Colombian
+# Spanish archival terminology (§8.11) before production use. Do not ship
+# these labels without professional archival review.
+es:
+  sections:
+    description:   "[STUB] Descripción"
+    bibliographic: "[STUB] Información bibliográfica"
+    access:        "[STUB] Condiciones de acceso"
+    related:       "[STUB] Materiales relacionados"
+    notes:         "[STUB] Notas"
+    control:       "[STUB] Control"
+    reuse:         "[STUB] Reutilización"
+  levels:
+    fonds:      "[STUB] Fondo"
+    subfonds:   "[STUB] Subfondo"
+    series:     "[STUB] Serie"
+    subseries:  "[STUB] Subserie"
+    file:       "[STUB] Expediente"
+    item:       "[STUB] Unidad documental"
+    collection: "[STUB] Colección"
+    section:    "[STUB] Sección"
+    volume:     "[STUB] Tomo"
+  levelsPlural:
+    fonds:      "[STUB] fondos"
+    subfonds:   "[STUB] subfondos"
+    series:     "[STUB] series"
+    subseries:  "[STUB] subseries"
+    file:       "[STUB] expedientes"
+    item:       "[STUB] documentos"
+    collection: "[STUB] colecciones"
+    section:    "[STUB] secciones"
+    volume:     "[STUB] tomos"
+    caja:       "[STUB] cajas"
+    carpeta:    "[STUB] carpetas"
+    legajo:     "[STUB] legajos"
+    tomo:       "[STUB] tomos"
+  fields:
+    - key: repository
+      label: "[STUB] Repositorio"
+      section: description
+      render: special
+      show: true
+      required: false
+    - key: date_formatted
+      label: "[STUB] Fecha"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: reference_code
+      label: "[STUB] Código de referencia"
+      section: description
+      render: mono
+      show: true
+      required: true
+    - key: scope_content
+      label: "[STUB] Alcance y contenido"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: extent
+      label: "[STUB] Extensión"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: arrangement
+      label: "[STUB] Signatura original"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: publication_title
+      label: "[STUB] Publicación"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: series_statement
+      label: "[STUB] Serie"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: uniform_title
+      label: "[STUB] Título uniforme"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: section_title
+      label: "[STUB] Sección"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: edition_statement
+      label: "[STUB] Edición"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: imprint
+      label: "[STUB] Nota de publicación"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: pages
+      label: "[STUB] Páginas"
+      section: bibliographic
+      render: plain
+      show: false
+    - key: access_conditions
+      label: "[STUB] Condiciones de acceso"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: reproduction_conditions
+      label: "[STUB] Condiciones de reproducción"
+      section: access
+      render: special
+      show: true
+      required: false
+    - key: language
+      label: "[STUB] Idioma"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: location_of_originals
+      label: "[STUB] Localización de los originales"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: location_of_copies
+      label: "[STUB] Existencia y localización de copias"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: related_materials
+      label: "[STUB] Materiales relacionados"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: notes
+      label: "[STUB] Notas"
+      section: notes
+      render: pipelist
+      show: true
+      required: false
+    - key: finding_aids
+      label: "[STUB] Instrumentos de consulta"
+      section: notes
+      render: plain
+      show: true
+      required: false
+
+# Version: v1.0.1

@@ -1,0 +1,121 @@
+{{/*
+  Zasqua descriptions content adapter
+
+  Hugo's way of turning a large JSON dataset into one page per archival
+  description without ever writing stub markdown files to disk. Runs
+  during Hugo's content-loading phase, reads the enriched description
+  records produced by scripts/generate-content.js, and calls AddPage
+  once per record so Hugo registers every description as a routable
+  page rooted at /{reference_code}/ (flat short-code URLs).
+
+  The descriptions dataset is sharded across multiple JSON files under
+  assets/hugo-data/descriptions/*.json (shard size 20,000 records,
+  filenames are opaque zero-padded indices produced by
+  scripts/generate-content.js). Sharding is required because the full
+  enriched dataset weighs ~610 MB and a single JSON file would exceed
+  V8's 512 MiB maximum string length, making it unparseable by any
+  JavaScript consumer and by Hugo's own transform.Unmarshal. This
+  adapter therefore uses resources.Match to glob the shard directory
+  and iterates every matched resource; it MUST NOT assume a single
+  unified hugo-data/descriptions.json and MUST NOT hard-code shard
+  filenames — both would re-introduce the V8 string-length landmine
+  that sharding exists to avoid.
+
+  The per-shard try/.Err/errorf pattern is non-negotiable — a bare
+  resources.Get returns nil silently on missing files and would let
+  Hugo produce a near-empty build without any error. The top-level
+  "no shards found" check catches the scenario where the enrichment
+  step has never run and the shard directory is empty.
+
+  Per-record modified_at ISO dates from the backend flow into Hugo's
+  .Lastmod via the page dict's dates.lastmod field, which drives both
+  ETag stability (the CDN diff-upload path only re-uploads pages whose
+  backend metadata actually changed) and the "Fecha de la descripción"
+  provenance line at the bottom of the Reutilización block in
+  layouts/descripcion/single.html. When modified_at is absent the dates
+  key is omitted entirely so Hugo falls back to its build/git date rather
+  than stamping the epoch zero-time (0001-01-01).
+
+  Hugo docs: https://gohugo.io/content-management/content-adapters/
+
+  Version: v1.1.0
+*/}}
+
+{{ $shards := resources.Match "hugo-data/descriptions/*.json" }}
+{{ if not $shards }}
+  {{ errorf "[descripcion adapter] No description shards found at assets/hugo-data/descriptions/*.json — has scripts/generate-content.js run yet?" }}
+{{ end }}
+
+{{ range $shardIndex, $shard := $shards }}
+  {{ $data := slice }}
+  {{ with try ($shard | transform.Unmarshal) }}
+    {{ with .Err }}
+      {{ errorf "[descripcion adapter] Unable to parse shard %s: %s" $shard.Name . }}
+    {{ else }}
+      {{ $data = .Value }}
+    {{ end }}
+  {{ end }}
+
+  {{ range $data }}
+    {{/* repository.descriptive_standard (optional field on the embedded
+         repository record) is read by _partials/resolve-profile.html to
+         select the active standard profile (default: isadg). No structural
+         change needed here — all repository fields flow through the
+         "repository" passthrough automatically. */}}
+    {{ $params := dict
+        "id" .id
+        "reference_code" .reference_code
+        "parent_reference_code" .parent_reference_code
+        "repository_code" .repository_code
+        "repository" .repository
+        "ancestor_chain" .ancestor_chain
+        "date_formatted" .date_formatted
+        "date_expression" .date_expression
+        "date_start" .date_start
+        "entity_links" .entity_links
+        "place_links" .place_links
+        "description_level" .description_level
+        "country" .country
+        "local_identifier" .local_identifier
+        "has_children" .has_children
+        "child_count" .child_count
+        "children_level" .children_level
+        "has_digital" .has_digital
+        "iiif_manifest_url" .iiif_manifest_url
+        "mets_url" .mets_url
+        "scope_content" .scope_content
+        "ocr_text" .ocr_text
+        "extent" .extent
+        "arrangement" .arrangement
+        "access_conditions" .access_conditions
+        "reproduction_conditions" .reproduction_conditions
+        "language" .language
+        "location_of_originals" .location_of_originals
+        "location_of_copies" .location_of_copies
+        "related_materials" .related_materials
+        "finding_aids" .finding_aids
+        "notes" .notes
+        "publication_title" .publication_title
+        "imprint" .imprint
+        "edition_statement" .edition_statement
+        "series_statement" .series_statement
+        "uniform_title" .uniform_title
+        "section_title" .section_title
+        "pages" .pages
+        "creator_display" .creator_display
+        "place_display" .place_display
+    }}
+    {{ $page := dict
+        "kind" "page"
+        "path" .reference_code
+        "title" .title
+        "params" $params
+        "content" (dict "mediaType" "text/html" "value" "")
+    }}
+    {{/* Set lastmod only when modified_at is present — avoids epoch zero-time */}}
+    {{ with .modified_at }}{{ $page = merge $page (dict "dates" (dict "lastmod" (time.AsTime .))) }}{{ end }}
+    {{/* Flat short-code URL override: /{reference_code}/ not /descripcion/{reference_code}/ */}}
+    {{ $page = merge $page (dict "url" (printf "/%s/" .reference_code)) }}
+    {{ $.AddPage $page }}
+  {{ end }}
+{{ end }}

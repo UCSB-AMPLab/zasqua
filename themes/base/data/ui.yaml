@@ -1,0 +1,158 @@
+# Zasqua UI strings — Colombian Spanish
+#
+# This file holds the residual Spanish text that Hugo templates still read via
+# `.Site.Data.ui` at render time: navigation labels, search/facet copy,
+# record-provenance strings, repository-page labels, footer copy, and general
+# chrome. Several sections that used to live here have since moved to more
+# specific homes:
+#
+#   levels/levelsPlural — moved to the standards profiles (data/standards/)
+#   roles/roleGroups/placeRoles — moved to the vocab files (data/vocab/)
+#   entity: / place: blocks — moved to the i18n bundles (themes/base/i18n/)
+#   fields: — removed once nothing consumed it
+#
+# What remains: nav, error404, breadcrumb, search, facets, recordMeta,
+# description, repository, footer, general. Templates reach these via
+# `hugo.Data.ui.*`; e.g. `hugo.Data.ui.facets` is injected as
+# data-facet-labels on the search page.
+#
+# Version: v1.2.0
+
+# Navigation
+nav:
+  home: "Inicio"
+  search: "Buscar"
+  about: "Acerca"
+  catalogacion: "Catalogación"
+  browse: "Explorar"
+
+# Error pages
+error404:
+  title: "Página no encontrada"
+  message: "La página solicitada no existe o fue trasladada."
+  home: "Volver al inicio"
+  search: "Buscar en el catálogo"
+
+# Breadcrumbs
+breadcrumb:
+  home: "Inicio"
+
+# Search page
+search:
+  placeholder: "Buscar en el catálogo..."
+  button: "Buscar"
+  results: "{count} resultados"
+  noResults: "No se encontraron resultados"
+  clearFilters: "Limpiar filtros"
+  filtersHeader: "Filtros"
+  sidebarHeading: "Filtrar por:"
+  sidebarSearch: "Buscar en resultados..."
+  sort:
+    label: "Ordenar por"
+    relevance: "Relevancia"
+    dateAsc: "Fecha (más antiguo)"
+    dateDesc: "Fecha (más reciente)"
+    titleAsc: "Título (A-Z)"
+  filterToggle: "Filtros"
+  noResultsSuggestion: "Intenta limpiar los filtros o modificar la consulta."
+  dateFrom: "Desde"
+  dateTo: "Hasta"
+
+# Facet labels
+facets:
+  repository: "Repositorio"
+  level: "Nivel de descripción"
+  dateRange: "Rango de fechas"
+  hasDigital: "Copia digitalizada disponible"
+  country: "País"
+
+# levels/levelsPlural removed — moved to the standards profiles. Consumers
+# now read $profile.levels / $profile.levelsPlural.
+
+# Shared record-provenance strings (description / entity / place
+# detail pages). Archival convention:
+#   ISAD(G)    3.7.3 — "Dates of description"
+#   ISAAR(CPF) 5.4.7 — "Dates of creation, revision or deletion"
+# Rendered as a labelled `detail-field` row inside each record's
+# "Control" section. The value is `.Lastmod.Format "2006-01-02"`
+# (ISO YYYY-MM-DD), sourced from the backend's per-record
+# `modified_at` via the content adapter's `dates.lastmod`. Kept as
+# an ISO string for consistency with other date fields on the site
+# (date_start etc.); the Spanish narrative form is reserved for the
+# archival `date_expression` field.
+recordMeta:
+  descriptionDateLabel: "Fecha de la descripción"
+  descriptionDateValue: "Esta descripción se actualizó por última vez el {date}."
+
+# Description page
+description:
+  metadataHeader: "Descripción"
+  bibliographicHeader: "Información bibliográfica"
+  accessConditionsHeader: "Condiciones de acceso"
+  relatedMaterialsHeader: "Materiales relacionados"
+  notesHeader: "Notas"
+  entitiesHeader: "Personas y entidades relacionadas"
+  placesHeader: "Lugares"
+  controlHeader: "Control"
+  reuseHeader: "Reutilización"
+  metsLabel: "Metadatos METS"
+  iiifLabel: "Manifiesto IIIF"
+  childrenHeader: "Contenido"
+  previous: "Anterior"
+  next: "Siguiente"
+  notDigitised: "Material no digitalizado"
+  notDigitisedText: "Este documento no cuenta con copia digital. Para consultarlo, diríjase al repositorio de origen."
+  externalDigital: "Copia digital disponible"
+  externalDigitalText: "Este documento ha sido digitalizado y puede consultarse en el repositorio de la institución custodia."
+  viewAllChildren: "Ver los {count} documentos"
+
+# roles/roleGroups/placeRoles removed — moved to data/vocab/es.yaml +
+# data/vocab/en.yaml. Template injection now reads Data.vocab.*.
+
+# entity: block removed — types moved to data/vocab/es.yaml +
+# data/vocab/en.yaml; sections, fields, and page copy moved to the i18n
+# bundles (es.toml/en.toml [entity.*]). No template or script still reads
+# Data.ui.entity.
+
+# place: block removed — types moved to data/vocab/es.yaml +
+# data/vocab/en.yaml; sections, fields, and page copy moved to the i18n
+# bundles (es.toml/en.toml [place.*]). No template or script still reads
+# Data.ui.place.
+
+# fields: block removed — every ISAD(G) field label moved to the standards
+# profiles, and nothing consumed it any longer.
+
+# Repository page
+repository:
+  itemsCount: "documentos"
+  dateRange: "Fechas extremas"
+  collections: "Fondos y colecciones"
+  noCollections: "No hay colecciones disponibles"
+
+# Footer
+footer:
+  # Deployer identity is supplied via site.Params, NOT a data override
+  # (Hugo replaces whole top-level data maps across the theme chain, so a
+  # partial footer override would drop colofon_link_text below). The base
+  # footer reads site.Params.footer_credits for the credits paragraph and
+  # `site.Params.footer_copyright | default` this bare mark for copyright.
+  # The engine's own framework attribution is rendered separately and is
+  # hardcoded in the framework-credit.html partial (not configurable).
+  credits: ""
+  copyright: "© {year}"
+  # Link text on the "about / colophon" footer anchor. The colophon
+  # page (content/colofon/ + layouts/colofon/list.html) carries the
+  # version string, credits, licence, and technical stack. Keeping
+  # the version out of the site-wide footer means a version bump in
+  # hugo.toml re-uploads one page, not all ~192K (see footer.html
+  # narrative header for the history).
+  colofon_link_text: "Colofón"
+
+# General
+general:
+  loading: "Cargando..."
+  error: "Ha ocurrido un error"
+  viewMore: "Ver más"
+  back: "Volver"
+
+# Version: v1.2.0

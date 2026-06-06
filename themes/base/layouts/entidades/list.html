@@ -1,0 +1,295 @@
+{{/*
+  Zasqua entity explorer (/entidades/)
+
+  Renders the entity explorer page: a force-graph panel on top, a
+  selected-entity card, a filter column with viewport toggle + search
+  + facets, and a results column driven by Pagefind. All interactivity
+  lives in the accompanying JS files (infinite-bipartite-explorer.js
+  + entity-explorer.js + this page's inline IIFE).
+
+  Data attributes on the #entity-explorer host carry the render-time
+  vocabulary so the client controller never hardcodes a label:
+  data-entity-types (vocab.entityTypes, keyed by entity_type code),
+  data-role-labels (vocab.roles, the 27-role display table), and
+  data-role-group-labels (vocab.roleGroups, the accordion headers keyed
+  by the English group IDs entity-explorer.js already uses). Each is
+  emitted via printf + safeHTMLAttr to preserve raw double quotes.
+
+  Vocab source: themes/base/data/vocab/{lang}.yaml, resolved by
+  site.Language.LanguageCode ("es-CO" → "es", "en-US" → "en"), falling
+  back to vocab.es when the language key is absent.
+
+  The sibling #graph-container host (read by
+  infinite-bipartite-explorer.js) carries its own data-role-labels and
+  data-entity-type-labels (both from vocab.yaml, keyed by code) plus a
+  data-i18n blob with the legend items, tooltip/expand strings, and
+  graph.* count strings (linkedDocs, docsMore, loadNextBatch, refocus,
+  overflowDocs) and the connectedTo {one,other} plural. The bipartite
+  graph reads every string blob-only, no Spanish fallback.
+
+  The single data-i18n blob is built by merging the shared chrome dict
+  (_partials/i18n-blob.html — clearFilters, viewAll, sortBy, pagination,
+  centuryLabel, etc.) with the entity-only keys this surface needs
+  (overload/landing copy, count/doc-count plurals, card chrome, facet
+  titles, error/no-results strings). entity-explorer.js reads every
+  string from this single-source blob with no Spanish fallback;
+  Spanish lives only in es.toml, mirrored in en.toml.
+
+  The entity-count-live span starts at a baseline string; JS overrides
+  this with the live Pagefind-indexed count once the index is ready.
+
+  Four example-entity buttons in the empty-state prose link to
+  canonical entity codes in the current corpus. Refresh these codes
+  whenever the underlying authority records change.
+
+  Version: v1.5.0
+*/}}
+{{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
+
+{{ define "head" }}
+  <script src="https://cdn.jsdelivr.net/npm/force-graph"></script>
+{{ end }}
+
+{{ define "main" }}
+{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
+{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
+{{ $vocab := index hugo.Data.vocab $langKey }}
+{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+{{ $i18n := partial "i18n-blob.html" . }}
+{{ $i18n = merge $i18n (dict
+  "calculatingTotal"    (i18n "entity.calculatingTotal")
+  "overloadCount"       (i18n "entity.overloadCount")
+  "landingCount"        (i18n "entity.landingCount")
+  "overloadHint"        (i18n "entity.overloadHint")
+  "landingHint"         (i18n "entity.landingHint")
+  "browsePromptWarning" (i18n "ui.browsePromptWarning")
+  "countLabel"          (dict "one" (i18n "entity.countLabel" 1) "other" (i18n "entity.countLabel" 2))
+  "resultDocCount"      (dict "one" (i18n "entity.resultDocCount" 1) "other" (i18n "entity.resultDocCount" 2))
+  "variantsLabel"       (i18n "entity.variantsLabel")
+  "cardEyebrow"         (i18n "entity.cardEyebrow")
+  "cardLink"            (i18n "entity.cardLink")
+  "deselect"            (i18n "entity.deselect")
+  "selectPrompt"        (i18n "entity.selectPrompt")
+  "searchPlaceholder"   (i18n "entity.searchPlaceholder")
+  "searchAria"          (i18n "entity.searchAria")
+  "errorTitle"          (i18n "entity.errorTitle")
+  "errorHint"           (i18n "entity.errorHint")
+  "focalRoleTitle"      (i18n "entity.focalRoleTitle")
+  "facetEntityType"     (i18n "entity.facetEntityType")
+  "facetPrimaryFunction" (i18n "entity.facetPrimaryFunction")
+  "filterToggle"        (i18n "entity.filterToggle")
+  "entityNoResults"     (i18n "entity.noResults")
+  "entityNoResultsSuggestion" (i18n "entity.noResultsSuggestion")
+  "exploreAll"          (i18n "entity.exploreAll")
+) }}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/">{{ i18n "breadcrumb.home" }}</a>
+    <span class="breadcrumb-separator">&rsaquo;</span>
+    <span>{{ i18n "entity.explorerTitle" }}</span>
+  </div>
+</nav>
+
+<div class="explorer-page">
+
+  <header class="explorer-page-header">
+    <h1 class="explorer-page-title">{{ i18n "entity.explorerTitle" }}</h1>
+    <p class="explorer-page-intro">{{ replace (i18n "entity.explorerIntro") "{count}" `<strong id="entity-count-live">92.042</strong>` | safeHTML }}</p>
+  </header>
+
+  <div class="explorer-grid">
+
+    <section class="explorer-graph-panel entity-graph-frame">
+      <div id="graph-container" style="width:100%;height:100%"
+           {{ printf `data-role-labels='%s'` (jsonify $vocab.roles) | safeHTMLAttr }}
+           {{ printf `data-entity-type-labels='%s'` (jsonify $vocab.entityTypes) | safeHTMLAttr }}
+           {{ printf `data-i18n='%s'` (jsonify (dict
+             "connectedTo"          (dict "one" (i18n "graph.connectedTo" 1) "other" (i18n "graph.connectedTo" 2))
+             "expand"               (i18n "graph.expand")
+             "loading"              (i18n "graph.loading")
+             "viewportFilterLabel"  (i18n "entity.viewportFilterLabel")
+             "viewportFilterActive" (i18n "entity.viewportFilterActive")
+             "exploreAll"           (i18n "entity.exploreAll")
+             "linkedDocs"           (i18n "graph.linkedDocs")
+             "docsMore"             (i18n "graph.docsMore")
+             "loadNextBatch"        (i18n "graph.loadNextBatch")
+             "refocus"              (i18n "graph.refocus")
+             "overflowDocs"         (i18n "graph.overflowDocs")
+             "legendPerson"         (i18n "entity.legend.person")
+             "legendCorporateFamily" (i18n "entity.legend.corporateFamily")
+             "legendDocExpandable"  (i18n "entity.legend.docExpandable")
+             "legendDocPlain"       (i18n "entity.legend.docPlain")
+             "dateConnector"        (i18n "ui.dateConnector")
+           )) | safeHTMLAttr }}></div>
+      <div id="graph-legend" class="graph-legend"></div>
+      <div id="graph-tooltip" class="graph-tooltip" style="display:none"></div>
+
+      <div id="graph-empty-state" class="graph-empty-state">
+        <div class="graph-empty-state-inner">
+          <img src="/img/zasqua-3-burgundy-sm.svg"
+               alt="Zasqua"
+               class="graph-empty-state-logo">
+          <p class="graph-empty-state-text">{{ i18n "entity.emptyState.prose1" }}</p>
+          <p class="graph-empty-state-text">
+            {{ i18n "entity.emptyState.prose2" }}
+            <button type="button" class="graph-empty-state-link" data-entity="ne-93s56">Real Audiencia de Quito</button>,
+            <button type="button" class="graph-empty-state-link" data-entity="ne-9t8ii">Cabildo de Rionegro</button>,
+            <button type="button" class="graph-empty-state-link" data-entity="ne-hnh98">José Gabriel Túpac Amaru</button>
+            o
+            <button type="button" class="graph-empty-state-link" data-entity="ne-ff33n">Simón Bolívar</button>.
+          </p>
+        </div>
+      </div>
+
+    </section>
+
+    <aside class="explorer-selected-col">
+      <div id="focal-entity-card" class="selected-entity-card">
+        <div class="selected-entity-stub">{{ i18n "entity.selectPrompt" }}</div>
+      </div>
+    </aside>
+
+    <aside class="explorer-filters-col">
+      <button type="button"
+              id="viewport-filter-toggle"
+              class="viewport-filter-btn"
+              aria-pressed="false"
+              {{ printf `data-i18n='%s'` (jsonify (dict
+                "viewportFilterLabel"  (i18n "entity.viewportFilterLabel")
+                "viewportFilterActive" (i18n "entity.viewportFilterActive")
+              )) | safeHTMLAttr }}>
+        <svg class="viewport-filter-icon" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M5 2.5 L5 13.5 M2.5 5 L5 2.5 L7.5 5 M11 13.5 L11 2.5 M8.5 11 L11 13.5 L13.5 11"
+                stroke="currentColor" stroke-width="1.6" fill="none"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="viewport-filter-label">{{ i18n "entity.viewportFilterLabel" }}</span>
+      </button>
+
+      <div id="entity-search-input" class="explorer-filter-search"></div>
+
+      <div id="sidebar-facets"></div>
+    </aside>
+
+    <div class="explorer-results-col">
+      <div id="entity-explorer"
+           {{ printf `data-entity-types='%s'` (jsonify $vocab.entityTypes) | safeHTMLAttr }}
+           {{ printf `data-role-labels='%s'` (jsonify $vocab.roles) | safeHTMLAttr }}
+           {{ printf `data-role-group-labels='%s'` (jsonify $vocab.roleGroups) | safeHTMLAttr }}
+           {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}></div>
+    </div>
+
+  </div>
+
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+  <script src="/js/infinite-bipartite-explorer.js"></script>
+  <script src="/js/entity-explorer.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      var _locale = document.documentElement.lang || 'es-CO';
+
+      var graphContainer = document.getElementById('graph-container');
+      var sidebarContainer = document.getElementById('entity-explorer');
+
+      var graph = new InfiniteBipartiteExplorer(graphContainer);
+      var sidebar = new EntityExplorer(sidebarContainer);
+
+      graph.onEntityFocused = function(entityCode, entityMeta, shard) {
+        sidebar.highlightEntity(entityCode, entityMeta, shard);
+      };
+
+      sidebar.onFocalRoleFilterChanged = function(rolesSet) {
+        graph.setFocalRoleFilter(rolesSet);
+      };
+
+      sidebar.onFocalCleared = function() {
+        graph.dismissTooltip && graph.dismissTooltip();
+      };
+
+      graph.onFocalVisibilityChanged = function(visible) {
+        var card = document.getElementById('focal-entity-card');
+        if (!card) return;
+        if (visible) {
+          card.classList.remove('is-excluded');
+        } else {
+          card.classList.add('is-excluded');
+        }
+      };
+
+      sidebar.onEntitySelected = function(entityCode) {
+        graph.refocusOn(entityCode);
+      };
+
+      sidebar.onFilterChanged = function(filters) {
+        graph.applyFilters(filters);
+      };
+
+      sidebar._visibleCodeSource = function() { return graph.getVisibleEntityCodes(); };
+      sidebar._visibleEntitiesSource = function() { return graph.getVisibleEntities(); };
+
+      var viewportToggle = document.getElementById('viewport-filter-toggle');
+      var viewportLabel = viewportToggle && viewportToggle.querySelector('.viewport-filter-label');
+      var rerunDebounced = null;
+      if (viewportToggle) {
+        var _i18n = {};
+        try { _i18n = JSON.parse(viewportToggle.dataset.i18n || '{}'); } catch (e) {}
+        viewportToggle.addEventListener('click', function() {
+          sidebar.viewportFilter = !sidebar.viewportFilter;
+          viewportToggle.classList.toggle('is-active', sidebar.viewportFilter);
+          viewportToggle.setAttribute('aria-pressed', sidebar.viewportFilter ? 'true' : 'false');
+          if (viewportLabel) {
+            viewportLabel.textContent = sidebar.viewportFilter
+              ? (_i18n.viewportFilterActive || 'Filtrando por vista del explorador')
+              : (_i18n.viewportFilterLabel || 'Filtrar por vista del explorador');
+          }
+          sidebar.state.page = 1;
+          sidebar.search();
+        });
+      }
+
+      var emptyState = document.getElementById('graph-empty-state');
+      var hasUrlEntity = !!new URLSearchParams(location.search).get('entidad');
+      if (emptyState) {
+        if (!hasUrlEntity) emptyState.classList.add('is-active');
+        emptyState.querySelectorAll('button[data-entity]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var code = btn.getAttribute('data-entity');
+            if (code) graph.refocusOn(code);
+          });
+        });
+      }
+
+      var prevOnFocused = graph.onEntityFocused;
+      graph.onEntityFocused = function(entityCode, entityMeta, shard) {
+        if (emptyState) emptyState.classList.remove('is-active');
+        if (prevOnFocused) prevOnFocused(entityCode, entityMeta, shard);
+      };
+
+      graph.init({ skipAutoLoad: !hasUrlEntity });
+      sidebar.init();
+
+      if (graph.graphInstance && typeof graph.graphInstance.onZoom === 'function') {
+        graph.graphInstance.onZoom(function() {
+          graph.updateTooltipPosition && graph.updateTooltipPosition();
+          if (!sidebar.viewportFilter) return;
+          clearTimeout(rerunDebounced);
+          rerunDebounced = setTimeout(function() { sidebar.search(); }, 250);
+        });
+      }
+
+      sidebar.onReady = function() {
+        var el = document.getElementById('entity-count-live');
+        if (el && typeof sidebar.getTotalEntityCount === 'function') {
+          var n = sidebar.getTotalEntityCount();
+          if (n > 0) el.textContent = new Intl.NumberFormat(_locale).format(n);
+        }
+      };
+    })();
+  </script>
+{{ end }}
+{{/* Version: v1.5.0 */}}

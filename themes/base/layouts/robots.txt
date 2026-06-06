@@ -1,0 +1,22 @@
+{{/*
+  robots.txt template
+
+  Renders the site's production robots.txt from Hugo at build time,
+  ending up in `public/robots.txt` and uploaded to R2 like any other
+  page. Cloudflare's zone-level Managed Robots.txt feature intercepts
+  `/robots.txt` at the edge and prepends its content-signal block and
+  AI-bot rules before the origin body, so the final served file
+  contains Cloudflare's managed rules AND this template's Sitemap
+  directive — which is what we actually want.
+
+  The sitemap URL points at `sitemap.xml`; in production that file is
+  a sitemap index (written by `scripts/shard-sitemap.py` during the
+  deploy workflow) that references per-shard sitemap files. Crawlers
+  follow the index transparently.
+
+  Version: v1.0.1
+*/ -}}
+User-agent: *
+Allow: /
+
+Sitemap: {{ "sitemap.xml" | absURL }}

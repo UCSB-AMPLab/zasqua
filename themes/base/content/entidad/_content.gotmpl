@@ -1,0 +1,89 @@
+{{/*
+  Zasqua entities content adapter
+
+  Turns the enriched entities JSON into one Hugo page per entity
+  (persons, corporate bodies, and families catalogued in the ISAAR(CPF)
+  authority records). Reads assets/hugo-data/entities.json — a single
+  file, ~35 MB, produced by scripts/generate-content.js — and calls
+  AddPage once per record, rooting each page at /{entity_code}/ (e.g.
+  /ne-da5jn/). Entities are NOT sharded because the full file sits
+  comfortably under V8's 512 MiB string-length ceiling; sharding is
+  only applied to the descriptions dataset where it is strictly
+  necessary.
+
+  Module gating: the entire adapter is wrapped in a
+  hugo.Data.manifest.modules.entities check. When entities is false in
+  zasqua.manifest.toml, no entity pages are emitted — AddPage is never
+  called and no /entity-code/ URLs are created. Truthiness is used
+  (not eq-true) so the "auto" string value also reads as on.
+  The descriptions adapter (Core) is left ungated.
+
+  The try/.Err/errorf triple surfaces load failures loudly — a bare
+  resources.Get returns nil silently on missing files and would let
+  Hugo emit a build with no entity pages and no error.
+
+  Per-record modified_at ISO dates from the backend flow into Hugo's
+  .Lastmod via the page dict's dates.lastmod field, which drives both
+  ETag stability and the provenance line at the bottom of the
+  Reutilización block in layouts/entidad/single.html. When modified_at
+  is absent the dates key is omitted so Hugo falls back to its
+  build/git date rather than stamping the epoch zero-time.
+
+  Hugo docs: https://gohugo.io/content-management/content-adapters/
+
+  Version: v1.2.0
+*/}}
+
+{{ if hugo.Data.manifest.modules.entities }}
+{{ $data := slice }}
+{{ with try (resources.Get "hugo-data/entities.json") }}
+  {{ with .Err }}
+    {{ errorf "[entidad adapter] Unable to read hugo-data/entities.json: %s" . }}
+  {{ else }}
+    {{ with try (.Value | transform.Unmarshal) }}
+      {{ with .Err }}
+        {{ errorf "[entidad adapter] Unable to parse hugo-data/entities.json: %s" . }}
+      {{ else }}
+        {{ $data = .Value }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ range $data }}
+  {{ $params := dict
+      "entity_code" .entity_code
+      "display_name" .display_name
+      "sort_name" .sort_name
+      "entity_type" .entity_type
+      "roles" .roles
+      "given_name" .given_name
+      "surname" .surname
+      "honorific" .honorific
+      "date_earliest" .date_earliest
+      "date_latest" .date_latest
+      "name_variants" .name_variants
+      "primary_function" .primary_function
+      "functions" .functions
+      "dates_of_existence" .dates_of_existence
+      "history" .history
+      "viaf_id" .viaf_id
+      "dbe_id" .dbe_id
+      "wikidata_id" .wikidata_id
+      "date_formatted" .date_formatted
+      "_linked_count" ._linked_count
+  }}
+  {{ $page := dict
+      "kind" "page"
+      "path" .entity_code
+      "title" .display_name
+      "params" $params
+      "content" (dict "mediaType" "text/html" "value" "")
+  }}
+  {{/* Set lastmod only when modified_at is present — avoids epoch zero-time */}}
+  {{ with .modified_at }}{{ $page = merge $page (dict "dates" (dict "lastmod" (time.AsTime .))) }}{{ end }}
+  {{/* Flat short-code URL override — /ne-xxxxxx/ not /entidad/ne-xxxxxx/ */}}
+  {{ $page = merge $page (dict "url" (printf "/%s/" .entity_code)) }}
+  {{ $.AddPage $page }}
+{{ end }}
+{{ end }}{{/* end manifest.modules.entities gate */}}

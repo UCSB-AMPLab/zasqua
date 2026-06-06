@@ -1,0 +1,61 @@
+{{/*
+  Site header partial (neutral base)
+
+  Renders the top-of-page chrome: logo link, hamburger toggle, and the
+  nav list with an Explorar dropdown, optional About and catalog links,
+  and a search form that posts to /buscar/.
+
+  Logo and external links are read from site.Params so each instance
+  supplies its own identity without touching this file:
+  - site.Params.logo        — path to the logo image (optional; omitted
+                              when absent so a text-only logo renders)
+  - site.Params.about_url   — URL for the "Acerca" link (optional)
+  - site.Params.catalog_url — URL for the "Catalogación" link (optional)
+
+  Chrome strings (nav labels, search placeholder) resolve from the i18n
+  bundle selected by the manifest [ui].language setting. This means the
+  same template renders in English or Colombian Spanish depending on the
+  instance configuration, with no hardcoded prose in this file.
+
+  Module gating: the Entidades and Lugares nav links are wrapped in
+  manifest checks so they are omitted when the corresponding module is
+  disabled. The Documentos link (always part of the core) is always
+  rendered. Truthiness is used (not an equality test against true) so
+  the "auto" string also reads as on.
+
+  The hamburger toggle and nav-dropdown open/close behaviour are wired
+  by /js/header.js (injected by baseof.html). This partial is HTML-only.
+
+  Version: v2.3.0
+*/}}
+<header class="site-header">
+  <div class="container">
+    <a href="/" class="site-logo">
+      {{ with site.Params.logo }}<img src="{{ . }}" alt="{{ site.Title }}">{{ end }}
+      <span class="site-logo-text font-serif"><strong>{{ site.Title }}</strong></span>
+    </a>
+    <button class="hamburger-toggle" type="button" aria-label="Menu" aria-expanded="false">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <nav class="site-nav font-sans">
+      <a href="/" class="text-sm uppercase tracking-wide">{{ i18n "nav.home" }}</a>
+      <div class="nav-dropdown">
+        <button type="button" class="nav-dropdown-trigger text-sm uppercase tracking-wide">
+          {{ i18n "nav.browse" }} <span class="material-symbols-outlined nav-dropdown-arrow">expand_more</span>
+        </button>
+        <div class="nav-dropdown-menu">
+          <a href="/buscar/">{{ i18n "nav.documents" }}</a>
+          {{ if hugo.Data.manifest.modules.entities }}<a href="/entidades/">{{ i18n "nav.entities" }}</a>{{ end }}
+          {{ if hugo.Data.manifest.modules.places }}<a href="/lugares/">{{ i18n "nav.places" }}</a>{{ end }}
+        </div>
+      </div>
+      {{ with site.Params.about_url }}<a href="{{ . }}" class="text-sm uppercase tracking-wide">{{ i18n "nav.about" }}</a>{{ end }}
+      {{ with site.Params.catalog_url }}<a href="{{ . }}" class="text-sm uppercase tracking-wide">{{ i18n "nav.catalogacion" }}</a>{{ end }}
+      <form class="header-search" action="/buscar/" method="get">
+        <input type="search" name="q" placeholder="{{ i18n "search.placeholder" }}">
+        <button type="submit"><span class="material-symbols-outlined">search</span></button>
+      </form>
+    </nav>
+  </div>
+</header>
+{{/* Version: v2.3.0 */}}

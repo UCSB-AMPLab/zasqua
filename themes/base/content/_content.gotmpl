@@ -1,0 +1,49 @@
+{{/*
+  Section Page Root Adapter — Conditional Entidades and Lugares Landing Pages
+
+  This root-level content adapter conditionally emits the /entidades/ and
+  /lugares/ section home pages when the corresponding modules are enabled in
+  zasqua.manifest.toml. It replaces the per-section adapters that previously
+  lived in content/entidades/_content.gotmpl and content/lugares/_content.gotmpl.
+
+  Why this lives at the root instead of inside each section directory:
+
+  Hugo 0.145+ content adapters resolve the AddPage "path" argument relative to
+  the directory containing _content.gotmpl, not relative to the content root.
+  A _content.gotmpl inside content/entidades/ with path="entidades" therefore
+  creates /entidades/entidades/ — a spurious nested page — while also causing
+  Hugo to auto-generate an unwanted /entidades/ branch list page with the wrong
+  .Pages context. The only safe way to emit a section page at /entidades/ is to
+  call AddPage from the root adapter with path="entidades", where the path is
+  resolved relative to the content root.
+
+  Both sections are handled here so the root adapter file remains the single
+  place to look for conditional section creation; per-section directories keep
+  only their _index.md (with build.render = "never") to suppress any
+  auto-rendered section pages when the module is disabled.
+
+  Truthiness is used throughout (not eq true) so the "auto" string value also
+  reads as on, the same convention used across all module gating. Adapters for
+  individual entity and place records remain in their respective per-section
+  _content.gotmpl files (entidad/ and lugar/).
+
+  Version: v1.0.0
+*/}}
+
+{{ if hugo.Data.manifest.modules.entities }}
+  {{ $.AddPage (dict
+      "kind"    "section"
+      "path"    "entidades"
+      "title"   "Explorar entidades"
+      "content" (dict "mediaType" "text/html" "value" "")
+  ) }}
+{{ end }}{{/* end manifest.modules.entities gate */}}
+
+{{ if hugo.Data.manifest.modules.places }}
+  {{ $.AddPage (dict
+      "kind"    "section"
+      "path"    "lugares"
+      "title"   "Explorar lugares"
+      "content" (dict "mediaType" "text/html" "value" "")
+  ) }}
+{{ end }}{{/* end manifest.modules.places gate */}}
