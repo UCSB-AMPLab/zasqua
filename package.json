@@ -1,0 +1,60 @@
+{
+  "name": "@ampl/zasqua",
+  "version": "1.0.0",
+  "description": "Zasqua: open-source archival platform for hosting and discovering digitized historical documents.",
+  "bin": {
+    "zasqua": "./bin/zasqua.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "scripts/precompute-links.js",
+    "scripts/derive-children.js",
+    "scripts/generate-content.js",
+    "scripts/generate-pagefind-indices.js",
+    "scripts/enrichment/",
+    "schemas/",
+    "docs/",
+    "templates/",
+    "themes/base/",
+    "build.sh"
+  ],
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UCSB-AMPLab/zasqua.git"
+  },
+  "author": {
+    "name": "Juan Cobo Betancourt",
+    "email": "juan@neogranadina.org"
+  },
+  "contributors": [
+    {
+      "name": "Archives, Memory, and Preservation Lab, University of California, Santa Barbara"
+    },
+    {
+      "name": "Neogranadina"
+    }
+  ],
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.2.2",
+    "ajv": "8.20.0",
+    "csv-parse": "6.2.1",
+    "entities": "7.0.1",
+    "fast-xml-parser": "5.8.0",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "hugo-extended": "0.160.1",
+    "pagefind": "^1.5.2",
+    "sanitize-html": "2.17.4",
+    "smol-toml": "1.6.1",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "js-yaml": "4.2.0",
+    "vitest": "^2.1.9"
+  }
+}

@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use Zasqua in your work, please cite it as below."
+title: Zasqua
+type: software
+authors:
+  - family-names: Cobo Betancourt
+    given-names: Juan
+    affiliation: "Archives, Memory, and Preservation Lab, University of California, Santa Barbara; Neogranadina"
+    orcid: "https://orcid.org/0000-0003-4776-0261"
+  - name: "Archives, Memory, and Preservation Lab, University of California, Santa Barbara"
+  - name: "Neogranadina"
+repository-code: "https://github.com/UCSB-AMPLab/zasqua"
+url: "https://ampl.clair.ucsb.edu"
+license: AGPL-3.0-only
