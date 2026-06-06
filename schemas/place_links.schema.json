@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.0/place_links.schema.json",
+  "x-contract-version": "1.0",
+  "title": "Zasqua place_links.json — Data Contract v1.0",
+  "description": "JSON Schema draft-07 for the place_links export file (description-to-place link table) produced by the Zasqua data contract v1.0. Required keys + types are authoritative from docs/data-contract.md.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "place_code",
+      "reference_code"
+    ],
+    "properties": {
+      "place_code": { "type": "string" },
+      "reference_code": { "type": "string" },
+      "title": { "type": "string" },
+      "date_expression": { "type": "string" },
+      "repository_code": { "type": "string" },
+      "role": { "type": "string" }
+    }
+  }
+}

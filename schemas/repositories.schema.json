@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.0/repositories.schema.json",
+  "x-contract-version": "1.0",
+  "title": "Zasqua repositories.json — Data Contract v1.0",
+  "description": "JSON Schema draft-07 for the repositories export file produced by the Zasqua data contract v1.0. Required keys + types are authoritative from docs/data-contract.md.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "code",
+      "name"
+    ],
+    "properties": {
+      "id": { "type": "integer" },
+      "code": { "type": "string" },
+      "name": { "type": "string" },
+      "short_name": { "type": "string" },
+      "country": { "type": "string" },
+      "city": { "type": "string" },
+      "description_count": { "type": "integer" },
+      "image_reproduction_text": { "type": "string" },
+      "root_descriptions": { "type": "array" },
+      "modified_at": { "type": "string" }
+    }
+  }
+}
