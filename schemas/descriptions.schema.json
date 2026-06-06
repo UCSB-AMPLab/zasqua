@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.0/descriptions.schema.json",
+  "x-contract-version": "1.0",
+  "title": "Zasqua descriptions.json — Data Contract v1.0",
+  "description": "JSON Schema draft-07 for the descriptions export file produced by the Zasqua data contract v1.0. Required keys + types are authoritative from docs/data-contract.md.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "reference_code",
+      "title",
+      "description_level",
+      "parent_reference_code",
+      "repository_code"
+    ],
+    "properties": {
+      "id": { "type": "integer" },
+      "reference_code": { "type": "string" },
+      "title": { "type": "string" },
+      "description_level": { "type": "string" },
+      "parent_reference_code": { "type": ["string", "null"] },
+      "repository_code": { "type": "string" },
+      "country": { "type": "string" },
+      "date_expression": { "type": "string" },
+      "date_start": { "type": ["string", "null"] },
+      "has_children": { "type": "boolean" },
+      "has_digital": { "type": "boolean" },
+      "scope_content": { "type": "string" },
+      "extent": { "type": "string" },
+      "arrangement": { "type": "string" },
+      "access_conditions": { "type": "string" },
+      "reproduction_conditions": { "type": "string" },
+      "language": { "type": "string" },
+      "location_of_originals": { "type": "string" },
+      "location_of_copies": { "type": "string" },
+      "related_materials": { "type": "string" },
+      "finding_aids": { "type": "string" },
+      "notes": { "type": "string" },
+      "iiif_manifest_url": { "type": "string" },
+      "mets_url": { "type": "string" },
+      "ocr_text": { "type": "string" },
+      "modified_at": { "type": "string" },
+      "parent_id": { "type": ["integer", "null"] }
+    }
+  }
+}

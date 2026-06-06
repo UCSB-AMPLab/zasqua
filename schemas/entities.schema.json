@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.0/entities.schema.json",
+  "x-contract-version": "1.0",
+  "title": "Zasqua entities.json — Data Contract v1.0",
+  "description": "JSON Schema draft-07 for the entities export file (ISAAR-CPF authority records) produced by the Zasqua data contract v1.0. Required keys + types are authoritative from docs/data-contract.md.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "entity_code",
+      "display_name",
+      "entity_type"
+    ],
+    "properties": {
+      "entity_code": { "type": "string" },
+      "display_name": { "type": "string" },
+      "entity_type": { "type": "string" },
+      "sort_name": { "type": "string" },
+      "primary_function": { "type": "string" },
+      "functions": { "type": "array" },
+      "dates_of_existence": { "type": "string" },
+      "date_earliest": { "type": "string" },
+      "date_latest": { "type": "string" },
+      "surname": { "type": "string" },
+      "given_name": { "type": "string" },
+      "honorific": { "type": "string" },
+      "name_variants": { "type": "array" },
+      "history": { "type": "string" },
+      "viaf_id": { "type": "string" },
+      "dbe_id": { "type": ["integer", "null"] },
+      "modified_at": { "type": "string" }
+    }
+  }
+}

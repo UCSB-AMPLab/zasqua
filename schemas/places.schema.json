@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.0/places.schema.json",
+  "x-contract-version": "1.0",
+  "title": "Zasqua places.json — Data Contract v1.0",
+  "description": "JSON Schema draft-07 for the places export file (geographic authority records) produced by the Zasqua data contract v1.0. Required keys + types are authoritative from docs/data-contract.md.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "place_code",
+      "display_name"
+    ],
+    "properties": {
+      "id": { "type": "integer" },
+      "place_code": { "type": "string" },
+      "display_name": { "type": "string" },
+      "place_type": { "type": "string" },
+      "latitude": { "type": ["number", "null"] },
+      "longitude": { "type": ["number", "null"] },
+      "country_code": { "type": "string" },
+      "name_variants": { "type": "array" },
+      "wikidata_id": { "type": "string" },
+      "tgn_id": { "type": "string" },
+      "whg_id": { "type": "string" },
+      "hgis_id": { "type": "string" },
+      "modified_at": { "type": "string" }
+    }
+  }
+}
