@@ -335,8 +335,10 @@ describe('Hugo section-adapter regression — adapter is the sole, deterministic
   const lugaresIndex = path.join(publicDir, 'lugares', 'index.html');
 
   let enabledOutput = '';
+  let enabledError = null;
   let disabledDir = '';
   let disabledOutput = '';
+  let disabledError = null;
 
   beforeAll(() => {
     // Enabled build — the fixture manifest enables both modules, so the root
@@ -352,6 +354,7 @@ describe('Hugo section-adapter regression — adapter is the sole, deterministic
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (err) {
+      enabledError = err;
       enabledOutput = `${err.stdout || ''}${err.stderr || ''}`;
     }
 
@@ -375,6 +378,7 @@ describe('Hugo section-adapter regression — adapter is the sole, deterministic
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (err) {
+      disabledError = err;
       disabledOutput = `${err.stdout || ''}${err.stderr || ''}`;
     }
   }, 30000);
@@ -392,6 +396,10 @@ describe('Hugo section-adapter regression — adapter is the sole, deterministic
   it('hugo-section-adapter fixture directory exists', () => {
     expect(fs.existsSync(HUGO_ADAPTER_DIR)).toBe(true);
     expect(fs.existsSync(path.join(HUGO_ADAPTER_DIR, 'hugo.toml'))).toBe(true);
+  });
+
+  it('enabled build completed without error', () => {
+    expect(enabledError, `Hugo failed on the enabled fixture:\n${enabledOutput}`).toBeNull();
   });
 
   it('enabled build produced the public/ directory', () => {
@@ -414,6 +422,20 @@ describe('Hugo section-adapter regression — adapter is the sole, deterministic
   it('/lugares/lugares/ is ABSENT — no spurious nested section page', () => {
     const spurious = path.join(publicDir, 'lugares', 'lugares', 'index.html');
     expect(fs.existsSync(spurious)).toBe(false);
+  });
+
+  // Guard the disabled-case assertions below against a masked build failure:
+  // they check for ABSENCE, which a crashed build (no output at all) would also
+  // satisfy. Assert the build actually ran and emitted a site first, so the
+  // absence of the two sections means real suppression, not a dead build.
+  it('disabled build completed without error', () => {
+    expect(disabledError, `Hugo failed on the disabled fixture:\n${disabledOutput}`).toBeNull();
+  });
+
+  it('disabled build still produced a site (public/ with output)', () => {
+    const disabledPublic = path.join(disabledDir, 'public');
+    expect(fs.existsSync(disabledPublic), `Hugo output:\n${disabledOutput}`).toBe(true);
+    expect(fs.existsSync(path.join(disabledPublic, 'sitemap.xml')), `Hugo output:\n${disabledOutput}`).toBe(true);
   });
 
   it('/entidades/ is ABSENT when entities is disabled (core-only suppression)', () => {
