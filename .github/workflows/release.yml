@@ -1,4 +1,4 @@
-# Publish @ampl/zasqua to npm on version tag.
+# Publish @ucsb-ampl/zasqua to npm on version tag.
 #
 # Triggered by a push of a semver tag (v1.0.0, v1.2.3, etc.). Runs the
 # engine's full test suite before publishing to ensure a red build is

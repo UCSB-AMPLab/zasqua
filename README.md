@@ -50,14 +50,14 @@ were scattered, hard to consult, or at risk of being lost find a place of their 
 
 Zasqua is organized into three layers:
 
-**Engine** (`@ampl/zasqua`) — the npm package. It provides the `zasqua`
+**Engine** (`@ucsb-ampl/zasqua`) — the npm package. It provides the `zasqua`
 command-line interface, the Hugo base theme, the build pipeline, validation, and
 importer tooling. The engine is maintained by AMPL and versioned independently of
 any deployment.
 
 **Instance** — a directory that pins the engine and supplies a specific
 collection's data, manifest, and optional theme overlay. An instance is a
-`package.json` that declares `@ampl/zasqua` as a dependency, a `hugo.toml`, a
+`package.json` that declares `@ucsb-ampl/zasqua` as a dependency, a `hugo.toml`, a
 `zasqua.manifest.toml`, and an `exports/` directory containing the six-file data
 contract. The quickest way to create one is to fork the starter repository,
 [`UCSB-AMPLab/zasqua-template`](https://github.com/UCSB-AMPLab/zasqua-template),
