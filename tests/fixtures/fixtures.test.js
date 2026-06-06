@@ -58,8 +58,9 @@
  * @version v0.2.0
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
@@ -305,23 +306,84 @@ describe('guarded-read predicates — manifest controls which modules are enable
 // ---------------------------------------------------------------------------
 // Behavior 10: Hugo section-adapter regression
 //
-// Runs a real Hugo build on the minimal hugo-section-adapter fixture, which
-// has entities=true and places=true in its manifest. Asserts that:
-//   - /entidades/index.html is produced (section page at section root)
-//   - /lugares/index.html is produced (section page at section root)
-//   - /entidades/entidades/index.html is ABSENT (no spurious nested page)
-//   - /lugares/lugares/index.html is ABSENT (no spurious nested page)
+// The /entidades/ and /lugares/ section landing pages are emitted SOLELY by the
+// root content adapter (content/_content.gotmpl) when the matching module is
+// enabled. There are deliberately no content/entidades/_index.md or
+// content/lugares/_index.md stubs: a static _index.md at the same path competes
+// with the adapter's AddPage call, and Hugo picks the winner once per build (Go
+// map/goroutine ordering), so a stub carrying build.render = "never" could win
+// that merge and silently suppress the section page — a build-order flake that
+// surfaced intermittently on constrained CI runners.
 //
-// This guards against a duplicate-page regression: an earlier per-section
-// _content.gotmpl adapter with path="entidades" inside content/entidades/
-// created /entidades/entidades/ because Hugo resolves the path relative to
-// the adapter's directory. The fix moves AddPage calls to a root-level
-// _content.gotmpl where path="entidades" resolves correctly to the section
-// root.
+// Two real Hugo builds of the minimal hugo-section-adapter fixture guard this:
+//
+//   Enabled (manifest entities=true, places=true):
+//     - /entidades/index.html and /lugares/index.html are produced
+//     - /entidades/entidades/ and /lugares/lugares/ are ABSENT — the adapter
+//       lives at the content root, so path="entidades" resolves to the section
+//       root, not a spurious nested page
+//
+//   Disabled (entities=false, places=false), built in a throwaway copy:
+//     - /entidades/ and /lugares/ are ABSENT — the adapter does not fire and no
+//       stub renders them, so core-only builds stay clean without a
+//       render:"never" file (Hugo does not auto-render an empty section)
 // ---------------------------------------------------------------------------
 
-describe('Hugo section-adapter regression — no nested /entidades/entidades or /lugares/lugares', () => {
-  let publicDir;
+describe('Hugo section-adapter regression — adapter is the sole, deterministic source of the section pages', () => {
+  const publicDir = path.join(HUGO_ADAPTER_DIR, 'public');
+  const entidadesIndex = path.join(publicDir, 'entidades', 'index.html');
+  const lugaresIndex = path.join(publicDir, 'lugares', 'index.html');
+
+  let enabledOutput = '';
+  let disabledDir = '';
+  let disabledOutput = '';
+
+  beforeAll(() => {
+    // Enabled build — the fixture manifest enables both modules, so the root
+    // adapter emits both section pages. A single build suffices: with no
+    // competing _index.md stub the emission is deterministic.
+    if (fs.existsSync(publicDir)) {
+      fs.rmSync(publicDir, { recursive: true });
+    }
+    try {
+      enabledOutput = execSync(`"${HUGO_BIN}" --minify --logLevel error`, {
+        cwd: HUGO_ADAPTER_DIR,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      enabledOutput = `${err.stdout || ''}${err.stderr || ''}`;
+    }
+
+    // Disabled build — a throwaway copy of the fixture with both modules off.
+    // The adapter does not fire and there is no stub, so neither section may
+    // appear. This locks the core-only suppression the removed render:"never"
+    // stubs used to provide.
+    disabledDir = fs.mkdtempSync(path.join(os.tmpdir(), 'zasqua-section-disabled-'));
+    fs.cpSync(HUGO_ADAPTER_DIR, disabledDir, { recursive: true });
+    fs.rmSync(path.join(disabledDir, 'public'), { recursive: true, force: true });
+    fs.rmSync(path.join(disabledDir, 'resources'), { recursive: true, force: true });
+    fs.writeFileSync(
+      path.join(disabledDir, 'data', 'manifest.toml'),
+      '[modules]\nentities = false\nplaces = false\n',
+      'utf8'
+    );
+    try {
+      disabledOutput = execSync(`"${HUGO_BIN}" --minify --logLevel error`, {
+        cwd: disabledDir,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      disabledOutput = `${err.stdout || ''}${err.stderr || ''}`;
+    }
+  }, 30000);
+
+  afterAll(() => {
+    if (disabledDir && fs.existsSync(disabledDir)) {
+      fs.rmSync(disabledDir, { recursive: true, force: true });
+    }
+  });
 
   it('hugo binary exists', () => {
     expect(fs.existsSync(HUGO_BIN)).toBe(true);
@@ -332,43 +394,37 @@ describe('Hugo section-adapter regression — no nested /entidades/entidades or 
     expect(fs.existsSync(path.join(HUGO_ADAPTER_DIR, 'hugo.toml'))).toBe(true);
   });
 
-  it('hugo build succeeds on the enabled fixture', () => {
-    const outputDir = path.join(HUGO_ADAPTER_DIR, 'public');
-    // Clean any prior run so the assertion is against a fresh build.
-    if (fs.existsSync(outputDir)) {
-      fs.rmSync(outputDir, { recursive: true });
-    }
-
-    // Run Hugo synchronously. The fixture is tiny (no content files, just the
-    // section adapter and two minimal layouts) so this completes in < 1 s.
-    execSync(`"${HUGO_BIN}" --minify --logLevel error`, {
-      cwd: HUGO_ADAPTER_DIR,
-      stdio: 'pipe',
-    });
-
-    publicDir = outputDir;
-    expect(fs.existsSync(publicDir)).toBe(true);
+  it('enabled build produced the public/ directory', () => {
+    expect(fs.existsSync(publicDir), `Hugo output:\n${enabledOutput}`).toBe(true);
   });
 
-  it('/entidades/index.html exists in enabled build (section page at section root)', () => {
-    const target = path.join(HUGO_ADAPTER_DIR, 'public', 'entidades', 'index.html');
-    expect(fs.existsSync(target)).toBe(true);
+  it('/entidades/index.html exists when entities is enabled', () => {
+    expect(fs.existsSync(entidadesIndex), `Hugo output:\n${enabledOutput}`).toBe(true);
   });
 
-  it('/lugares/index.html exists in enabled build (section page at section root)', () => {
-    const target = path.join(HUGO_ADAPTER_DIR, 'public', 'lugares', 'index.html');
-    expect(fs.existsSync(target)).toBe(true);
+  it('/lugares/index.html exists when places is enabled', () => {
+    expect(fs.existsSync(lugaresIndex), `Hugo output:\n${enabledOutput}`).toBe(true);
   });
 
   it('/entidades/entidades/ is ABSENT — no spurious nested section page', () => {
-    const spurious = path.join(HUGO_ADAPTER_DIR, 'public', 'entidades', 'entidades', 'index.html');
+    const spurious = path.join(publicDir, 'entidades', 'entidades', 'index.html');
     expect(fs.existsSync(spurious)).toBe(false);
   });
 
   it('/lugares/lugares/ is ABSENT — no spurious nested section page', () => {
-    const spurious = path.join(HUGO_ADAPTER_DIR, 'public', 'lugares', 'lugares', 'index.html');
+    const spurious = path.join(publicDir, 'lugares', 'lugares', 'index.html');
     expect(fs.existsSync(spurious)).toBe(false);
+  });
+
+  it('/entidades/ is ABSENT when entities is disabled (core-only suppression)', () => {
+    const dir = path.join(disabledDir, 'public', 'entidades');
+    expect(fs.existsSync(dir), `Hugo output:\n${disabledOutput}`).toBe(false);
+  });
+
+  it('/lugares/ is ABSENT when places is disabled (core-only suppression)', () => {
+    const dir = path.join(disabledDir, 'public', 'lugares');
+    expect(fs.existsSync(dir), `Hugo output:\n${disabledOutput}`).toBe(false);
   });
 });
 
-// Version: v0.2.0
+// Version: v1.0.0
