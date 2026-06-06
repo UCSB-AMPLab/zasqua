@@ -18,9 +18,17 @@
   resolved relative to the content root.
 
   Both sections are handled here so the root adapter file remains the single
-  place to look for conditional section creation; per-section directories keep
-  only their _index.md (with build.render = "never") to suppress any
-  auto-rendered section pages when the module is disabled.
+  place to look for conditional section creation. There are deliberately NO
+  content/entidades/_index.md or content/lugares/_index.md stub files. A static
+  _index.md at the same path competes with the AddPage call below for the same
+  page, and Hugo picks the winner nondeterministically once per build (Go
+  map/goroutine ordering). When a stub carrying build.render = "never" won that
+  merge, the section page silently vanished from the output — a build-order
+  flake that surfaced intermittently on constrained CI runners. With no stub,
+  this adapter is the sole definition: when the module is disabled the adapter
+  does not fire and the section simply does not exist (Hugo does not auto-render
+  an empty section), and when enabled this is the only source — so emission is
+  deterministic.
 
   Truthiness is used throughout (not eq true) so the "auto" string value also
   reads as on, the same convention used across all module gating. Adapters for
