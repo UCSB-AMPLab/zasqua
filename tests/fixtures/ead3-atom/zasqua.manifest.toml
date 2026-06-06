@@ -1,0 +1,11 @@
+[ui]
+language = "es-CO"
+
+[modules]
+hierarchy      = true
+entities       = true
+entities_graph = false
+places         = true
+places_map     = false
+iiif           = "auto"
+ocr            = "auto"

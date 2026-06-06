@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "place_code": "nl-301",
+    "display_name": "Rionegro",
+    "place_type": "municipality",
+    "latitude": 6.155,
+    "longitude": -75.3747
+  },
+  {
+    "id": 2,
+    "place_code": "nl-302",
+    "display_name": "Bogotá",
+    "place_type": "city",
+    "latitude": 4.711,
+    "longitude": -74.0721
+  }
+]

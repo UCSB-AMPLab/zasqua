@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "place_code": "nl-rionq",
+    "display_name": "Rionegro",
+    "place_type": "municipality",
+    "country_code": "CO",
+    "latitude": 6.155,
+    "longitude": -75.3747,
+    "name_variants": ["Rionegro del Norte", "San Nicolás de Rionegro"],
+    "wikidata_id": "Q1079050",
+    "tgn_id": "7005546",
+    "whg_id": null,
+    "hgis_id": "CO-ANT-001"
+  },
+  {
+    "id": 2,
+    "place_code": "nl-bogot",
+    "display_name": "Santafé de Bogotá",
+    "place_type": "city",
+    "country_code": "CO",
+    "latitude": 4.711,
+    "longitude": -74.0721,
+    "name_variants": ["Santafé", "Bogotá"],
+    "wikidata_id": "Q2841",
+    "tgn_id": "7004481",
+    "whg_id": "whg-12345",
+    "hgis_id": "CO-CUN-001"
+  }
+]

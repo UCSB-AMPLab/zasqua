@@ -1,0 +1,20 @@
+# Zasqua capability manifest — csv-import golden fixture profile.
+#
+# This is a synthetic test fixture for the CSV adapter conformance test.
+# It is consumed by tests/importers/csv.test.js to assert that the
+# CSV adapter produces valid six-file output covering Core + Hierarchy
+# + IIIF + OCR + entities + places.
+#
+# Entities and places are enabled because the fixture includes all six
+# input CSV sheets.
+
+[modules]
+hierarchy      = true
+entities       = true
+entities_graph = false
+places         = true
+places_map     = false
+iiif           = true
+ocr            = true
+
+# Version: v0.1.0

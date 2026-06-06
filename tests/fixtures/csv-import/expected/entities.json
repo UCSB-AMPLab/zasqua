@@ -1,0 +1,18 @@
+[
+  {
+    "entity_code": "ne-abc12",
+    "display_name": "Juan López",
+    "entity_type": "person",
+    "given_name": "Juan",
+    "surname": "López",
+    "dates_of_existence": "1720-1790"
+  },
+  {
+    "entity_code": "ne-xyz34",
+    "display_name": "Alcaldía Mayor de Rionegro",
+    "entity_type": "corporateBody",
+    "given_name": "",
+    "surname": "Alcaldía Mayor de Rionegro",
+    "dates_of_existence": ""
+  }
+]

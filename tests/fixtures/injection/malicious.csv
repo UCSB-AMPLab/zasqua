@@ -1,0 +1,4 @@
+reference_code,title,description_level,parent_reference_code,repository_code,scope_content,ocr_text
+co-inj-001,"<script>alert('xss')</script> Fondo XSS",fonds,,co-inj,"<script>alert('xss')</script>","{{ variable }} is safe text"
+co-inj-002,"<b>Bold Title</b>",fonds,,co-inj,"<p>Paragraph one</p><p>Paragraph two</p>","{% if x %}show{% endif %}"
+co-inj-003,"Normal Title",fonds,,co-inj,"Line one<br>Line two &amp; more","{{ record.title }} — {% block content %}"

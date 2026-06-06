@@ -1,0 +1,16 @@
+[
+  {
+    "entity_code": "ne-201",
+    "display_name": "Juan López de Herrera",
+    "entity_type": "person",
+    "given_name": "Juan",
+    "surname": "López de Herrera"
+  },
+  {
+    "entity_code": "ne-202",
+    "display_name": "Francisco de Salazar",
+    "entity_type": "person",
+    "given_name": "Francisco",
+    "surname": "de Salazar"
+  }
+]

@@ -1,0 +1,22 @@
+# Zasqua capability manifest — engine-internal smoke fixture.
+#
+# Core-only profile: entities, places, and all optional modules disabled.
+# Used by the engine's own build/validate smoke test (SKIP_DOWNLOAD=1 zasqua build).
+# This is NOT a deployer starter — see UCSB-AMPLab/zasqua-template for the
+# canonical onboarding workspace.
+
+[ui]
+language = "en-US"
+
+[modules]
+# Core (descriptions + repositories) is always required — no flag here.
+
+hierarchy = false
+entities = false
+entities_graph = false
+places = false
+places_map = false
+iiif = false
+ocr = false
+
+# Version: v1.0.0

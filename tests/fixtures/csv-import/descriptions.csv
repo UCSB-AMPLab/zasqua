@@ -1,0 +1,5 @@
+reference_code,title,description_level,parent_reference_code,repository_code,date_expression,scope_content,iiif_manifest_url,ocr_text
+co-ahrb-f001,Fondo Documental Histórico,fonds,,co-ahrb,1750 .. 1900,Documentos administrativos del período colonial.,,
+co-ahrb-f001-s001,Serie Notarial,series,co-ahrb-f001,co-ahrb,1750 .. 1850,Escrituras públicas y protocolos notariales.,https://example.org/iiif/s001/manifest.json,{{ record.title }} página {% if ocr %}disponible{% endif %}
+co-ahrb-f001-s001-001,Testamento de Juan López,file,co-ahrb-f001-s001,co-ahrb,1756-06-12,Testamento otorgado ante escribano público.,https://example.org/iiif/001/manifest.json,Texto OCR de la primera página del documento.
+co-ahrb-f001-s002,Serie Judicial,series,co-ahrb-f001,co-ahrb,1800 .. 1900,Expedientes de causas civiles y criminales.,,

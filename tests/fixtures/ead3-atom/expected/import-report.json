@@ -1,0 +1,22 @@
+{
+  "format": "ead3",
+  "dialect": "atom",
+  "standard": "isadg",
+  "descriptions_count": 3,
+  "repositories_count": 1,
+  "access_points": {
+    "carried": 2,
+    "skipped": 1,
+    "skipped_list": [
+      {
+        "element": "persname",
+        "text": "Martínez Herrera, Pedro",
+        "reason": "no @identifier"
+      }
+    ]
+  },
+  "dialect_quirks": [
+    "numbered component elements (c01/c02) detected — treated as <c> per EAD3 recommendation",
+    "dao xlink:href detected on 1 component(s)"
+  ]
+}

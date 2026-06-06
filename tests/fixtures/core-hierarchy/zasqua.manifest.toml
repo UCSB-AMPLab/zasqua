@@ -1,0 +1,58 @@
+# Zasqua capability manifest — core+hierarchy golden fixture profile.
+#
+# This is a synthetic test fixture, not a real deployer manifest. It is used
+# by engine/tests/fixtures/fixtures.test.js to assert that the Node-side
+# modular core derives a Miller-column hierarchy correctly when hierarchy is
+# the only explorer module enabled. All other explorer modules are disabled;
+# iiif and ocr are false because the synthetic dataset carries no IIIF or
+# OCR fields.
+#
+# The profile proves:
+#   - validateInputs passes on a Core+hierarchy dataset
+#   - detectModules returns hierarchy true, entities/places false
+#   - deriveChildren on the 9-record fonds-series-file tree produces at
+#     least one parent shard with grouped children (the Miller-column tree)
+#
+# Tree shape in this fixture (9 descriptions):
+#   co-test-f001 (fonds, root)
+#     co-test-f001-s001 (series, 3 children)
+#       co-test-f001-s001-e001 (file, leaf)
+#       co-test-f001-s001-e002 (file, leaf)
+#       co-test-f001-s001-e003 (file, leaf)
+#     co-test-f001-s002 (series, 2 children)
+#       co-test-f001-s002-e001 (file, leaf)
+#       co-test-f001-s002-e002 (file, leaf)
+#     co-test-f001-s003 (series, leaf)
+
+[modules]
+# Core (descriptions + repositories) is always required — no flag here.
+
+# Hierarchy: derive a browsable tree from parent_reference_code.
+# Enabled: all series and file records have parent_reference_code populated.
+hierarchy = true
+
+# Entities: ISAAR(CPF) authority records (persons, bodies, families).
+# Disabled: no entities.json or entity_links.json in this fixture.
+entities = false
+
+# Entity co-occurrence graph visualization.
+# Disabled: entities = false.
+entities_graph = false
+
+# Places: geographic authority records and facet.
+# Disabled: no places.json or place_links.json in this fixture.
+places = false
+
+# Interactive map of places.
+# Disabled: places = false.
+places_map = false
+
+# IIIF deep-zoom viewer.
+# Disabled: no iiif_manifest_url fields in synthetic data.
+iiif = false
+
+# OCR full-text search.
+# Disabled: no ocr_text fields in synthetic data.
+ocr = false
+
+# Version: v0.1.0

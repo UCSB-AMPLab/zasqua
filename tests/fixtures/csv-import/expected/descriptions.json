@@ -1,0 +1,50 @@
+[
+  {
+    "reference_code": "co-ahrb-f001",
+    "title": "Fondo Documental Histórico",
+    "description_level": "fonds",
+    "parent_reference_code": null,
+    "repository_code": "co-ahrb",
+    "date_expression": "1750 .. 1900",
+    "scope_content": "Documentos administrativos del período colonial.",
+    "iiif_manifest_url": "",
+    "ocr_text": "",
+    "id": 1
+  },
+  {
+    "reference_code": "co-ahrb-f001-s001",
+    "title": "Serie Notarial",
+    "description_level": "series",
+    "parent_reference_code": "co-ahrb-f001",
+    "repository_code": "co-ahrb",
+    "date_expression": "1750 .. 1850",
+    "scope_content": "Escrituras públicas y protocolos notariales.",
+    "iiif_manifest_url": "https://example.org/iiif/s001/manifest.json",
+    "ocr_text": "{{ record.title }} página {% if ocr %}disponible{% endif %}",
+    "id": 2
+  },
+  {
+    "reference_code": "co-ahrb-f001-s001-001",
+    "title": "Testamento de Juan López",
+    "description_level": "file",
+    "parent_reference_code": "co-ahrb-f001-s001",
+    "repository_code": "co-ahrb",
+    "date_expression": "1756-06-12",
+    "scope_content": "Testamento otorgado ante escribano público.",
+    "iiif_manifest_url": "https://example.org/iiif/001/manifest.json",
+    "ocr_text": "Texto OCR de la primera página del documento.",
+    "id": 3
+  },
+  {
+    "reference_code": "co-ahrb-f001-s002",
+    "title": "Serie Judicial",
+    "description_level": "series",
+    "parent_reference_code": "co-ahrb-f001",
+    "repository_code": "co-ahrb",
+    "date_expression": "1800 .. 1900",
+    "scope_content": "Expedientes de causas civiles y criminales.",
+    "iiif_manifest_url": "",
+    "ocr_text": "",
+    "id": 4
+  }
+]

@@ -1,0 +1,12 @@
+# Fixture manifest for the hugo-section-adapter regression test.
+#
+# entities and places are both true so the root _content.gotmpl adapter
+# emits both section home pages. The test asserts that exactly /entidades/
+# and /lugares/ are produced, and that the spurious /entidades/entidades/
+# and /lugares/lugares/ pages are absent.
+#
+# Version: v1.0.0
+
+[modules]
+entities = true
+places = true

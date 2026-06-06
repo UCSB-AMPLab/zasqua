@@ -1,0 +1,17 @@
+[
+  {
+    "place_code": "nl-rionq",
+    "reference_code": "co-ahrb-f001",
+    "role": "place_of_creation"
+  },
+  {
+    "place_code": "nl-bogot",
+    "reference_code": "co-ahrb-f001",
+    "role": "place_of_custody"
+  },
+  {
+    "place_code": "nl-rionq",
+    "reference_code": "co-ahrb-f001-s001",
+    "role": "place_of_creation"
+  }
+]

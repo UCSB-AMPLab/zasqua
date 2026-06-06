@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AtoM-style EAD3 export fixture for zasqua importer tests.
+
+  This fixture exercises:
+    - <eadheader>/<eadid> with countrycode + mainagencycode for repository_code derivation
+    - <archdesc level="fonds"> with full <did> (unitid, unittitle, unitdate, repository/corpname)
+    - <scopecontent> prose
+    - <dsc> with 2 nested components using AtoM-style numbered elements <c01>/<c02>
+    - <controlaccess> with:
+        * one <persname> with @identifier + @relator that WILL match authority code ne-abc12 (creator)
+        * one <geogname> with @identifier that WILL match authority code nl-qfsbu (place)
+        * one bare <persname> with NO @identifier (must drop to prose, not links — no identifier means no authority record to resolve against)
+    - entities.json + places.json authority codes matching the @identifier values above
+
+  AtoM dialect notes:
+    - Uses mixed EAD2002/EAD3 numbered component elements <c01>/<c02>
+    - <langmaterial> carries free text rather than structured <language> element
+    - <dao> uses @xlink:href convention
+
+  Source: zasqua importer test suite. Not a real archival record.
+-->
+<ead xmlns="urn:isbn:1-931666-22-9"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     audience="external">
+
+  <eadheader countryencoding="iso3166-1"
+             dateencoding="iso8601"
+             langencoding="iso639-2b"
+             repositoryencoding="iso15511">
+    <eadid countrycode="co" mainagencycode="test-ahr">co-test-ahr-fondo-001</eadid>
+    <filedesc>
+      <titlestmt>
+        <titleproper>Fondo de Prueba EAD3 (AtoM)</titleproper>
+      </titlestmt>
+    </filedesc>
+  </eadheader>
+
+  <archdesc level="fonds">
+    <did>
+      <unitid>co-test-ahr-f001</unitid>
+      <unittitle>Fondo Notarial de Prueba</unittitle>
+      <unitdate normal="1780/1850" label="creation">1780–1850</unitdate>
+      <repository>
+        <corpname>Archivo Histórico de Prueba</corpname>
+      </repository>
+      <physdesc>
+        <extent>3 cajas, 450 folios</extent>
+      </physdesc>
+      <langmaterial>Documentos en español</langmaterial>
+    </did>
+
+    <scopecontent>
+      <p>Este fondo reúne documentos notariales producidos entre 1780 y 1850.</p>
+      <p>Incluye testamentos, contratos de compraventa y poderes notariales.</p>
+    </scopecontent>
+
+    <accessrestrict>
+      <p>Acceso libre previa solicitud al archivo.</p>
+    </accessrestrict>
+
+    <userestrict>
+      <p>Solo para uso académico e investigativo.</p>
+    </userestrict>
+
+    <arrangement>
+      <p>Organizado cronológicamente por año de otorgamiento.</p>
+    </arrangement>
+
+    <controlaccess>
+      <!-- MATCHED: @identifier matches entity_code ne-abc12 in entities.json (creator role) -->
+      <persname identifier="ne-abc12" relator="creator">López Gutiérrez, Juan</persname>
+
+      <!-- MATCHED: @identifier matches place_code nl-qfsbu in places.json -->
+      <geogname identifier="nl-qfsbu" relator="place_of_creation">Rionegro (Antioquia)</geogname>
+
+      <!-- BARE (no @identifier): must drop to prose, must NOT appear in entity_links — no identifier means no authority record to resolve against -->
+      <persname>Martínez Herrera, Pedro</persname>
+    </controlaccess>
+
+    <dsc>
+      <!-- AtoM-style numbered components: c01 for series, c02 for file -->
+      <c01 level="series">
+        <did>
+          <unitid>co-test-ahr-f001-s01</unitid>
+          <unittitle>Serie Testamentos</unittitle>
+          <unitdate normal="1780/1820" label="creation">1780–1820</unitdate>
+        </did>
+        <scopecontent>
+          <p>Testamentos otorgados ante escribanos públicos del municipio.</p>
+        </scopecontent>
+
+        <c02 level="file">
+          <did>
+            <unitid>co-test-ahr-f001-s01-e001</unitid>
+            <unittitle>Testamento de Juan López Gutiérrez</unittitle>
+            <unitdate normal="1795-03-12" label="creation">12 de marzo de 1795</unitdate>
+            <dao xlink:href="https://iiif.example.org/manifests/co-test-ahr-f001-s01-e001/manifest.json"
+                 xlink:title="Testamento digitalizado"/>
+          </did>
+          <scopecontent>
+            <p>Testamento en el que Juan López Gutiérrez dispone de sus bienes raíces en Rionegro.</p>
+          </scopecontent>
+        </c02>
+      </c01>
+    </dsc>
+  </archdesc>
+
+</ead>
