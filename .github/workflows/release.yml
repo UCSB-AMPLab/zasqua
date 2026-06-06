@@ -1,0 +1,54 @@
+# Publish @ampl/zasqua to npm on version tag.
+#
+# Triggered by a push of a semver tag (v1.0.0, v1.2.3, etc.). Runs the
+# engine's full test suite before publishing to ensure a red build is
+# never tagged to the registry.
+#
+# Provenance and authentication:
+#   First-publish bootstrap uses NPM_TOKEN (classic Automation token, narrowest
+#   publish scope) combined with the --provenance flag. After the first publish,
+#   configure trusted publishing on npmjs.com (Settings > Trusted Publishers)
+#   and remove the NPM_TOKEN secret — the OIDC identity token issued to this
+#   workflow by GitHub replaces the long-lived token entirely.
+#
+#   id-token: write is required for provenance OIDC minting even during the
+#   bootstrap phase; setup-node registry-url is required for NODE_AUTH_TOKEN
+#   to work (without it, setup-node does not write the .npmrc entry). npm 9.5+
+#   is required for --provenance; the engine ships npm 11.x via Node 22.
+#
+# Version: v1.0.0
+
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+# Version: v1.0.0

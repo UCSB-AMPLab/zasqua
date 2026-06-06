@@ -1,0 +1,45 @@
+# Engine test suite — vitest on push and pull request.
+#
+# Runs on every push to main and on every pull request so that
+# regressions are caught before a tag is cut and published to npm.
+# The suite targets the engine's JavaScript modules (lib/, scripts/, bin/)
+# using vitest.
+#
+# Python / pytest: the engine ships no Python source files and has no
+# requirements.txt at the engine root. Python tooling (upload-to-r2.py,
+# parity-check helpers) lives in the instance deploy/ directory, which
+# is not part of the engine package. No Python job is included here.
+#
+# Dependency pinning: Node is locked via .nvmrc (currently 22);
+# npm packages are locked via package-lock.json; vitest runs with
+# `npm test` (which is `vitest run`).
+#
+# Version: v1.0.0
+
+name: Engine tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run vitest suite
+        run: npm test
+
+# Version: v1.0.0
