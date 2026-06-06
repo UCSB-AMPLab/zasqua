@@ -1,0 +1,43 @@
+{{/*
+  Colophon page — content renderer (/colofon/)
+
+  Renders the deployer-authored colophon content page
+  (content/colofon/_index.md) inside a prose-styled article. The page is
+  pure deployment CONTENT — credits, version, represented archives,
+  citation examples, technology stack, accessibility, privacy, license,
+  and contact are all institution-specific prose, authored as markdown by
+  the deployer, NOT engine chrome. This template therefore carries no
+  hardcoded prose and no i18n chrome lookups; it only supplies the page
+  title, an optional logo, and the rendered .Content.
+
+  Dynamic values (version, year) come from the version/year shortcodes
+  used in the markdown, so the content stays static-author-friendly and a
+  version bump re-renders only this one page — the rest of the corpus
+  stays on the diff-skip path.
+
+  Prose styling: the article carries the .colofon-prose class; the base
+  stylesheet (assets/css/base.css) defines the matching heading / body /
+  link / list / blockquote rules (font-display headings with a bottom
+  border, font-serif body, burgundy underlined links, burgundy-left-border
+  italic blockquotes) so markdown-rendered HTML matches the prior design.
+
+  site.Params.logo — optional logo image rendered above the content.
+
+  Version: v3.0.0
+*/}}
+{{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
+{{ define "main" }}
+<section class="section">
+  <div class="container">
+    <article class="colofon colofon-prose max-w-3xl mx-auto">
+
+      <h1 class="font-display text-stone-900 text-4xl font-normal mb-6">{{ .Title }}</h1>
+      {{ with site.Params.logo }}<img src="{{ . }}" alt="{{ site.Title }}" class="block max-w-[200px] mx-auto pb-8">{{ end }}
+
+      {{ .Content }}
+
+    </article>
+  </div>
+</section>
+{{ end }}
+{{/* Version: v3.0.0 */}}

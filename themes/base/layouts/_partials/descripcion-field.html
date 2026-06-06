@@ -1,0 +1,60 @@
+{{/*
+  Zasqua description field renderer
+
+  Renders a single ISAD(G)/standard-profile field row inside a record's
+  left metadata column. Extracted from descripcion/single.html so the two
+  profile-driven loop passes (description+bibliographic before the
+  entities/places blocks; related+notes after the access block) share one
+  source of render truth — the section ORDER on the page is owned by
+  single.html, the per-field markup lives here.
+
+  Input: a dict with
+    field — one entry from $profile.fields (key, label, render, ...)
+    value — the resolved .Params value for field.key
+    repo  — .Params.repository (only used by the repository special render)
+
+  render discriminators (the field's `render` value selects the markup):
+    special  — repository link (reproduction_conditions is in the access
+               section, rendered explicitly in single.html, never here)
+    mono     — monospace value (reference_code)
+    pipelist — pipe-split list (scope_content, extent, notes)
+    plain    — label + value span
+
+  Version: v1.0.0
+*/}}
+{{ $f := .field }}
+{{ $value := .value }}
+{{ $repo := .repo }}
+{{ if eq $f.render "special" }}
+  {{ if eq $f.key "repository" }}
+    {{ with $repo }}
+      <div class="detail-field">
+        <span class="detail-label font-semibold text-stone-900">{{ $f.label }}</span>
+        <span class="detail-value text-stone-700"><a href="/{{ .code }}/" class="text-burgundy hover:text-burgundy-light">{{ .name }}</a></span>
+      </div>
+    {{ end }}
+  {{ end }}
+{{ else if eq $f.render "mono" }}
+  <div class="detail-field">
+    <span class="detail-label">{{ $f.label }}</span>
+    <span class="detail-value detail-value-mono">{{ $value }}</span>
+  </div>
+{{ else if eq $f.render "pipelist" }}
+  <div class="detail-field">
+    <span class="detail-label">{{ $f.label }}</span>
+    {{ $parts := split $value "|" }}
+    {{ if gt (len $parts) 1 }}
+      <ul class="detail-value detail-list">
+        {{ range $parts }}<li>{{ . }}</li>{{ end }}
+      </ul>
+    {{ else }}
+      <span class="detail-value">{{ $value }}</span>
+    {{ end }}
+  </div>
+{{ else }}{{/* plain */}}
+  <div class="detail-field">
+    <span class="detail-label">{{ $f.label }}</span>
+    <span class="detail-value">{{ $value }}</span>
+  </div>
+{{ end }}
+{{/* Version: v1.0.0 */}}

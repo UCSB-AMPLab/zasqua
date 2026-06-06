@@ -1,0 +1,346 @@
+# ISAD(G) descriptive standard profile
+#
+# ISAD(G) (General International Standard Archival Description) is the
+# international archival description standard and the engine's default. This
+# file is the ISAD(G) profile: the field labels, level labels (fonds,
+# series, file, item), section headers, and the ordered list of fields with
+# their visibility flags. Templates read it at build time via
+# `hugo.Data.standards.isadg`. It is structured per language (es / en) so a
+# single lookup resolves the (standard, language) pair.
+#
+# The Spanish strings are kept identical to the matching strings elsewhere
+# in the theme — the section headers and field labels in the i18n bundles
+# (i18n/es.toml) and the level labels in data/ui.yaml — so the same wording
+# renders no matter which surface a record passes through. The English
+# strings likewise mirror the English i18n bundle. Field order reproduces
+# the exact rendering order of the description template.
+#
+# To override for a deployment, copy this entire file to
+# instance/themes/{name}/data/standards/isadg.yaml and edit it. Hugo
+# replaces whole top-level keys across the theme chain, so a partial
+# override would silently drop the sibling language block — always ship the
+# full file.
+
+es:
+  sections:
+    description:   "Descripción"
+    bibliographic: "Información bibliográfica"
+    access:        "Condiciones de acceso"
+    related:       "Materiales relacionados"
+    notes:         "Notas"
+    control:       "Control"
+    reuse:         "Reutilización"
+  levels:
+    fonds:      "Fondo"
+    subfonds:   "Subfondo"
+    series:     "Serie"
+    subseries:  "Subserie"
+    file:       "Expediente"
+    item:       "Unidad documental"
+    collection: "Colección"
+    section:    "Sección"
+    volume:     "Tomo"
+  levelsPlural:
+    fonds:      "fondos"
+    subfonds:   "subfondos"
+    series:     "series"
+    subseries:  "subseries"
+    file:       "expedientes"
+    item:       "documentos"
+    collection: "colecciones"
+    section:    "secciones"
+    volume:     "tomos"
+    caja:       "cajas"
+    carpeta:    "carpetas"
+    legajo:     "legajos"
+    tomo:       "tomos"
+  fields:
+    - key: repository
+      label: "Repositorio"
+      section: description
+      render: special
+      show: true
+      required: false
+    - key: date_formatted
+      label: "Fecha"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: reference_code
+      label: "Código de referencia"
+      section: description
+      render: mono
+      show: true
+      required: true
+    - key: scope_content
+      label: "Alcance y contenido"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: extent
+      label: "Extensión"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: arrangement
+      label: "Signatura original"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: publication_title
+      label: "Publicación"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: series_statement
+      label: "Serie"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: uniform_title
+      label: "Título uniforme"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: section_title
+      label: "Sección"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: edition_statement
+      label: "Edición"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: imprint
+      label: "Pie de imprenta"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: pages
+      label: "Páginas"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: access_conditions
+      label: "Condiciones de acceso"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: reproduction_conditions
+      label: "Condiciones de reproducción"
+      section: access
+      render: special
+      show: true
+      required: true
+    - key: language
+      label: "Idioma"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: location_of_originals
+      label: "Localización de los originales"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: location_of_copies
+      label: "Existencia y localización de copias"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: related_materials
+      label: "Materiales relacionados"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: notes
+      label: "Notas"
+      section: notes
+      render: pipelist
+      show: true
+      required: false
+    - key: finding_aids
+      label: "Instrumentos de consulta"
+      section: notes
+      render: plain
+      show: true
+      required: false
+
+en:
+  sections:
+    description:   "Description"
+    bibliographic: "Bibliographic information"
+    access:        "Conditions of access"
+    related:       "Related materials"
+    notes:         "Notes"
+    control:       "Control"
+    reuse:         "Reuse"
+  levels:
+    fonds:      "Fonds"
+    subfonds:   "Subfonds"
+    series:     "Series"
+    subseries:  "Subseries"
+    file:       "File"
+    item:       "Item"
+    collection: "Collection"
+    section:    "Section"
+    volume:     "Volume"
+  levelsPlural:
+    fonds:      "fonds"
+    subfonds:   "subfonds"
+    series:     "series"
+    subseries:  "subseries"
+    file:       "files"
+    item:       "items"
+    collection: "collections"
+    section:    "sections"
+    volume:     "volumes"
+    caja:       "boxes"
+    carpeta:    "folders"
+    legajo:     "bundles"
+    tomo:       "volumes"
+  fields:
+    - key: repository
+      label: "Repository"
+      section: description
+      render: special
+      show: true
+      required: false
+    - key: date_formatted
+      label: "Date"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: reference_code
+      label: "Reference code"
+      section: description
+      render: mono
+      show: true
+      required: true
+    - key: scope_content
+      label: "Scope and content"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: extent
+      label: "Extent"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: arrangement
+      label: "Original call number"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: publication_title
+      label: "Publication"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: series_statement
+      label: "Series"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: uniform_title
+      label: "Uniform title"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: section_title
+      label: "Section"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: edition_statement
+      label: "Edition"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: imprint
+      label: "Imprint"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: pages
+      label: "Pages"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: access_conditions
+      label: "Conditions of access"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: reproduction_conditions
+      label: "Conditions of reproduction"
+      section: access
+      render: special
+      show: true
+      required: true
+    - key: language
+      label: "Language"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: location_of_originals
+      label: "Location of originals"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: location_of_copies
+      label: "Existence and location of copies"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: related_materials
+      label: "Related materials"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: notes
+      label: "Notes"
+      section: notes
+      render: pipelist
+      show: true
+      required: false
+    - key: finding_aids
+      label: "Finding aids"
+      section: notes
+      render: plain
+      show: true
+      required: false
+
+# Version: v1.0.0

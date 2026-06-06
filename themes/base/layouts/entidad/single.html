@@ -1,0 +1,289 @@
+{{/*
+  Zasqua entity detail template
+
+  Renders one page per entity record (persons, corporate bodies,
+  families from the ISAAR(CPF) authority file). Routed via
+  content/entidad/_content.gotmpl.
+
+  Structure:
+  - Breadcrumb: Inicio > Entidades > display_name
+  - detail-header with display_name + type badge + dates_of_existence
+  - Two-column: Identification / Functions / History / Authority IDs /
+    Control / Reuse on the left; timeline + graph toggle on the right
+  - head block: force-graph CDN script
+  - scripts block: /js/entity.js
+
+  The #entity-intro element carries data-entity-type-raw so
+  infinite-bipartite-explorer.js and entity.js can recover the
+  underlying entity-type enum value (person / corporate_body / family)
+  after rendering — the rendered type label is localised Spanish.
+
+  #entity-intro also carries the render-time vocabulary the entity.js
+  graph view consumes so it never hardcodes a label:
+  data-entity-type-labels (vocab.entityTypes, keyed by entity_type code),
+  data-role-labels (vocab.roles, the 27-role display table), and
+  data-role-group-labels (vocab.roleGroups, accordion headers keyed by the
+  English group IDs entity.js uses). Vocab source:
+  themes/base/data/vocab/{lang}.yaml, resolved by
+  site.Language.LanguageCode, falling back to vocab.es.
+  The data-i18n blob supplies every graph/timeline/tooltip string entity.js
+  reads (graphEmpty, timelineFilteredEmpty, noDateLabel, shardError,
+  openInExplorer, dateConnector, plus the connectedOtherDocs /
+  sharedDocsSentence / connectedToZasqua {one,other} plural sub-tables) —
+  blob-only, no Spanish fallback. Spanish lives only in es.toml;
+  en.toml mirrors.
+
+  Version: v1.4.0
+*/}}
+{{ define "title" }}{{ .Params.display_name }} | {{ site.Title }}{{ end }}
+{{ define "main" }}
+
+{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
+{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
+{{ $vocab := index hugo.Data.vocab $langKey }}
+{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+
+{{ $typeLabel := index $vocab.entityTypes .Params.entity_type }}
+{{ if not $typeLabel }}{{ $typeLabel = .Params.entity_type }}{{ end }}
+
+{{/* Breadcrumb */}}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/">{{ i18n "breadcrumb.home" }}</a>
+    <span class="breadcrumb-separator">&rsaquo;</span>
+    <span>{{ i18n "entity.breadcrumbParent" }}</span>
+    <span class="breadcrumb-separator">&rsaquo;</span>
+    <span>{{ .Params.display_name }}</span>
+  </div>
+</nav>
+
+{{/* Header */}}
+<div class="detail-header">
+  <div class="container">
+    <h1 class="detail-title font-sans font-semibold text-stone-900">{{ .Params.display_name }}</h1>
+    <div class="detail-meta text-sm text-stone-500">
+      <span class="level-badge">{{ $typeLabel }}</span>
+      {{ with .Params.dates_of_existence }} &middot; {{ . }}{{ end }}
+    </div>
+  </div>
+</div>
+
+{{/* Two-column layout */}}
+<div class="detail-content">
+  <div class="container">
+    <div class="desc-layout entity-layout">
+
+      {{/* Left column: metadata */}}
+      <div class="desc-metadata">
+
+        {{/* Section: Identificacion */}}
+        <div class="detail-section">
+          <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.identification" }}</h3>
+
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "entity.fields.name" }}</span>
+            <span class="detail-value">{{ .Params.display_name }}</span>
+          </div>
+
+          {{ if or .Params.surname .Params.given_name }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "entity.fields.normalizedName" }}</span>
+              <span class="detail-value">{{ .Params.surname }}{{ if and .Params.surname .Params.given_name }}, {{ end }}{{ .Params.given_name }}{{ with .Params.honorific }} ({{ . }}){{ end }}</span>
+            </div>
+          {{ end }}
+
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "entity.fields.type" }}</span>
+            <span class="detail-value">{{ $typeLabel }}</span>
+          </div>
+
+          {{ with .Params.dates_of_existence }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "entity.fields.datesOfExistence" }}</span>
+              <span class="detail-value">{{ . }}</span>
+            </div>
+          {{ end }}
+
+          {{ with .Params.primary_function }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "entity.fields.primaryFunction" }}</span>
+              <span class="detail-value">{{ . }}</span>
+            </div>
+          {{ end }}
+
+          {{ if and .Params.name_variants (gt (len .Params.name_variants) 0) }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "entity.fields.nameVariants" }}</span>
+              <span class="detail-value">{{ delimit .Params.name_variants ", " }}</span>
+            </div>
+          {{ end }}
+        </div>
+
+        {{/* Section: Cargos y funciones */}}
+        {{ if and .Params.functions (gt (len .Params.functions) 0) }}
+          <section id="funciones" class="detail-section">
+            <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.functions" }}</h3>
+            <ul class="detail-list text-stone-700">
+              {{ range .Params.functions }}
+                <li>
+                  {{ if .function }}{{ .function }}{{ else }}{{ . }}{{ end }}
+                  {{ with .count }} <span class="text-stone-500 text-sm">({{ . }})</span>{{ end }}
+                </li>
+              {{ end }}
+            </ul>
+          </section>
+        {{ end }}
+
+        {{/* Section: Historia */}}
+        {{ with .Params.history }}
+          <div class="detail-section">
+            <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.history" }}</h3>
+            <div class="detail-field">
+              <span class="detail-value text-stone-700">{{ . }}</span>
+            </div>
+          </div>
+        {{ end }}
+
+        {{/* Section: Identificadores externos */}}
+        {{ if or .Params.dbe_id .Params.viaf_id }}
+          <section id="autoridades" class="detail-section">
+            <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.authorityLinks" }}</h3>
+            <ul class="detail-list text-stone-700">
+              {{ with .Params.dbe_id }}
+                <li>
+                  <a href="https://dbe.rah.es/biografias/{{ . }}"
+                     target="_blank" rel="noopener">{{ i18n "entity.authorityLinks.dbe" }}</a>
+                </li>
+              {{ end }}
+              {{ with .Params.viaf_id }}
+                <li>
+                  <a href="https://viaf.org/viaf/{{ . }}"
+                     target="_blank" rel="noopener">{{ i18n "entity.authorityLinks.viaf" }}</a>
+                </li>
+              {{ end }}
+            </ul>
+          </section>
+        {{ end }}
+
+        {{/* Section: Control — ISAAR(CPF) 5.4.7 dates of revision plus entity code + explorer link */}}
+        <div class="detail-section">
+          <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.control" }}</h3>
+          <div class="detail-field">
+            <span class="detail-label">{{ site.Params.entity_code_label | default (i18n "entity.fields.entityCode") }}</span>
+            <span class="detail-value detail-value-mono">{{ .Params.entity_code }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
+            <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" (.Lastmod.Format "2006-01-02") }}</span>
+          </div>
+          <div class="detail-field">
+            <a href="/entidades/?entidad={{ .Params.entity_code }}"
+               class="inline-flex items-center gap-1.5 text-sm font-medium rounded-md transition-colors no-underline"
+               style="padding:0.5rem 1rem;background:var(--color-burgundy);color:#fff"
+               onmouseover="this.style.background='var(--color-burgundy-deep)'"
+               onmouseout="this.style.background='var(--color-burgundy)'">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
+                <circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="16"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="19" r="3"/><line x1="12" y1="16" x2="6" y2="16"/><line x1="12" y1="16" x2="18" y2="16"/>
+              </svg>
+              {{- i18n "entity.viewInExplorer" -}}
+            </a>
+          </div>
+        </div>
+
+        {{/* Section: Reutilizacion */}}
+        <div class="detail-section">
+          <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.reuse" }}</h3>
+          <p class="reuse-blurb">{{ i18n "entity.reuseBlurb" | safeHTML }}</p>
+          <div class="reuse-manifest">
+            <strong class="reuse-manifest-label">EAC-CPF</strong>
+            <div class="reuse-manifest-row">
+              <code class="reuse-manifest-url reuse-coming-soon">{{ i18n "entity.comingSoon" }}</code>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {{/* Right column: aside with timeline/graph */}}
+      <div class="desc-aside">
+        <div class="detail-section">
+          <h3 class="font-semibold text-stone-400">{{ i18n "entity.timelineHeader" }}</h3>
+
+          <p class="entity-intro" id="entity-intro"
+             data-entity-type="{{ $typeLabel }}"
+             data-entity-type-raw="{{ .Params.entity_type }}"
+             data-entity-code="{{ .Params.entity_code }}"
+             data-count="{{ .Params._linked_count }}"
+             {{ printf `data-entity-type-labels='%s'` (jsonify $vocab.entityTypes) | safeHTMLAttr }}
+             {{ printf `data-role-labels='%s'` (jsonify $vocab.roles) | safeHTMLAttr }}
+             {{ printf `data-role-group-labels='%s'` (jsonify $vocab.roleGroups) | safeHTMLAttr }}
+             {{ printf `data-i18n='%s'` (jsonify (dict
+               "focalIntro"       (i18n "entity.focal.intro")
+               "viewTimeline"     (i18n "entity.focal.viewTimeline")
+               "viewGraph"        (i18n "entity.focal.viewGraph")
+               "viewSearch"       (i18n "entity.focal.viewSearch")
+               "sep"              (i18n "entity.focal.sep")
+               "tail"             (i18n "entity.focal.tail")
+               "filterByRole"     (i18n "entity.filterByRole")
+               "clearShort"       (i18n "ui.clearShort")
+               "connectedToZasqua" (dict "one" (i18n "graph.connectedToZasqua" 1) "other" (i18n "graph.connectedToZasqua" 2))
+               "connectedTo"      (dict "one" (i18n "graph.connectedToZasqua" 1) "other" (i18n "graph.connectedToZasqua" 2))
+               "expand"           (i18n "graph.expand")
+               "loading"          (i18n "graph.loading")
+               "graphEmpty"       (i18n "entity.graphEmpty")
+               "timelineFilteredEmpty" (i18n "entity.timelineFilteredEmpty")
+               "noDateLabel"      (i18n "entity.noDateLabel")
+               "shardError"       (i18n "entity.shardError")
+               "openInExplorer"   (i18n "entity.openInExplorer")
+               "dateConnector"    (i18n "ui.dateConnector")
+               "sharedDocsSentence" (dict "one" (i18n "entity.sharedDocsSentence" 1) "other" (i18n "entity.sharedDocsSentence" 2))
+               "connectedOtherDocs" (dict "one" (i18n "entity.connectedOtherDocs" 1) "other" (i18n "entity.connectedOtherDocs" 2))
+             )) | safeHTMLAttr }}>
+          </p>
+
+          <div class="entity-view-toggle" id="entity-view-toggle">
+            <button type="button" class="entity-toggle-btn active" data-view="timeline">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              {{- i18n "entity.timelineTab" -}}
+            </button>
+            <button type="button" class="entity-toggle-btn" data-view="graph">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="16"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="19" r="3"/><line x1="12" y1="16" x2="6" y2="16"/><line x1="12" y1="16" x2="18" y2="16"/></svg>
+              {{- i18n "entity.graphTab" -}}
+            </button>
+          </div>
+
+          <div class="entity-role-filters" id="entity-role-filters"></div>
+
+          <div class="entity-timeline-frame" id="entity-timeline-frame">
+            <div class="entity-timeline" id="entity-timeline" data-entity-code="{{ .Params.entity_code }}">
+              <p class="text-stone-500 text-sm">{{ i18n "general.loading" }}</p>
+            </div>
+          </div>
+
+          <div class="entity-graph-frame" id="entity-graph-frame" style="display: none">
+            <div class="entity-graph-canvas" id="entity-graph-canvas"></div>
+            <div class="graph-legend">
+              <span class="graph-legend-item"><span class="graph-legend-dot graph-legend-person"></span> {{ i18n "entity.legend.person" }}</span>
+              <span class="graph-legend-item"><span class="graph-legend-dot graph-legend-corporate"></span> {{ i18n "entity.legend.corporate" }}</span>
+              <span class="graph-legend-item"><span class="graph-legend-dot graph-legend-doc-filled"></span> {{ i18n "entity.legend.docFilled" }}</span>
+              <span class="graph-legend-item"><span class="graph-legend-dot graph-legend-doc"></span> {{ i18n "entity.legend.doc" }}</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{{ end }}
+
+{{ define "head" }}
+  <script src="https://cdn.jsdelivr.net/npm/force-graph"></script>
+{{ end }}
+
+{{ define "scripts" }}
+  <script src="/js/entity.js"></script>
+{{ end }}
+{{/* Version: v1.4.0 */}}

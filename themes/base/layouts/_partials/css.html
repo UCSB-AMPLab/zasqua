@@ -1,0 +1,32 @@
+{{/*
+  Tailwind v4 CSS pipeline partial
+
+  Invoked from baseof.html via `templates.Defer` so Hugo finishes
+  rendering every page and populates hugo_stats.json before Tailwind
+  scans it for utility classes. The module mount in hugo.toml bridges
+  hugo_stats.json into assets/notwatching/ where the @source
+  directive in assets/css/main.css can reach it.
+
+  Development mode: un-fingerprinted URL for fast reloads.
+  Production mode: fingerprinted URL + Subresource Integrity hash.
+
+  Hugo docs: https://gohugo.io/functions/css/tailwindcss/
+
+  Version: v1.0.0
+*/}}
+{{ with resources.Get "css/main.css" }}
+  {{ $opts := dict "minify" (not hugo.IsDevelopment) }}
+  {{ with . | css.TailwindCSS $opts }}
+    {{ if hugo.IsDevelopment }}
+      <link rel="stylesheet" href="{{ .RelPermalink }}">
+    {{ else }}
+      {{ with . | fingerprint }}
+        <link rel="stylesheet"
+              href="{{ .RelPermalink }}"
+              integrity="{{ .Data.Integrity }}"
+              crossorigin="anonymous">
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+{{/* Version: v1.0.0 */}}

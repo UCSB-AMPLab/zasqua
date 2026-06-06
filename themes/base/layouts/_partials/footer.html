@@ -1,0 +1,40 @@
+{{/*
+  Site footer partial (neutral base)
+
+  Renders the site footer: an optional credits paragraph, a copyright
+  line, a link to /colofon/, an optional source-code link, and the
+  hardcoded framework-credit line (framework-credit.html). Seals
+  and institutional prose are provided by the instance's theme override
+  rather than this base partial.
+
+  Deployer identity comes through site.Params, never a data-file
+  override: Hugo replaces whole top-level data maps across the theme
+  chain, so overriding footer.* in an instance data file would silently
+  drop the sibling colofon_link_text. Params merge cleanly instead.
+
+  site.Params.footer_copyright — optional copyright line; falls back to
+    the i18n bundle's "footer.copyright" value ("© {year}") when unset.
+    The {year} token is replaced at build time with `now.Format "2006"`
+    — a single four-digit year, stable for ~12 months, so it does not
+    churn per-page ETags materially on a given deploy.
+  site.Params.footer_credits — optional HTML prose rendered above the
+    copyright line. When absent, no credits paragraph is rendered.
+  site.Params.source_url — optional URL for the source-code link.
+    When absent, the source link is omitted.
+
+  Chrome strings (colophon link text, source link text) resolve from
+  the i18n bundle selected by the manifest [ui].language setting.
+
+  Version: v2.3.0
+*/}}
+<footer class="site-footer bg-burgundy-dark text-white">
+  <div class="container">
+    <div class="footer-left text-sm">
+      {{ with site.Params.footer_credits }}<p>{{ . | safeHTML }}</p>{{ end }}
+      <p class="footer-copyright">{{ replace (site.Params.footer_copyright | default (i18n "footer.copyright")) "{year}" (now.Format "2006") }}.
+      <br><a href="/colofon/" class="text-white hover:text-periwinkle">{{ i18n "footer.colofon_link_text" }}</a>{{ with site.Params.source_url }} · <a href="{{ . }}" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">{{ i18n "footer.sourceLink" }}</a> (AGPL-3.0){{ end }}.</p>
+      {{ partial "framework-credit.html" . }}
+    </div>
+  </div>
+</footer>
+{{/* Version: v2.3.0 */}}

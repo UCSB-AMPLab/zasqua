@@ -1,0 +1,350 @@
+# RAD descriptive standard profile
+#
+# RAD (Rules for Archival Description) is the Canadian archival description
+# standard. This file is the RAD profile: the field labels, level labels
+# (fonds, series, file, item), section headers, and the ordered list of
+# fields with their visibility flags. Templates read it at build time to
+# render archival records under the RAD standard.
+#
+# This profile is a placeholder. Both the English and Spanish blocks copy
+# the ISAD(G) label set and mark every label `[STUB]`. RAD uses distinct
+# terminology for some elements, including Canadian French variants, so a
+# qualified archivist must replace these with verified RAD terminology
+# before they are used in production.
+#
+# The profile structure mirrors isadg.yaml — the same top-level schema and
+# the same field keys in the same order — so a single template loop renders
+# any standard without modification.
+#
+# To override for a deployment, copy this entire file to
+# instance/themes/{name}/data/standards/rad.yaml and edit it. Hugo replaces
+# whole top-level keys across the theme chain, so a partial override would
+# silently drop the sibling language block — always ship the full file.
+
+# English RAD profile — placeholder. ISAD(G) English labels stand in until
+# verified RAD English terminology is supplied.
+en:
+  sections:
+    description:   "[STUB] Description"
+    bibliographic: "[STUB] Bibliographic information"
+    access:        "[STUB] Conditions of access"
+    related:       "[STUB] Related materials"
+    notes:         "[STUB] Notes"
+    control:       "[STUB] Control"
+    reuse:         "[STUB] Reuse"
+  levels:
+    fonds:      "[STUB] Fonds"
+    subfonds:   "[STUB] Subfonds"
+    series:     "[STUB] Series"
+    subseries:  "[STUB] Subseries"
+    file:       "[STUB] File"
+    item:       "[STUB] Item"
+    collection: "[STUB] Collection"
+    section:    "[STUB] Section"
+    volume:     "[STUB] Volume"
+  levelsPlural:
+    fonds:      "[STUB] fonds"
+    subfonds:   "[STUB] subfonds"
+    series:     "[STUB] series"
+    subseries:  "[STUB] subseries"
+    file:       "[STUB] files"
+    item:       "[STUB] items"
+    collection: "[STUB] collections"
+    section:    "[STUB] sections"
+    volume:     "[STUB] volumes"
+    caja:       "[STUB] boxes"
+    carpeta:    "[STUB] folders"
+    legajo:     "[STUB] bundles"
+    tomo:       "[STUB] volumes"
+  fields:
+    - key: repository
+      label: "[STUB] Repository"
+      section: description
+      render: special
+      show: true
+      required: false
+    - key: date_formatted
+      label: "[STUB] Date"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: reference_code
+      label: "[STUB] Reference Code"
+      section: description
+      render: mono
+      show: true
+      required: true
+    - key: scope_content
+      label: "[STUB] Scope and Content"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: extent
+      label: "[STUB] Extent"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: arrangement
+      label: "[STUB] Arrangement"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: publication_title
+      label: "[STUB] Publication"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: series_statement
+      label: "[STUB] Series"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: uniform_title
+      label: "[STUB] Uniform title"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: section_title
+      label: "[STUB] Section"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: edition_statement
+      label: "[STUB] Edition"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: imprint
+      label: "[STUB] Imprint"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: pages
+      label: "[STUB] Pages"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: access_conditions
+      label: "[STUB] Conditions of access"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: reproduction_conditions
+      label: "[STUB] Conditions of reproduction"
+      section: access
+      render: special
+      show: true
+      required: false
+    - key: language
+      label: "[STUB] Language"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: location_of_originals
+      label: "[STUB] Location of originals"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: location_of_copies
+      label: "[STUB] Existence and location of copies"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: related_materials
+      label: "[STUB] Related materials"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: notes
+      label: "[STUB] Notes"
+      section: notes
+      render: pipelist
+      show: true
+      required: false
+    - key: finding_aids
+      label: "[STUB] Finding aids"
+      section: notes
+      render: plain
+      show: true
+      required: false
+
+# Spanish RAD profile — placeholder. ISAD(G) Spanish labels stand in until
+# verified Colombian Spanish RAD terminology (§8.11) is supplied.
+es:
+  sections:
+    description:   "[STUB] Descripción"
+    bibliographic: "[STUB] Información bibliográfica"
+    access:        "[STUB] Condiciones de acceso"
+    related:       "[STUB] Materiales relacionados"
+    notes:         "[STUB] Notas"
+    control:       "[STUB] Control"
+    reuse:         "[STUB] Reutilización"
+  levels:
+    fonds:      "[STUB] Fondo"
+    subfonds:   "[STUB] Subfondo"
+    series:     "[STUB] Serie"
+    subseries:  "[STUB] Subserie"
+    file:       "[STUB] Expediente"
+    item:       "[STUB] Unidad documental"
+    collection: "[STUB] Colección"
+    section:    "[STUB] Sección"
+    volume:     "[STUB] Tomo"
+  levelsPlural:
+    fonds:      "[STUB] fondos"
+    subfonds:   "[STUB] subfondos"
+    series:     "[STUB] series"
+    subseries:  "[STUB] subseries"
+    file:       "[STUB] expedientes"
+    item:       "[STUB] documentos"
+    collection: "[STUB] colecciones"
+    section:    "[STUB] secciones"
+    volume:     "[STUB] tomos"
+    caja:       "[STUB] cajas"
+    carpeta:    "[STUB] carpetas"
+    legajo:     "[STUB] legajos"
+    tomo:       "[STUB] tomos"
+  fields:
+    - key: repository
+      label: "[STUB] Repositorio"
+      section: description
+      render: special
+      show: true
+      required: false
+    - key: date_formatted
+      label: "[STUB] Fecha"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: reference_code
+      label: "[STUB] Código de referencia"
+      section: description
+      render: mono
+      show: true
+      required: true
+    - key: scope_content
+      label: "[STUB] Alcance y contenido"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: extent
+      label: "[STUB] Extensión"
+      section: description
+      render: pipelist
+      show: true
+      required: false
+    - key: arrangement
+      label: "[STUB] Signatura original"
+      section: description
+      render: plain
+      show: true
+      required: false
+    - key: publication_title
+      label: "[STUB] Publicación"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: series_statement
+      label: "[STUB] Serie"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: uniform_title
+      label: "[STUB] Título uniforme"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: section_title
+      label: "[STUB] Sección"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: edition_statement
+      label: "[STUB] Edición"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: imprint
+      label: "[STUB] Pie de imprenta"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: pages
+      label: "[STUB] Páginas"
+      section: bibliographic
+      render: plain
+      show: true
+      required: false
+    - key: access_conditions
+      label: "[STUB] Condiciones de acceso"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: reproduction_conditions
+      label: "[STUB] Condiciones de reproducción"
+      section: access
+      render: special
+      show: true
+      required: false
+    - key: language
+      label: "[STUB] Idioma"
+      section: access
+      render: plain
+      show: true
+      required: false
+    - key: location_of_originals
+      label: "[STUB] Localización de los originales"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: location_of_copies
+      label: "[STUB] Existencia y localización de copias"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: related_materials
+      label: "[STUB] Materiales relacionados"
+      section: related
+      render: plain
+      show: true
+      required: false
+    - key: notes
+      label: "[STUB] Notas"
+      section: notes
+      render: pipelist
+      show: true
+      required: false
+    - key: finding_aids
+      label: "[STUB] Instrumentos de consulta"
+      section: notes
+      render: plain
+      show: true
+      required: false
+
+# Version: v1.0.0

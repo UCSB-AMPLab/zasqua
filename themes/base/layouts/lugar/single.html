@@ -1,0 +1,273 @@
+{{/*
+  Zasqua place detail template
+
+  Renders one page per place authority record (cities, administrative
+  divisions, regions, countries, geographical features, rivers).
+  Routed via content/lugar/_content.gotmpl.
+
+  Structure:
+  - Breadcrumb: Inicio > Lugares > display_name
+  - Header with display_name + type badge
+  - Two-column:
+    - Left: Identification, External IDs (Wikidata / TGN / WHG / HGIS),
+      Control, Reuse
+    - Right: Map (when coordinates present) or no-coordinates notice;
+      linked-descriptions list with chronological / alphabetical sort
+  - head block: MapLibre GL CSS+JS (conditional on coordinates)
+  - scripts block: /js/place.js
+
+  ISO-3 country codes are mapped to display names via i18n lookups
+  (place.countries.*) covering every country the Zasqua corpus
+  currently references; unmapped codes fall back to the raw code.
+
+  Vocab source: themes/base/data/vocab/{lang}.yaml, resolved by
+  site.Language.LanguageCode, falling back to vocab.es.
+
+  Version: v1.5.0
+*/}}
+{{ define "title" }}{{ .Params.display_name }} | {{ site.Title }}{{ end }}
+{{ define "main" }}
+
+{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
+{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
+{{ $vocab := index hugo.Data.vocab $langKey }}
+{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+
+{{ $typeLabel := index $vocab.placeTypes .Params.place_type }}
+{{ if not $typeLabel }}{{ $typeLabel = .Params.place_type }}{{ end }}
+
+{{ $countries := dict
+  "COL" (i18n "place.countries.COL")
+  "PER" (i18n "place.countries.PER")
+  "BOL" (i18n "place.countries.BOL")
+  "ECU" (i18n "place.countries.ECU")
+  "VEN" (i18n "place.countries.VEN")
+  "ARG" (i18n "place.countries.ARG")
+  "BRA" (i18n "place.countries.BRA")
+  "CHL" (i18n "place.countries.CHL")
+  "MEX" (i18n "place.countries.MEX")
+  "USA" (i18n "place.countries.USA")
+  "ESP" (i18n "place.countries.ESP")
+  "FRA" (i18n "place.countries.FRA")
+  "GBR" (i18n "place.countries.GBR")
+  "PAN" (i18n "place.countries.PAN")
+}}
+
+{{ $hasCoords := and .Params.latitude .Params.longitude }}
+{{ $hasAuthority := or .Params.wikidata_id .Params.whg_id .Params.tgn_id .Params.hgis_id }}
+{{ $inExplorer := or $hasCoords (gt (default 0 .Params._linked_count) 1) }}
+
+{{/* Breadcrumb */}}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/">{{ i18n "breadcrumb.home" }}</a>
+    <span class="breadcrumb-separator">&rsaquo;</span>
+    <span>{{ i18n "place.breadcrumbParent" }}</span>
+    <span class="breadcrumb-separator">&rsaquo;</span>
+    <span>{{ .Params.display_name }}</span>
+  </div>
+</nav>
+
+{{/* Header */}}
+<div class="detail-header">
+  <div class="container">
+    <h1 class="detail-title font-sans font-semibold text-stone-900">{{ .Params.display_name }}</h1>
+    <div class="detail-meta text-sm text-stone-500">
+      <span class="level-badge">{{ $typeLabel }}</span>
+    </div>
+  </div>
+</div>
+
+{{/* Two-column layout */}}
+<div class="detail-content">
+  <div class="container">
+    <div class="desc-layout entity-layout">
+
+      {{/* Left column: metadata */}}
+      <div class="desc-metadata">
+
+        {{/* Section: Identificacion */}}
+        <div class="detail-section">
+          <h3 class="font-semibold text-stone-400">{{ i18n "place.sections.identification" }}</h3>
+
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "place.fields.name" }}</span>
+            <span class="detail-value">{{ .Params.display_name }}</span>
+          </div>
+
+          {{ if and .Params.name_variants (gt (len .Params.name_variants) 0) }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "place.fields.nameVariants" }}</span>
+              <span class="detail-value">{{ delimit .Params.name_variants ", " }}</span>
+            </div>
+          {{ end }}
+
+          {{ with .Params.country_code }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "place.fields.countryCode" }}</span>
+              <span class="detail-value">{{ or (index $countries .) . }}</span>
+            </div>
+          {{ end }}
+        </div>
+
+        {{/* Section: Identificadores externos */}}
+        {{ if $hasAuthority }}
+          <div class="detail-section">
+            <h3 class="font-semibold text-stone-400">{{ i18n "place.sections.externalIds" }}</h3>
+            <div class="authority-rows">
+              {{ with .Params.wikidata_id }}
+                <a href="https://www.wikidata.org/wiki/{{ . }}" target="_blank" rel="noopener" class="authority-row">
+                  <span class="material-symbols-outlined authority-row-icon">open_in_new</span>
+                  <span class="authority-row-label">Wikidata</span>
+                  <span class="authority-row-code">{{ . }}</span>
+                </a>
+              {{ end }}
+              {{ with .Params.tgn_id }}
+                <a href="https://vocab.getty.edu/page/tgn/{{ . }}" target="_blank" rel="noopener" class="authority-row">
+                  <span class="material-symbols-outlined authority-row-icon">open_in_new</span>
+                  <span class="authority-row-label">TGN</span>
+                  <span class="authority-row-code">{{ . }}</span>
+                </a>
+              {{ end }}
+              {{ with .Params.whg_id }}
+                <a href="https://whgazetteer.org/places/{{ . }}/portal" target="_blank" rel="noopener" class="authority-row">
+                  <span class="material-symbols-outlined authority-row-icon">open_in_new</span>
+                  <span class="authority-row-label">WHG</span>
+                  <span class="authority-row-code">{{ . }}</span>
+                </a>
+              {{ end }}
+              {{ with .Params.hgis_id }}
+                <div class="authority-row authority-row-static">
+                  <span class="authority-row-label">HGIS</span>
+                  <span class="authority-row-code">{{ . }}</span>
+                </div>
+              {{ end }}
+            </div>
+          </div>
+        {{ end }}
+
+
+        {{/* Section: Control — Linked Places equivalent of ISAAR(CPF) 5.4.7 revision date plus place code, coordinates, explorer link */}}
+        <div class="detail-section">
+          <h3 class="font-semibold text-stone-400">{{ i18n "place.sections.control" }}</h3>
+          <div class="detail-field">
+            <span class="detail-label">{{ site.Params.place_code_label | default (i18n "place.fields.placeCode") }}</span>
+            <span class="detail-value detail-value-mono">{{ or .Params.place_code (printf "nl-%d" (int .Params.id)) }}</span>
+          </div>
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
+            <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" (.Lastmod.Format "2006-01-02") }}</span>
+          </div>
+          {{ if $hasCoords }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "place.fields.coordinates" }}</span>
+              <span class="detail-value">{{ .Params.latitude }}, {{ .Params.longitude }}</span>
+            </div>
+          {{ end }}
+          {{ if $inExplorer }}
+          <div class="detail-field">
+            <a href="/lugares/?q={{ .Params.display_name | urlquery }}"
+               class="inline-flex items-center gap-1.5 text-sm font-medium rounded-md transition-colors no-underline"
+               style="padding:0.5rem 1rem;background:var(--color-burgundy);color:#fff"
+               onmouseover="this.style.background='var(--color-burgundy-deep)'"
+               onmouseout="this.style.background='var(--color-burgundy)'">
+              <span class="material-symbols-outlined" style="font-size:16px">location_on</span>
+              {{- i18n "place.viewInExplorer" -}}
+            </a>
+          </div>
+          {{ end }}
+        </div>
+
+        {{/* Section: Reutilizacion */}}
+        <div class="detail-section">
+          <h3 class="font-semibold text-stone-400">{{ i18n "place.sections.reuse" }}</h3>
+          <p class="reuse-blurb">{{ i18n "place.reuseBlurb" | safeHTML }}</p>
+          <div class="reuse-manifest">
+            <strong class="reuse-manifest-label">Linked Places</strong>
+            <div class="reuse-manifest-row">
+              <code class="reuse-manifest-url reuse-coming-soon">{{ i18n "place.comingSoon" }}</code>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {{/* Right column: aside with map and description list */}}
+      <div class="desc-aside">
+        <div class="detail-section">
+          {{ if $hasCoords }}
+            <h3 class="font-semibold text-stone-400">{{ i18n "place.map" }}</h3>
+            <div class="place-map-frame" id="place-map-frame">
+              <div class="place-map" id="place-map"
+                   data-lat="{{ .Params.latitude }}"
+                   data-lon="{{ .Params.longitude }}"
+                   data-place-name="{{ .Params.display_name }}"
+                   data-place-type="{{ $typeLabel }}"
+                   data-maptiler-key="{{ site.Params.maptiler_key }}"
+                   data-maptiler-style-id="{{ site.Params.maptiler_style_id }}"></div>
+            </div>
+          {{ else }}
+            <div class="desc-notice">
+              <span class="material-symbols-outlined desc-notice-icon">location_off</span>
+              <div class="desc-notice-title">{{ i18n "place.noCoordinatesTitle" }}</div>
+              <p class="desc-notice-text">{{ i18n "place.noCoordinatesText" }}</p>
+            </div>
+          {{ end }}
+
+          <h3 class="font-semibold text-stone-400 mt-4">{{ i18n "place.linkedDescriptions" }}</h3>
+
+          <div class="entity-role-filters" id="place-role-filters"></div>
+
+          <div id="place-description-list-wrapper">
+            <div id="place-description-sort" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+              <span class="text-sm font-medium text-stone-700" id="place-desc-count"></span>
+              <div class="sort-controls" style="display:flex;gap:0.5rem;align-items:center">
+                <button type="button" class="sort-btn active" data-sort="chronological">{{ i18n "place.sortChrono" }}</button>
+                <span class="sort-divider">|</span>
+                <button type="button" class="sort-btn" data-sort="alphabetical">{{ i18n "place.sortAlpha" }}</button>
+              </div>
+            </div>
+            {{/*
+              Client-i18n blob for place.js: the shard-error, filtered-empty,
+              close-aria and date-connector strings the controller renders, all
+              blob-only (no Spanish fallback). Role-badge labels ride a
+              separate data-place-role-labels attribute sourced from
+              ui.yaml.placeRoles (vocab keyed by the raw role code, never bundle
+              keys), so place.js drops its inline placeRoleLabels map.
+              noDateLabel stays a dedicated attribute (read by the divider) —
+              kept for back-compat with the existing dataset read.
+            */}}
+            <div id="place-timeline" data-place-id="{{ .Params.place_code }}"
+                 data-no-date-label="{{ i18n "place.noDateLabel" }}"
+                 {{ printf `data-place-role-labels='%s'` (jsonify $vocab.placeRoles) | safeHTMLAttr }}
+                 {{ printf `data-i18n='%s'` (jsonify (dict
+                   "shardError"    (i18n "place.shardError")
+                   "filteredEmpty" (i18n "place.filteredEmpty")
+                   "selectedClose" (i18n "ui.selectedClose")
+                   "dateConnector" (i18n "ui.dateConnector")
+                   "linkedDescriptionsCount" (dict "one" (i18n "place.linkedDescriptionsCount" 1) "other" (i18n "place.linkedDescriptionsCount" 2))
+                 )) | safeHTMLAttr }}>
+              <p class="text-stone-500 text-sm">{{ i18n "general.loading" }}</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{{ end }}
+
+{{ define "head" }}
+  {{ if and .Params.latitude .Params.longitude }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css" />
+    <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"></script>
+  {{ end }}
+{{ end }}
+
+{{ define "scripts" }}
+  <script src="/js/place.js"></script>
+{{ end }}
+{{/* Version: v1.5.0 */}}

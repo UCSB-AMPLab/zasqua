@@ -1,0 +1,88 @@
+{{/*
+  Home page (neutral base)
+
+  Renders the hero section (optional logo from site.Params.logo, site
+  name, and a search form that posts to /buscar/), an optional intro
+  section read from the home page's `intro` front-matter list
+  (content/_index.md), and the repository grid. Each `intro` entry is
+  wrapped in <p class="section-intro font-display"> and passed through
+  safeHTML; the `with` guard keeps the whole section absent when no
+  intro is authored, so a base-only deployment without a blurb renders
+  no empty <section>.
+
+  Repository cards read their title, subtitle, image, category, and
+  link from the repo record's own fields (repo.name, repo.subtitle,
+  repo.image, repo.category, repo.hero_link) with empty-safe fallbacks.
+  The instance theme override supplies per-repo editorial overrides
+  specific to the deploying institution; this base renders purely from
+  the data layer with no hardcoded repo codes.
+
+  Repository data is loaded from assets/hugo-data/repositories.json.
+  Number formatting: lang.FormatNumber 0 N uses the site locale, which
+  produces the Latin American dot thousands separator for es-CO builds.
+
+  No `{{ define "title" }}` block — the fallback in baseof.html
+  produces `<title>{site.Title}</title>` for the home page.
+
+  Version: v2.1.0
+*/}}
+{{ define "main" }}
+{{ $repos := slice }}
+{{ with resources.Get "hugo-data/repositories.json" }}
+  {{ $repos = . | transform.Unmarshal }}
+{{ end }}
+
+<section class="hero">
+  <div class="hero-content">
+    {{ with site.Params.logo }}<img src="{{ . }}" alt="" class="hero-logo">{{ end }}
+    <h1>
+      <span class="site-name font-serif">{{ site.Title }}</span>
+    </h1>
+    <form class="search-form" action="/buscar/" method="get">
+      <input type="search" name="q" class="search-input" placeholder="{{ i18n "search.placeholder" }}">
+      <button type="submit" class="search-button"><span class="material-symbols-outlined">search</span></button>
+    </form>
+  </div>
+</section>
+
+{{ with .Params.intro }}
+<section class="section intro-section">
+  <div class="container">
+    {{ range . }}<p class="section-intro font-display">{{ . | safeHTML }}</p>
+    {{ end }}
+  </div>
+</section>
+{{ end }}
+
+<section class="section repo-section">
+  <h2 class="section-title font-display">{{ hugo.Data.ui.repository.exploreCollections | default "Explore collections" }}</h2>
+
+  <div class="repo-grid">
+    {{ range $repo := $repos }}
+      {{ $repoImage := $repo.image | default "" }}
+      {{ $repoTitle := $repo.name }}
+      {{ $repoSubtitle := $repo.subtitle | default "" }}
+      {{ $repoCategory := $repo.category | default "" }}
+      {{ $repoLink := $repo.hero_link | default (printf "/%s/" $repo.code) }}
+
+      <div class="repo-item">
+        <a href="{{ $repoLink }}" class="repo-link">
+          {{ with $repoImage }}<img src="{{ . }}" alt="{{ $repoTitle }}" class="repo-image">{{ end }}
+          <div class="repo-caption">
+            <h3 class="repo-caption-title">{{ $repoTitle }}</h3>
+            {{ with $repoCategory }}<p class="repo-caption-category">{{ . }}</p>{{ end }}
+          </div>
+          <div class="repo-overlay">
+            <div class="repo-info">
+              <h3 class="repo-title">{{ $repoTitle }}</h3>
+              {{ with $repoSubtitle }}<p class="repo-subtitle">{{ . }}</p>{{ end }}
+              <p class="repo-subtitle">{{ lang.FormatNumber 0 (default 0 $repo.description_count) }} {{ i18n "repository.itemsCount" }}</p>
+            </div>
+          </div>
+        </a>
+      </div>
+    {{ end }}
+  </div>
+</section>
+{{ end }}
+{{/* Version: v2.1.0 */}}

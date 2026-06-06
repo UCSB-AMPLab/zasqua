@@ -1,0 +1,54 @@
+{{/*
+  Shared client-i18n chrome dict — _partials/i18n-blob.html
+
+  Returns the cross-surface "chrome" translation strings that every
+  explorer template (buscar/, entidades/, lugares/, plus the graph view)
+  needs to hand to its client controller through a single
+  `data-i18n='...'` JSON attribute. Before this partial existed each
+  explorer hand-listed the common keys inline (see buscar/list.html's
+  former data-i18n block), which meant the same Spanish string was named
+  in four templates. Now the shared set lives here once; a caller does:
+
+      {{ $i18n := partial "i18n-blob.html" . }}
+      {{ $i18n = merge $i18n (dict "surfaceKey" (i18n "entity.cardLink")) }}
+      <div data-i18n='{{ jsonify $i18n }}'></div>
+
+  The partial RETURNS a Go map (via `return`) rather than emitting the
+  attribute itself, so each surface can merge its own per-surface keys
+  and `jsonify` exactly once. Keys here are the reused search.* and
+  general.* strings plus the shared [ui] section defined in es.toml —
+  reused rather than duplicated per surface. `linkedDocLabel` is a CLDR
+  plural sub-table, so it is emitted as a {one, other} dict the client
+  pluralizes at render time.
+
+  Spanish lives only in es.toml; en.toml mirrors it. The consuming JS
+  carries no hardcoded Spanish fallback — the blob is the sole source.
+
+  Version: v1.1.1
+*/}}
+{{ return (dict
+  "clearFilters"        (i18n "search.clearFilters")
+  "noResults"           (i18n "search.noResults")
+  "noResultsSuggestion" (i18n "search.noResultsSuggestion")
+  "viewAll"             (i18n "search.viewAll")
+  "filtersHeader"       (i18n "search.filtersHeader")
+  "sidebarHeading"      (i18n "search.sidebarHeading")
+  "error"               (i18n "general.error")
+  "loading"             (i18n "general.loading")
+  "removeFilter"        (i18n "ui.removeFilter")
+  "pagination"          (i18n "ui.pagination")
+  "closeFilters"        (i18n "ui.closeFilters")
+  "sortBy"              (i18n "ui.sortBy")
+  "retry"               (i18n "ui.retry")
+  "centuryLabel"        (i18n "ui.centuryLabel")
+  "decadeLabel"         (i18n "ui.decadeLabel")
+  "dateConnector"       (i18n "ui.dateConnector")
+  "selectedClose"       (i18n "ui.selectedClose")
+  "sortName"            (i18n "ui.sortName")
+  "sortDate"            (i18n "ui.sortDate")
+  "sortDocs"            (i18n "ui.sortDocs")
+  "clearShort"          (i18n "ui.clearShort")
+  "facetModalSearch"    (i18n "ui.facetModalSearch")
+  "linkedDocLabel"      (dict "one" (i18n "ui.linkedDocLabel" 1) "other" (i18n "ui.linkedDocLabel" 2))
+) }}
+{{/* Version: v1.1.1 */}}

@@ -1,0 +1,73 @@
+{{/*
+  Zasqua repository content adapter
+
+  Runs during Hugo's content-loading phase, reads
+  assets/hugo-data/repositories.json (copied from
+  exports/repositories.json by scripts/generate-content.js), and calls
+  AddPage once per repository record so Hugo registers every
+  repository landing as a routable page.
+
+  URL scheme: /{code}/ — flat short-codes, same override pattern the
+  descripcion / entidad / lugar adapters use.
+
+  Data shape (per record in repositories.json): code, name,
+  description_count, country_code, country, city, root_descriptions
+  (array of fonds-level description stubs).
+
+  Layout resolution: Hugo uses layouts/repository/single.html because
+  the page's internal kind is "page" and its section is "repository".
+
+  The page dict does NOT set "title" — rendered repository pages have
+  no page-level title; their <title> falls back to site.Title
+  ("Zasqua") via baseof.html's fallback.
+
+  Per-record modified_at ISO dates from the backend flow into Hugo's
+  .Lastmod for ETag stability. Repository detail pages have no
+  Reutilización block so no visible "actualizado" line is rendered —
+  the .Lastmod is invisible but keeps the landing pages off the full
+  re-upload path on rebuilds where their underlying data has not
+  changed. When modified_at is absent the dates key is omitted so Hugo
+  falls back to its build/git date rather than stamping the epoch
+  zero-time.
+
+  Version: v1.1.0
+*/}}
+
+{{ $data := slice }}
+{{ with resources.Get "hugo-data/repositories.json" }}
+  {{ with try (. | transform.Unmarshal) }}
+    {{ with .Err }}
+      {{ errorf "[repository adapter] Unable to parse repositories.json: %s" . }}
+    {{ else }}
+      {{ $data = .Value }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+
+{{ if not $data }}
+  {{ errorf "[repository adapter] No repository data found at assets/hugo-data/repositories.json — has scripts/generate-content.js run yet?" }}
+{{ end }}
+
+{{ range $data }}
+  {{ $params := dict
+      "code" .code
+      "name" .name
+      "description_count" .description_count
+      "country" .country
+      "country_code" .country_code
+      "city" .city
+      "root_descriptions" .root_descriptions
+  }}
+  {{ $page := dict
+      "kind" "page"
+      "path" .code
+      "params" $params
+      "content" (dict "mediaType" "text/html" "value" "")
+  }}
+  {{/* Set lastmod only when modified_at is present — avoids epoch zero-time */}}
+  {{ with .modified_at }}{{ $page = merge $page (dict "dates" (dict "lastmod" (time.AsTime .))) }}{{ end }}
+  {{/* Flat short-code URL override */}}
+  {{ $page = merge $page (dict "url" (printf "/%s/" .code)) }}
+  {{ $.AddPage $page }}
+{{ end }}
+{{/* Version: v1.1.0 */}}

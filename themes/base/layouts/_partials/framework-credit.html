@@ -1,0 +1,33 @@
+{{/*
+  Engine attribution — hardcoded, language-responsive
+
+  Renders the single line crediting the Zasqua engine to AMPL. This is
+  the engine's OWN attribution, deliberately NOT a deployer-editable
+  data/config value: every site built on the engine carries it. Included
+  by the base footer partial and by any instance footer override — the
+  Neogranadina overlay includes it explicitly, since that overlay
+  replaces the base footer wholesale and would otherwise drop the line.
+
+  Language-responsive via site.Language.Lang: US English for the
+  README/docs locale, Colombian Spanish for the rendered site. The
+  software is always named with its function — "the Zasqua engine" in
+  English, "el motor de publicación de archivos digitales Zasqua" in
+  Spanish — never bare, so the credit never reads as the Zasqua archive
+  itself (the archive is what a deployed site is; this names what built it).
+
+  Links:
+    AMPL                          -> https://ampl.clair.ucsb.edu
+    open-source / código abierto  -> https://github.com/UCSB-AMPLab/zasqua
+                                     (the engine's source repository)
+    AGPL-3.0 is rendered as plain text — a licence name, not a link.
+
+  Version: v1.0.0
+*/}}
+<p class="footer-framework">
+  {{- if eq site.Language.Lang "en" -}}
+  Built with the Zasqua engine by <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">open-source</a> software for publishing digital archives (AGPL-3.0).
+  {{- else -}}
+  Hecho con el motor de publicación de archivos digitales Zasqua, de <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — <em>software</em> de <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">código abierto</a> (AGPL-3.0).
+  {{- end -}}
+</p>
+{{/* Version: v1.0.0 */}}

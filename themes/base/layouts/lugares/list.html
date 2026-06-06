@@ -1,0 +1,154 @@
+{{/*
+  Zasqua place explorer (/lugares/)
+
+  Renders the place explorer: a MapLibre map panel with a custom
+  MapTiler basemap on top, a selected-place card, a filter column
+  with viewport toggle + search + facets, and a results column driven
+  by Pagefind.
+
+  The place-count-live span is computed from places.json at build time
+  via lang.FormatNumber. JS overrides it with the live Pagefind-indexed
+  count once the index is ready.
+
+  Data attributes: data-place-types carries vocab.placeTypes as JSON;
+  data-i18n carries the merged client-i18n blob (shared chrome dict from
+  _partials/i18n-blob.html + place-only keys) so place-explorer.js renders
+  every user-facing string locale-driven and blob-only (no Spanish
+  fallback); data-place-role-labels carries vocab.placeRoles (role-label
+  vocab, not bundle keys); data-maptiler-key + data-maptiler-style-id carry
+  the MapTiler style URL components from site.Params. JSON attributes are
+  emitted via printf + safeHTMLAttr to preserve raw double quotes.
+
+  Vocab source: themes/base/data/vocab/{lang}.yaml, resolved by
+  site.Language.LanguageCode ("es-CO" → "es", "en-US" → "en"), falling
+  back to vocab.es when the language key is absent.
+
+  Version: v1.5.0
+*/}}
+{{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
+
+{{ define "head" }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css" />
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"></script>
+{{ end }}
+
+{{ define "main" }}
+{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
+{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
+{{ $vocab := index hugo.Data.vocab $langKey }}
+{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+{{ $places := slice }}
+{{ with resources.Get "hugo-data/places.json" }}
+  {{ $places = . | transform.Unmarshal }}
+{{ end }}
+{{ $placeCount := len $places }}
+
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <div class="container">
+    <a href="/">{{ i18n "breadcrumb.home" }}</a>
+    <span class="breadcrumb-separator">&rsaquo;</span>
+    <span>{{ i18n "place.explorerTitle" }}</span>
+  </div>
+</nav>
+
+<div class="explorer-page">
+
+  <header class="explorer-page-header">
+    <h1 class="explorer-page-title">{{ i18n "place.explorerTitle" }}</h1>
+    <p class="explorer-page-intro">{{ replace (i18n "place.explorerIntro") "{count}" (printf `<strong id="place-count-live">%s</strong>` (lang.FormatNumber 0 $placeCount)) | safeHTML }}
+      {{ i18n "place.explorerExamplesPrefix" }}
+      <button type="button" class="graph-empty-state-link" data-place="santafe-de-bogota">Santafé de Bogotá</button>,
+      <button type="button" class="graph-empty-state-link" data-place="cartagena">Cartagena</button>,
+      <button type="button" class="graph-empty-state-link" data-place="quito">Quito</button>
+      {{ i18n "place.explorerExamplesConj" }}
+      <button type="button" class="graph-empty-state-link" data-place="popayan">Popayán</button>.</p>
+  </header>
+
+  <div class="explorer-grid">
+
+    <section class="explorer-graph-panel">
+      <div id="explorer-map" style="width:100%;height:100%"></div>
+    </section>
+
+    <aside class="explorer-selected-col">
+      <div id="selected-place-card" class="selected-entity-card">
+        <div class="selected-entity-stub">{{ i18n "place.selectPrompt" }}</div>
+      </div>
+    </aside>
+
+    <aside class="explorer-filters-col">
+      <button type="button"
+              id="viewport-filter-toggle"
+              class="viewport-filter-btn"
+              aria-pressed="false">
+        <svg class="viewport-filter-icon" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M5 2.5 L5 13.5 M2.5 5 L5 2.5 L7.5 5 M11 13.5 L11 2.5 M8.5 11 L11 13.5 L13.5 11"
+                stroke="currentColor" stroke-width="1.6" fill="none"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="viewport-filter-label">{{ i18n "place.viewportFilterLabel" }}</span>
+      </button>
+
+      <div id="place-search-input" class="explorer-filter-search"></div>
+
+      <div id="sidebar-facets"></div>
+    </aside>
+
+    <div class="explorer-results-col">
+      {{/*
+        Client-i18n blob: the shared chrome dict from _partials/i18n-blob.html
+        (clearFilters, sortBy, removeFilter, selectedClose, linkedDocLabel {one,
+        other}, …) merged with the place-only keys place-explorer.js reads. The
+        `document` {one, other} sub-table is the per-marker noun; `linkedDocLabel`
+        (shared [ui] plural) is the selected-place card stat. Single-source,
+        blob-only — no "|| Spanish" fallback in the JS. place-role labels
+        ride a separate `data-place-role-labels` attribute sourced from
+        ui.yaml.placeRoles (vocab, never bundle keys).
+      */}}
+      {{ $i18n := partial "i18n-blob.html" . }}
+      {{ $i18n = merge $i18n (dict
+        "document"            (dict "one" (i18n "place.document" 1) "other" (i18n "place.document" 2))
+        "associatedTo"        (i18n "place.associatedTo")
+        "loadingPlaces"       (i18n "place.loadingPlaces")
+        "errorTitle"          (i18n "place.errorTitle")
+        "errorHint"           (i18n "place.errorHint")
+        "searchPlaceholder"   (i18n "place.searchPlaceholder")
+        "clusterCount"        (i18n "place.clusterCount")
+        "cardLink"            (i18n "place.cardLink")
+        "countNoFilter"       (i18n "place.countNoFilter")
+        "countOne"            (i18n "place.countOne")
+        "countMany"           (i18n "place.countMany")
+        "noResultsTitle"      (i18n "place.noResultsTitle")
+        "noResultsText"       (i18n "place.noResultsText")
+        "zeroDocs"            (i18n "place.zeroDocs")
+        "coordsTitle"         (i18n "place.coordsTitle")
+        "authorityBadge"      (i18n "place.authorityBadge")
+        "authorityTitle"      (i18n "place.authorityTitle")
+        "facetType"           (i18n "place.facetType")
+        "facetCoords"         (i18n "place.facetCoords")
+        "facetCoordsOnly"     (i18n "place.facetCoordsOnly")
+        "facetAuthorities"    (i18n "place.facetAuthorities")
+        "facetAuthorityOnly"  (i18n "place.facetAuthorityOnly")
+        "pillCoords"          (i18n "place.pillCoords")
+        "pillAuthorities"     (i18n "place.pillAuthorities")
+        "selectPrompt"        (i18n "place.selectPrompt")
+        "viewportFilterLabel" (i18n "place.viewportFilterLabel")
+        "viewportFilterActive" (i18n "place.viewportFilterActive")
+      ) }}
+      <div id="place-explorer"
+           {{ printf `data-place-types='%s'` (jsonify $vocab.placeTypes) | safeHTMLAttr }}
+           {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}
+           {{ printf `data-place-role-labels='%s'` (jsonify $vocab.placeRoles) | safeHTMLAttr }}
+           data-maptiler-key="{{ site.Params.maptiler_key }}"
+           data-maptiler-style-id="{{ site.Params.maptiler_style_id }}"></div>
+    </div>
+
+  </div>
+
+</div>
+{{ end }}
+
+{{ define "scripts" }}
+  <script src="/js/place-explorer.js"></script>
+{{ end }}
+{{/* Version: v1.5.0 */}}

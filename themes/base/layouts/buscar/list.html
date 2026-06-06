@@ -1,0 +1,95 @@
+{{/*
+  Search page — neutral base (/buscar/)
+
+  Mounts the #search-page hook that /js/search.js initialises to render
+  the client-side search UI (Pagefind-backed, with facet sidebar and
+  results list). Data attributes forward the standard-profile level
+  vocabulary plus the facet/translation bundle so JavaScript can render
+  every label and chrome string in the configured language.
+
+  data-level-labels: injected from the default ISAD(G) profile via
+  resolve-profile.html. Keys are canonical level codes ('fonds',
+  'series', etc.); values are the language-appropriate display labels.
+  search.js resolves facet bucket labels from this blob.
+
+  data-facet-labels: remains sourced from ui.yaml facets (unchanged).
+
+  The single data-i18n blob is built by merging the shared chrome dict
+  (from _partials/i18n-blob.html — clearFilters, noResults, viewAll,
+  sortBy, pagination, centuryLabel, etc.) with the search-only keys this
+  surface needs (landing copy, browse prompt, refine operators, advanced
+  toggle, digital-status and sort labels, facet headings). search.js
+  reads every string from this single-source blob with no Spanish
+  fallback; Spanish lives only in es.toml, mirrored in en.toml.
+
+  The analytics beacon is sent conditionally: when site.Params.beacon_url
+  is set in hugo.toml, the inline IIFE fires navigator.sendBeacon with
+  the search query; when the param is absent the beacon is omitted. No
+  literal infrastructure URL lives in this engine file.
+
+  Version: v3.1.0
+*/}}
+{{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
+{{ define "main" }}
+{{ $i18n := partial "i18n-blob.html" . }}
+{{ $i18n = merge $i18n (dict
+  "loadingFilters"       (i18n "search.loadingFilters")
+  "filterToggle"         (i18n "search.filterToggle")
+  "landingP1"            (i18n "search.landingP1")
+  "landingP2"            (i18n "search.landingP2")
+  "browsePromptCount"    (i18n "search.browsePromptCount")
+  "browsePromptHint"     (i18n "ui.browsePromptHint")
+  "browsePromptWarning"  (i18n "ui.browsePromptWarning")
+  "resultsCount"         (i18n "search.resultsCount")
+  "refinePlaceholder"    (i18n "search.refinePlaceholder")
+  "opYes"                (i18n "search.opYes")
+  "opNo"                 (i18n "search.opNo")
+  "addTextFilter"        (i18n "search.addTextFilter")
+  "advancedActive"       (i18n "search.advancedActive")
+  "advancedDisable"      (i18n "search.advancedDisable")
+  "advancedActivate"     (i18n "search.advancedActivate")
+  "advancedActivateNote" (i18n "search.advancedActivateNote")
+  "dateInitial"          (i18n "search.dateInitial")
+  "notPrefix"            (i18n "search.notPrefix")
+  "onlyNotMessage"       (i18n "search.onlyNotMessage")
+  "facetAncestor"        (i18n "search.facetAncestor")
+  "facetEntity"          (i18n "search.facetEntity")
+  "facetCountry"         (i18n "facets.country")
+  "facetRepository"      (i18n "facets.repository")
+  "facetLevel"           (i18n "facets.level")
+  "searchRetry"          (i18n "search.retry")
+  "digitalStatusGroup"   (i18n "search.digitalStatus.group")
+  "digitalStatusInZasqua" (i18n "search.digitalStatus.inZasqua")
+  "digitalStatusExternal" (i18n "search.digitalStatus.external")
+  "digitalStatusNone"    (i18n "search.digitalStatus.none")
+  "digitalPillInZasqua"  (i18n "search.digitalStatusPill.inZasqua")
+  "digitalPillExternal"  (i18n "search.digitalStatusPill.external")
+  "digitalPillNone"      (i18n "search.digitalStatusPill.none")
+  "sortTitle"            (i18n "search.sort.title")
+  "sortCode"             (i18n "search.sort.code")
+  "sortDate"             (i18n "search.sort.date")
+  "sortRelevance"        (i18n "search.sort.relevance")
+) }}
+{{/* Resolve the default ISAD(G) profile for level labels.
+     buscar/list.html is not a description page — use an empty repository dict
+     so resolve-profile.html falls through to the isadg baseline. */}}
+{{ $defaultProfile := partial "resolve-profile.html" (dict "Params" (dict "repository" (dict))) }}
+<div class="container font-sans">
+  <div id="search-page"
+       {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levels) | safeHTMLAttr }}
+       {{ printf `data-facet-labels='%s'` (jsonify hugo.Data.ui.facets) | safeHTMLAttr }}
+       {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}>
+  </div>
+</div>
+
+<script src="/js/search.js"></script>
+{{ with site.Params.beacon_url }}
+<script>
+(function() {
+  var q = new URLSearchParams(location.search).get('q');
+  if (q) navigator.sendBeacon('{{ . }}?q=' + encodeURIComponent(q));
+})();
+</script>
+{{ end }}
+{{ end }}
+{{/* Version: v3.1.0 */}}
