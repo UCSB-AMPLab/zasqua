@@ -1,0 +1,23 @@
+# Zasqua capability manifest — collectiveaccess golden fixture profile.
+#
+# This is a synthetic test fixture for the CollectiveAccess adapter
+# conformance test. It is consumed by
+# tests/importers/collectiveaccess.test.js to assert that the CA
+# reference adapter produces valid six-file output covering Core + Hierarchy
+# + entities + places.
+#
+# Entities and places are enabled because the CA fixture includes related
+# entities and places. IIIF is enabled because the second fixture record
+# carries a iiif_manifest_url. OCR is disabled (CA does not typically
+# expose OCR text via web services).
+
+[modules]
+hierarchy      = true
+entities       = true
+entities_graph = false
+places         = true
+places_map     = false
+iiif           = true
+ocr            = false
+
+# Version: v0.1.0

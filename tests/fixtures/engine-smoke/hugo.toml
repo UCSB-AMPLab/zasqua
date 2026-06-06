@@ -1,0 +1,45 @@
+# Zasqua engine-internal smoke fixture — Hugo configuration.
+#
+# Minimal Hugo config for SKIP_DOWNLOAD=1 zasqua build and zasqua validate
+# smoke tests inside the engine repo. Not a deployer starter — the canonical
+# onboarding workspace is UCSB-AMPLab/zasqua-template.
+#
+# Version: v1.0.0
+
+baseURL = "https://example.com/"
+languageCode = "en-US"
+defaultContentLanguage = "en"
+title = "Smoke Test Archive"
+theme = ["base"]
+enableRobotsTXT = true
+
+[build]
+  writeStats = true
+  [build.buildStats]
+    enable = true
+
+[module]
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "hugo_stats.json"
+    target = "assets/notwatching/hugo_stats.json"
+    disableWatch = true
+  [[module.mounts]]
+    source = "zasqua.manifest.toml"
+    target = "data/manifest.toml"
+
+[[build.cachebusters]]
+  source = 'assets/notwatching/hugo_stats\.json'
+  target = 'css'
+
+[[build.cachebusters]]
+  source = '(postcss|tailwind)\.config\.js'
+  target = 'css'
+
+[markup]
+  [markup.goldmark.renderer]
+    unsafe = true
+
+# Version: v1.0.0

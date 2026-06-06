@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "reference_code": "us-test-ucsb-coll-001",
+    "title": "Test Historical Collection",
+    "description_level": "collection",
+    "parent_reference_code": null,
+    "repository_code": "us-test-ucsb",
+    "date_expression": "1900–1950",
+    "date_start": "1900",
+    "scope_content": "This collection contains correspondence and administrative records from 1900 to 1950.",
+    "extent": "2 linear feet",
+    "language": "English",
+    "notes": "Bare name (no @identifier) dropped to prose: Smith, John|Bare name (no @identifier) dropped to prose: Santa Barbara (Calif.)",
+    "descriptive_standard": "isadg"
+  },
+  {
+    "id": 2,
+    "reference_code": "series-01",
+    "title": "Correspondence",
+    "description_level": "series",
+    "parent_reference_code": "us-test-ucsb-coll-001",
+    "repository_code": "us-test-ucsb",
+    "date_expression": "1900–1930",
+    "date_start": "1900",
+    "scope_content": "Incoming and outgoing letters from the collection creator.",
+    "descriptive_standard": "isadg"
+  },
+  {
+    "id": 3,
+    "reference_code": "series-01-001",
+    "title": "Letters to colleagues, 1905–1910",
+    "description_level": "file",
+    "parent_reference_code": "series-01",
+    "repository_code": "us-test-ucsb",
+    "date_expression": "1905–1910",
+    "date_start": "1905",
+    "iiif_manifest_url": "https://iiif.example.edu/manifests/series-01-001/manifest.json",
+    "descriptive_standard": "isadg"
+  }
+]

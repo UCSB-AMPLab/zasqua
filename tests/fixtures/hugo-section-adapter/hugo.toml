@@ -1,0 +1,17 @@
+# Zasqua Hugo section adapter regression fixture
+#
+# Minimal Hugo configuration used by the section-adapter regression test in
+# fixtures.test.js. Mounts fixture-manifest.toml as data/manifest.toml so
+# the _content.gotmpl adapter can read manifest.modules.entities and
+# manifest.modules.places — the same way the real instance does.
+#
+# Version: v1.0.0
+
+baseURL = "http://localhost/"
+title = "Test"
+theme = ["base"]
+
+[module]
+  [[module.mounts]]
+    source = "data"
+    target = "data"

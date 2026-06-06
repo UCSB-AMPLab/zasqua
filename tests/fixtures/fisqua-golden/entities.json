@@ -1,0 +1,43 @@
+[
+  {
+    "entity_code": "ne-abcd3",
+    "display_name": "Juan López de Herrera",
+    "entity_type": "person",
+    "sort_name": "López de Herrera, Juan",
+    "surname": "López de Herrera",
+    "given_name": "Juan",
+    "honorific": "Don",
+    "dates_of_existence": "1680 .. 1742",
+    "date_earliest": "1680",
+    "date_latest": "1742",
+    "primary_function": "notary",
+    "functions": [
+      { "function": "notary", "count": 15 },
+      { "function": "merchant", "count": 3 }
+    ],
+    "history": "Escribano real en Rionegro durante el período colonial tardío. Actuó como notario público desde 1705 hasta su muerte en 1742.",
+    "viaf_id": "12345678",
+    "dbe_id": "dbe-abc-001",
+    "name_variants": ["Juan López", "Juan de Herrera", "Juan López Herrera"]
+  },
+  {
+    "entity_code": "ne-ef5gh",
+    "display_name": "Convento de San Francisco de Rionegro",
+    "entity_type": "corporate_body",
+    "sort_name": "Convento de San Francisco de Rionegro",
+    "surname": null,
+    "given_name": null,
+    "honorific": null,
+    "dates_of_existence": "1650 .. 1820",
+    "date_earliest": "1650",
+    "date_latest": "1820",
+    "primary_function": "religious_institution",
+    "functions": [
+      { "function": "religious_institution", "count": 22 }
+    ],
+    "history": "Institución religiosa fundada a mediados del siglo XVII que ejerció funciones de administración de bienes y deudas en la jurisdicción.",
+    "viaf_id": null,
+    "dbe_id": null,
+    "name_variants": ["San Francisco", "Convento Franciscano de Rionegro"]
+  }
+]

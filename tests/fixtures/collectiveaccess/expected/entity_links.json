@@ -1,0 +1,17 @@
+[
+  {
+    "entity_code": "ne-201",
+    "reference_code": "co-ahrb-f001-001",
+    "role": "creator"
+  },
+  {
+    "entity_code": "ne-202",
+    "reference_code": "co-ahrb-f001-001",
+    "role": "subject"
+  },
+  {
+    "entity_code": "ne-202",
+    "reference_code": "co-ahrb-f001-002",
+    "role": "creator"
+  }
+]

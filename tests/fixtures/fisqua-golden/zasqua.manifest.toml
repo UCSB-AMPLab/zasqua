@@ -1,0 +1,45 @@
+# Zasqua capability manifest — Fisqua golden fixture profile.
+#
+# This is a synthetic test fixture for the Fisqua passthrough adapter.
+# All modules are enabled to exercise
+# the full six-file contract and prove that entities, places, links,
+# coordinates, OCR, and IIIF URLs all pass through the passthrough adapter
+# losslessly.
+#
+# The fixture exercises every field that risks being dropped in passthrough:
+#   - entities.json: ne- entity_code, structured name, authority links,
+#                    dates_of_existence, functions array, history, viaf_id/dbe_id
+#   - places.json:   nl- place_code, numeric latitude/longitude, authority IDs
+#   - entity_links.json: two roles on the same description (ne-abcd3 × co-ahrb-f001)
+#   - place_links.json:  role field present
+#   - descriptions.json: ocr_text with literal {{ and {%, iiif_manifest_url non-empty
+#   - repositories.json: descriptive_standard set
+
+[ui]
+language = "es-CO"
+
+[modules]
+# Core (descriptions + repositories) is always required — no flag here.
+
+# Hierarchy: enabled because the fixture has a parent-child pair.
+hierarchy = true
+
+# Entities: ISAAR(CPF) authority records present in this fixture.
+entities = true
+
+# Entity co-occurrence graph visualization.
+entities_graph = true
+
+# Places: geographic authority records with coordinates present.
+places = true
+
+# Interactive map of places (coordinates are present).
+places_map = true
+
+# IIIF deep-zoom viewer: iiif_manifest_url is non-empty in this fixture.
+iiif = true
+
+# OCR full-text search: ocr_text is non-empty in this fixture.
+ocr = true
+
+# Version: v0.1.0

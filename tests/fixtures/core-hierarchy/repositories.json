@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "code": "co-test",
+    "name": "Archivo de Prueba",
+    "short_name": "AP",
+    "country": "Colombia",
+    "city": "Bogotá",
+    "description_count": 9,
+    "image_reproduction_text": "",
+    "root_descriptions": []
+  }
+]

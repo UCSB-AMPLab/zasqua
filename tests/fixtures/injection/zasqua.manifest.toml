@@ -1,0 +1,21 @@
+# Zasqua capability manifest — injection fixture profile (Core-only).
+#
+# This is a synthetic test fixture for the injection-vector round-trip test.
+# It is consumed by the CSV adapter conformance test to prove that
+# a malicious import (malicious.csv) produces clean six-file output with all
+# HTML stripped and Nunjucks/Go-template syntax preserved intact.
+#
+# Core-only: entities and places disabled because malicious.csv does not
+# include entity or place data. The fixture's purpose is to lock the
+# sanitization contract, not to exercise the full module set.
+
+[modules]
+hierarchy = false
+entities = false
+entities_graph = false
+places = false
+places_map = false
+iiif = false
+ocr = false
+
+# Version: v0.1.0

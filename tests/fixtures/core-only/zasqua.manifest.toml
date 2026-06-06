@@ -1,0 +1,50 @@
+# Zasqua capability manifest — core-only golden fixture profile.
+#
+# This is a synthetic test fixture, not a real deployer manifest. It is used
+# by engine/tests/fixtures/fixtures.test.js to assert that the Node-side
+# modular core degrades correctly when only the Core module (descriptions +
+# repositories) is enabled. All explorer modules are disabled; iiif and ocr
+# are false because the synthetic dataset carries no IIIF or OCR fields.
+#
+# The profile proves:
+#   - validateInputs passes on a Core-only dataset
+#   - detectModules returns all explorer modules false
+#   - deriveChildren produces zero shards (no parent_reference_code in data)
+#   - guarded-read predicates report entities/places disabled
+#
+# On a real Hugo build with this manifest, the build would succeed and
+# produce no entidades/ or lugares/ directory and no Entidades/Lugares nav
+# links (MODULE-03 Hugo-side proof — exercised manually by the operator).
+
+[modules]
+# Core (descriptions + repositories) is always required — no flag here.
+
+# Hierarchy: derive a browsable tree from parent_reference_code.
+# Disabled: none of the synthetic descriptions have parent_reference_code.
+hierarchy = false
+
+# Entities: ISAAR(CPF) authority records (persons, bodies, families).
+# Disabled: no entities.json or entity_links.json in this fixture.
+entities = false
+
+# Entity co-occurrence graph visualization.
+# Disabled: entities = false.
+entities_graph = false
+
+# Places: geographic authority records and facet.
+# Disabled: no places.json or place_links.json in this fixture.
+places = false
+
+# Interactive map of places.
+# Disabled: places = false.
+places_map = false
+
+# IIIF deep-zoom viewer.
+# Disabled: no iiif_manifest_url fields in synthetic data.
+iiif = false
+
+# OCR full-text search.
+# Disabled: no ocr_text fields in synthetic data.
+ocr = false
+
+# Version: v0.1.0

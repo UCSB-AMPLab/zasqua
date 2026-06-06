@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "reference_code": "co-inj-001",
+    "title": "Fondo XSS",
+    "description_level": "fonds",
+    "parent_reference_code": null,
+    "repository_code": "co-inj",
+    "scope_content": "",
+    "ocr_text": "{{ variable }} is safe text"
+  },
+  {
+    "id": 2,
+    "reference_code": "co-inj-002",
+    "title": "Bold Title",
+    "description_level": "fonds",
+    "parent_reference_code": null,
+    "repository_code": "co-inj",
+    "scope_content": "Paragraph one\nParagraph two",
+    "ocr_text": "{% if x %}show{% endif %}"
+  },
+  {
+    "id": 3,
+    "reference_code": "co-inj-003",
+    "title": "Normal Title",
+    "description_level": "fonds",
+    "parent_reference_code": null,
+    "repository_code": "co-inj",
+    "scope_content": "Line one\nLine two & more",
+    "ocr_text": "{{ record.title }} — {% block content %}"
+  }
+]

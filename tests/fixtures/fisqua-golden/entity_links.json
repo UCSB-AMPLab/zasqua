@@ -1,0 +1,38 @@
+[
+  {
+    "entity_code": "ne-abcd3",
+    "reference_code": "co-ahrb-f001",
+    "role": "creator",
+    "title": "Fondo Testamental Rionegro",
+    "date_expression": "1650 .. 1850",
+    "repository_code": "co-ahrb",
+    "role_raw": "Creador"
+  },
+  {
+    "entity_code": "ne-abcd3",
+    "reference_code": "co-ahrb-f001",
+    "role": "subject",
+    "title": "Fondo Testamental Rionegro",
+    "date_expression": "1650 .. 1850",
+    "repository_code": "co-ahrb",
+    "role_raw": "Asunto principal"
+  },
+  {
+    "entity_code": "ne-ef5gh",
+    "reference_code": "co-ahrb-f001",
+    "role": "subject",
+    "title": "Fondo Testamental Rionegro",
+    "date_expression": "1650 .. 1850",
+    "repository_code": "co-ahrb",
+    "role_raw": "Institución relacionada"
+  },
+  {
+    "entity_code": "ne-ef5gh",
+    "reference_code": "co-ahrb-f001-s001",
+    "role": "subject",
+    "title": "Serie Testamentos",
+    "date_expression": "1680 .. 1820",
+    "repository_code": "co-ahrb",
+    "role_raw": "Institución relacionada"
+  }
+]

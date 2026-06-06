@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ArchivesSpace-style EAD3 export fixture for zasqua importer tests.
+
+  This fixture exercises:
+    - ArchivesSpace dialect quirks:
+        * <eadid @identifier> with the resource slug
+        * Unnumbered <c> nesting (EAD3 standard, unlike AtoM's c01/c02)
+        * <dao @href> or @xlink:href on object components
+    - Two nested <c> levels (collection → series → file)
+    - No entities.json / places.json provided (empty authority — all access
+      points will be skipped, confirming the links-only contract)
+
+  ArchivesSpace dialect notes:
+    - Uses unnumbered <c> for all nesting levels
+    - <eadid> carries @identifier with the resource identifier
+    - <unitid> at <c> level may omit repository code prefix
+
+  Source: zasqua importer test suite. Not a real archival record.
+-->
+<ead xmlns="urn:isbn:1-931666-22-9"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     audience="external">
+
+  <eadheader countryencoding="iso3166-1"
+             dateencoding="iso8601"
+             langencoding="iso639-2b"
+             repositoryencoding="iso15511">
+    <eadid countrycode="us"
+           mainagencycode="test-ucsb"
+           identifier="ucsb-coll-001">us-test-ucsb-coll-001</eadid>
+    <filedesc>
+      <titlestmt>
+        <titleproper>Test Collection (ArchivesSpace EAD3)</titleproper>
+      </titlestmt>
+    </filedesc>
+  </eadheader>
+
+  <archdesc level="collection">
+    <did>
+      <unitid>us-test-ucsb-coll-001</unitid>
+      <unittitle>Test Historical Collection</unittitle>
+      <unitdate normal="1900/1950" label="creation">1900–1950</unitdate>
+      <repository>
+        <corpname>University of California, Santa Barbara Library</corpname>
+      </repository>
+      <physdesc>
+        <extent>2 linear feet</extent>
+      </physdesc>
+      <langmaterial>
+        <language langcode="eng">English</language>
+      </langmaterial>
+    </did>
+
+    <scopecontent>
+      <p>This collection contains correspondence and administrative records from 1900 to 1950.</p>
+    </scopecontent>
+
+    <controlaccess>
+      <!-- No @identifier: all access points will be skipped (no authority file provided) -->
+      <persname relator="creator">Smith, John</persname>
+      <geogname relator="place">Santa Barbara (Calif.)</geogname>
+    </controlaccess>
+
+    <dsc>
+      <!-- ArchivesSpace uses unnumbered <c> elements for all nesting levels -->
+      <c level="series">
+        <did>
+          <unitid>series-01</unitid>
+          <unittitle>Correspondence</unittitle>
+          <unitdate normal="1900/1930" label="creation">1900–1930</unitdate>
+        </did>
+        <scopecontent>
+          <p>Incoming and outgoing letters from the collection creator.</p>
+        </scopecontent>
+
+        <c level="file">
+          <did>
+            <unitid>series-01-001</unitid>
+            <unittitle>Letters to colleagues, 1905–1910</unittitle>
+            <unitdate normal="1905/1910" label="creation">1905–1910</unitdate>
+            <dao href="https://iiif.example.edu/manifests/series-01-001/manifest.json"
+                 actuate="onRequest"
+                 show="new"/>
+          </did>
+        </c>
+      </c>
+    </dsc>
+  </archdesc>
+
+</ead>

@@ -1,0 +1,45 @@
+[
+  {
+    "id": 1,
+    "reference_code": "co-test-ahr-f001",
+    "title": "Fondo Notarial de Prueba",
+    "description_level": "fonds",
+    "parent_reference_code": null,
+    "repository_code": "co-test-ahr",
+    "date_expression": "1780–1850",
+    "date_start": "1780",
+    "scope_content": "Este fondo reúne documentos notariales producidos entre 1780 y 1850.|Incluye testamentos, contratos de compraventa y poderes notariales.",
+    "extent": "3 cajas, 450 folios",
+    "language": "Documentos en español",
+    "access_conditions": "Acceso libre previa solicitud al archivo.",
+    "reproduction_conditions": "Solo para uso académico e investigativo.",
+    "arrangement": "Organizado cronológicamente por año de otorgamiento.",
+    "notes": "Bare name (no @identifier) dropped to prose: Martínez Herrera, Pedro",
+    "descriptive_standard": "isadg"
+  },
+  {
+    "id": 2,
+    "reference_code": "co-test-ahr-f001-s01",
+    "title": "Serie Testamentos",
+    "description_level": "series",
+    "parent_reference_code": "co-test-ahr-f001",
+    "repository_code": "co-test-ahr",
+    "date_expression": "1780–1820",
+    "date_start": "1780",
+    "scope_content": "Testamentos otorgados ante escribanos públicos del municipio.",
+    "descriptive_standard": "isadg"
+  },
+  {
+    "id": 3,
+    "reference_code": "co-test-ahr-f001-s01-e001",
+    "title": "Testamento de Juan López Gutiérrez",
+    "description_level": "file",
+    "parent_reference_code": "co-test-ahr-f001-s01",
+    "repository_code": "co-test-ahr",
+    "date_expression": "12 de marzo de 1795",
+    "date_start": "1795-03-12",
+    "scope_content": "Testamento en el que Juan López Gutiérrez dispone de sus bienes raíces en Rionegro.",
+    "iiif_manifest_url": "https://iiif.example.org/manifests/co-test-ahr-f001-s01-e001/manifest.json",
+    "descriptive_standard": "isadg"
+  }
+]

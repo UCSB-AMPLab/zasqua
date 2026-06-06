@@ -1,0 +1,151 @@
+[
+  {
+    "ca_object_id": 1001,
+    "idno": "co-ahrb-f001",
+    "preferred_labels": [
+      { "name": "Fondo Histórico del Archivo de Rionegro", "locale": "es_CO" }
+    ],
+    "type": "fonds",
+    "ca_objects_x_collections": [],
+    "repository": {
+      "code": "co-ahrb",
+      "idno": "co-ahrb",
+      "name": "Archivo Histórico de Rionegro y Boyacá",
+      "short_name": "AHRB",
+      "country": "CO",
+      "city": "Rionegro"
+    },
+    "date_expression": "1750 .. 1900",
+    "date_start": "1750-01-01",
+    "scope_and_content": "<p>Documentos del período colonial relativos a la administración local.</p><p>Incluye escrituras notariales, testamentos y pleitos civiles.</p>",
+    "extent_and_medium": "3 metros lineales de documentos en papel",
+    "arrangement": "Organizado en series temáticas",
+    "access_conditions": "",
+    "reproduction_conditions": "",
+    "language": "spa",
+    "location_of_originals": "",
+    "location_of_copies": "",
+    "related_materials": "",
+    "finding_aids": "",
+    "notes": "",
+    "ca_entities": [],
+    "ca_places": [],
+    "ca_object_representations": []
+  },
+  {
+    "ca_object_id": 1002,
+    "idno": "co-ahrb-f001-001",
+    "preferred_labels": [
+      { "name": "Testamento de Juan López de Herrera", "locale": "es_CO" }
+    ],
+    "type": "file",
+    "ca_objects_x_collections": [
+      { "idno": "co-ahrb-f001", "collection_id": 101 }
+    ],
+    "repository": {
+      "code": "co-ahrb",
+      "idno": "co-ahrb",
+      "name": "Archivo Histórico de Rionegro y Boyacá",
+      "short_name": "AHRB",
+      "country": "CO",
+      "city": "Rionegro"
+    },
+    "date_expression": "12 de junio de 1756",
+    "date_start": "1756-06-12",
+    "scope_and_content": "<p>Testamento otorgado ante el escribano público Francisco de Salazar.</p>",
+    "extent_and_medium": "4 folios",
+    "arrangement": "",
+    "access_conditions": "Acceso libre",
+    "reproduction_conditions": "Reproducción permitida con fines académicos",
+    "language": "spa",
+    "location_of_originals": "",
+    "location_of_copies": "",
+    "related_materials": "",
+    "finding_aids": "",
+    "notes": "",
+    "ca_entities": [
+      {
+        "entity_id": 201,
+        "displayname": "Juan López de Herrera",
+        "type": "ind",
+        "forename": "Juan",
+        "surname": "López de Herrera",
+        "relationship_typename": "creator"
+      },
+      {
+        "entity_id": 202,
+        "displayname": "Francisco de Salazar",
+        "type": "ind",
+        "forename": "Francisco",
+        "surname": "de Salazar",
+        "relationship_typename": "subject"
+      }
+    ],
+    "ca_places": [
+      {
+        "place_id": 301,
+        "name": "Rionegro",
+        "type": "municipality",
+        "georeference": "6.1550,-75.3747",
+        "relationship_typename": "place_of_creation"
+      }
+    ],
+    "ca_object_representations": [
+      {
+        "iiif_manifest_url": "https://example.org/iiif/co-ahrb-f001-001/manifest.json"
+      }
+    ]
+  },
+  {
+    "ca_object_id": 1003,
+    "idno": "co-ahrb-f001-002",
+    "preferred_labels": [
+      { "name": "Escritura de compraventa", "locale": "es_CO" }
+    ],
+    "type": "file",
+    "ca_objects_x_collections": [
+      { "idno": "co-ahrb-f001", "collection_id": 101 }
+    ],
+    "repository": {
+      "code": "co-ahrb",
+      "idno": "co-ahrb",
+      "name": "Archivo Histórico de Rionegro y Boyacá",
+      "short_name": "AHRB",
+      "country": "CO",
+      "city": "Rionegro"
+    },
+    "date_expression": "1823",
+    "date_start": "1823-01-01",
+    "scope_and_content": "<p>Escritura de compraventa de un solar en la ciudad de Bogotá.</p>",
+    "extent_and_medium": "2 folios",
+    "arrangement": "",
+    "access_conditions": "",
+    "reproduction_conditions": "",
+    "language": "spa",
+    "location_of_originals": "",
+    "location_of_copies": "",
+    "related_materials": "",
+    "finding_aids": "",
+    "notes": "",
+    "ca_entities": [
+      {
+        "entity_id": 202,
+        "displayname": "Francisco de Salazar",
+        "type": "ind",
+        "forename": "Francisco",
+        "surname": "de Salazar",
+        "relationship_typename": "creator"
+      }
+    ],
+    "ca_places": [
+      {
+        "place_id": 302,
+        "name": "Bogotá",
+        "type": "city",
+        "georeference": "4.7110,-74.0721",
+        "relationship_typename": "place_of_creation"
+      }
+    ],
+    "ca_object_representations": []
+  }
+]
