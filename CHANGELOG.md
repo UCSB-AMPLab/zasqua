@@ -10,6 +10,24 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
+## [1.0.2] — 2026-06-07
+
+### Added
+
+- A `{{< engine-version >}}` shortcode that reports the engine version a
+  site was built with. `zasqua build` stamps the engine's version into
+  `themes/base/data/engine.yaml`, so a deployment can show which engine
+  produced it — for example in a colophon — independently of its own
+  version.
+
+### Changed
+
+- The framework-credit line in the footer now carries an explicit "Source
+  code" link to the engine's repository. The AGPL-3.0 license obliges every
+  deployment to offer the running program's source to its users, so the
+  link states that plainly instead of being carried by the word
+  "open-source."
+
 ## [1.0.1] — 2026-06-07
 
 ### Fixed
@@ -93,4 +111,6 @@ the infrastructure needs to outlast the projects and grants that funded it.
   field reference (`docs/data-contract.md`), and per-format importer mapping
   references for CSV, EAD3, and CollectiveAccess.
 
+[1.0.2]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.0.2
+[1.0.1]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.0.1
 [1.0.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.0.0
