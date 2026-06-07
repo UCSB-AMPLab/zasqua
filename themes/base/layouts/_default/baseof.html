@@ -22,7 +22,11 @@
   from the manifest [ui].language value. The base language key alone
   would drop the region suffix and render the wrong locale tag.
 
-  Version: v2.2.0
+  The favicon link points at /img/favicon.png by convention: deployers
+  drop their icon at static/img/favicon.png. The engine ships no favicon
+  asset (identity-neutral); the link is harmless if the file is absent.
+
+  Version: v2.3.0
 */}}
 <!DOCTYPE html>
 <html lang="{{ site.Language.LanguageCode }}">
@@ -32,6 +36,7 @@
   <title>{{ block "title" . }}{{ if .Title }}{{ .Title }} | {{ end }}{{ site.Title }}{{ end }}</title>
   <meta name="description" content="{{ with .Params.description }}{{ . }}{{ else }}{{ site.Params.description }}{{ end }}">
   <link rel="canonical" href="{{ .Permalink }}">
+  <link rel="icon" type="image/png" href="/img/favicon.png">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />

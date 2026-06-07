@@ -10,7 +10,15 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
-## [1.0.0] — Unreleased
+## [1.0.1] — 2026-06-07
+
+### Fixed
+
+- Restored the favicon `<link>` in the base template's `<head>`, which was
+  inadvertently dropped during the engine extraction. Deployments that place an
+  icon at `static/img/favicon.png` now have it referenced again.
+
+## [1.0.0] — 2026-06-07
 
 First public release of the Zasqua engine.
 
