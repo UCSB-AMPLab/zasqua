@@ -1,0 +1,11 @@
+# Engine version — committed fallback.
+#
+# lib/theme.js OVERWRITES this at build time with the engine's actual
+# package.json version when copying themes/base into an instance, so the
+# colophon's {{< engine-version >}} shortcode always reflects the
+# installed engine. This committed value is only the fallback for direct
+# Hugo runs that bypass `zasqua build`; keep it in sync with package.json
+# at release time.
+#
+# Version: v1.0.2
+version: "1.0.2"

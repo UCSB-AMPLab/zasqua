@@ -15,19 +15,24 @@
   Spanish — never bare, so the credit never reads as the Zasqua archive
   itself (the archive is what a deployed site is; this names what built it).
 
-  Links:
-    AMPL                          -> https://ampl.clair.ucsb.edu
-    open-source / código abierto  -> https://github.com/UCSB-AMPLab/zasqua
-                                     (the engine's source repository)
-    AGPL-3.0 is rendered as plain text — a licence name, not a link.
+  The "Source code" / "Código fuente" link is explicit, not buried in the
+  word "open-source": the engine is AGPL-3.0, whose §13 requires that the
+  source of the running program be offered to its users, so the link that
+  satisfies that obligation is labelled plainly as source code.
 
-  Version: v1.0.0
+  Links:
+    AMPL                         -> https://ampl.clair.ucsb.edu
+    Source code / Código fuente  -> https://github.com/UCSB-AMPLab/zasqua
+                                    (the engine's source repository)
+    "open-source" / "código abierto" and "AGPL-3.0" are plain text.
+
+  Version: v1.0.2
 */}}
 <p class="footer-framework">
   {{- if eq site.Language.Lang "en" -}}
-  Built with the Zasqua engine by <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">open-source</a> software for publishing digital archives (AGPL-3.0).
+  Built with the Zasqua engine by <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — open-source software for publishing digital archives (AGPL-3.0). <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">Source code</a>.
   {{- else -}}
-  Hecho con el motor de publicación de archivos digitales Zasqua, de <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — <em>software</em> de <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">código abierto</a> (AGPL-3.0).
+  Hecho con el motor de publicación de archivos digitales Zasqua, de <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — software de código abierto (AGPL-3.0). <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">Código fuente</a>.
   {{- end -}}
 </p>
-{{/* Version: v1.0.0 */}}
+{{/* Version: v1.0.2 */}}
