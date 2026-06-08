@@ -12,7 +12,7 @@
   The guide is linear. Follow the numbered legs in order; each step
   produces verified output that the next step consumes.
 
-  Version: v1.1.0
+  Version: v1.2.0
 -->
 
 # Run Your Own Instance
@@ -204,18 +204,17 @@ Build the static site with:
 zasqua build
 ```
 
-If your `exports/` data is already local (for example, you ran
-`zasqua import` or copied the sample `exports/` files from the template),
-skip the remote data download step:
-
-```
-SKIP_DOWNLOAD=1 zasqua build
-```
+`zasqua build` reads the six contract files from your local `exports/`
+directory and renders the static site into `public/`. The engine does not
+fetch data on its own and is tied to no storage backend — getting your
+exports onto disk (a `zasqua import` run, a copy from your cataloging
+system, or a fetch step in your own deployment pipeline) is a step you run
+beforehand. If the core files are missing, the build stops with a clear
+message rather than producing an empty site.
 
 The build runs seven stages in order:
 
-1. **Fetch** — downloads export files from your configured remote storage
-   (skipped with `SKIP_DOWNLOAD=1`)
+1. **Precompute links** — builds the entity and place link shards
 2. **Derive children** — computes `children/` hierarchy shards from
    `descriptions.json`
 3. **Install** — runs `npm ci` inside the instance directory

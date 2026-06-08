@@ -11,8 +11,8 @@
  * those reverse indexes and writes per-code shards to disk so the Eleventy
  * build (later Hugo build) can pick them up without re-deriving on each run.
  *
- * Pipeline context: runs after the B2 download stage of `build.sh` and before
- * the static-site build. Reads the canonical exports under `exports/` and
+ * Pipeline context: runs as Stage 1 of `build.sh`, before the static-site
+ * build. Reads the contract exports under `exports/` and
  * writes per-entity/per-place shards plus enriched lookup files back into
  * `exports/` — never into Hugo's `data/` directory, which is reserved for
  * small UI strings.
@@ -385,8 +385,8 @@ async function runGuardedMain(instanceRoot) {
   // diverge: precompute-links wrote an empty {} when disabled; generate-
   // content never read it (guard skipped it). Result: stale lookup files
   // from a prior enabled run remained on disk and would be silently
-  // consumed if the manifest was toggled between runs with SKIP_DOWNLOAD.
-  // Now both sides agree: file absent ↔ module disabled.
+  // consumed if the manifest was toggled between runs against a reused
+  // exports/ directory. Now both sides agree: file absent ↔ module disabled.
   // -------------------------------------------------------------------------
 
   // 5a. Entity enriched reverse lookup — only when entities module is enabled
