@@ -240,12 +240,33 @@
         {{/* Close the last Pass-2 section if any was opened */}}
         {{ if $currentSection2 }}</div>{{ end }}
 
-        {{/* Section: Control de la descripción — ISAD(G) 3.7.3 revision date */}}
+        {{/* Section: Control de la descripción — ISAD(G) 3.7 Description Control
+             Area: 3.7.1 Archivist's note, 3.7.2 Rules or conventions, 3.7.3
+             Date(s) of descriptions. The first two are optional data fields and
+             render only when present. The description date prefers an explicit
+             date_of_description (3.7.3) and falls back to the page's
+             last-modified date when none is supplied. */}}
         <div class="detail-section">
           <h3>{{ index $profile.sections "control" }}</h3>
+          {{ with .Params.archivist_note }}
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "recordMeta.archivistNoteLabel" }}</span>
+            <span class="detail-value">{{ . }}</span>
+          </div>
+          {{ end }}
+          {{ with .Params.rules_conventions }}
+          <div class="detail-field">
+            <span class="detail-label">{{ i18n "recordMeta.rulesConventionsLabel" }}</span>
+            <span class="detail-value">{{ . }}</span>
+          </div>
+          {{ end }}
           <div class="detail-field">
             <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
+            {{ with .Params.date_of_description }}
+            <span class="detail-value">{{ . }}</span>
+            {{ else }}
             <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" (.Lastmod.Format "2006-01-02") }}</span>
+            {{ end }}
           </div>
         </div>
 
@@ -349,4 +370,4 @@
     <script src="/js/tree.js"></script>
   {{ end }}
 {{ end }}
-{{/* Version: v1.4.0 */}}
+{{/* Version: v1.1.0 */}}

@@ -15,7 +15,7 @@
 # Copy discipline: idiomatic US English, no contractions. Agentless passive
 # is acceptable for institutional statements where the actor is irrelevant.
 #
-# Version: v0.6.0
+# Version: v1.1.0
 
 [nav]
 home = "Home"
@@ -103,6 +103,8 @@ country = "Country"
 [recordMeta]
 descriptionDateLabel = "Date of description"
 descriptionDateValue = "This description was last updated on {date}."
+archivistNoteLabel = "Archivist's note"
+rulesConventionsLabel = "Rules or conventions"
 
 [description]
 # metadataHeader, bibliographicHeader, accessConditionsHeader, relatedMaterialsHeader,
@@ -407,4 +409,4 @@ other = "Associated with {count} documents"
 one = "{count} entity"
 other = "{count} entities"
 
-# Version: v0.6.0
+# Version: v1.1.0

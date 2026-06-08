@@ -41,6 +41,10 @@
       "iiif_manifest_url": { "type": "string" },
       "mets_url": { "type": "string" },
       "ocr_text": { "type": "string" },
+      "local_identifier": { "type": "string" },
+      "archivist_note": { "type": "string" },
+      "rules_conventions": { "type": "string" },
+      "date_of_description": { "type": "string" },
       "modified_at": { "type": "string" },
       "parent_id": { "type": ["integer", "null"] }
     }

@@ -74,6 +74,12 @@ en:
       render: mono
       show: true
       required: true
+    - key: local_identifier
+      label: "Local identifier"
+      section: description
+      render: mono
+      show: true
+      required: false
     - key: scope_content
       label: "Scope and Content"
       section: description
@@ -233,6 +239,12 @@ es:
       render: mono
       show: true
       required: true
+    - key: local_identifier
+      label: "[STUB] Identificador local"
+      section: description
+      render: mono
+      show: true
+      required: false
     - key: scope_content
       label: "[STUB] Alcance y contenido"
       section: description
@@ -336,4 +348,4 @@ es:
       show: true
       required: false
 
-# Version: v1.0.1
+# Version: v1.1.0

@@ -10,6 +10,27 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
+## [1.1.0] — 2026-06-08
+
+### Added
+
+- ISAD(G) Description Control Area (3.7). Descriptions may now carry an
+  archivist's note (3.7.1 — how the description was prepared and by whom),
+  the rules or conventions followed (3.7.2), and an explicit date of
+  description (3.7.3); all three render in the Control section of a
+  description page, with the date of description taking precedence over the
+  build-derived last-modified date when present.
+- A `local_identifier` field (ISAD(G) 3.1.1 / DACS 2.1) for an archive's
+  own reference code. It preserves the original code — which may contain
+  spaces or punctuation — when the primary `reference_code` is a slugified
+  form, and renders in the identity area. The DACS and RAD descriptive
+  profiles label it with their own terms ("local identifier" and "reference
+  number" respectively).
+
+All four fields are optional and additive: existing instances and data are
+unaffected, and an instance that supplies none of them renders exactly as
+before.
+
 ## [1.0.2] — 2026-06-07
 
 ### Added

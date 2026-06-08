@@ -75,6 +75,12 @@ en:
       render: mono
       show: true
       required: true
+    - key: local_identifier
+      label: "[STUB] Reference number"
+      section: description
+      render: mono
+      show: true
+      required: false
     - key: scope_content
       label: "[STUB] Scope and Content"
       section: description
@@ -238,6 +244,12 @@ es:
       render: mono
       show: true
       required: true
+    - key: local_identifier
+      label: "[STUB] Número de referencia"
+      section: description
+      render: mono
+      show: true
+      required: false
     - key: scope_content
       label: "[STUB] Alcance y contenido"
       section: description
@@ -347,4 +359,4 @@ es:
       show: true
       required: false
 
-# Version: v1.0.0
+# Version: v1.1.0

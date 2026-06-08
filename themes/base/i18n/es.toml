@@ -15,7 +15,7 @@
 # entity types, place types) are not in this bundle — they live in the data
 # files under data/.
 #
-# Version: v0.6.0
+# Version: v1.1.0
 
 [nav]
 home = "Inicio"
@@ -103,6 +103,8 @@ country = "País"
 [recordMeta]
 descriptionDateLabel = "Fecha de la descripción"
 descriptionDateValue = "Esta descripción se actualizó por última vez el {date}."
+archivistNoteLabel = "Nota del archivero"
+rulesConventionsLabel = "Reglas o normas"
 
 [description]
 # metadataHeader, bibliographicHeader, accessConditionsHeader, relatedMaterialsHeader,
@@ -410,4 +412,4 @@ other = "Asociado a {count} documentos"
 one = "{count} entidad"
 other = "{count} entidades"
 
-# Version: v0.6.0
+# Version: v1.1.0
