@@ -12,7 +12,7 @@
   The guide is linear. Follow the numbered legs in order; each step
   produces verified output that the next step consumes.
 
-  Version: v0.3.0
+  Version: v1.1.0
 -->
 
 # Run Your Own Instance
@@ -50,8 +50,11 @@ or `gh repo fork` below) to create your instance workspace under your own
 account or organization. Forking keeps a visible link back to the upstream
 starter. Your fork gives you a `package.json` that declares the engine as a
 dependency, a `hugo.toml` with the required Hugo configuration, a
-`zasqua.manifest.toml` pre-scaffolded for the Core module, sample data in
-`exports/`, and a stub overlay theme.
+`zasqua.manifest.toml` pre-scaffolded for Core plus the Hierarchy, Entities,
+and Places modules, and a bilingual sample dataset in `exports/`. It ships no
+overlay theme: a fresh fork builds a fully functional, localized site on the
+engine's neutral base theme alone. Branding with your own colours, fonts, and
+layout overrides is an overlay theme you add later (see Section 8).
 
 ```
 gh repo fork UCSB-AMPLab/zasqua-template --clone --fork-name my-archive
@@ -147,10 +150,15 @@ Other importers available in the current release:
 | `zasqua import ca <dir>` | CollectiveAccess JSON export |
 | `zasqua import fisqua <dir>` | Fisqua cataloguing system passthrough |
 
-The `zasqua-template` repository ships a sample dataset in `exports/` —
-a five-description slice of the public `co-ahrb-aht` fonds (Archivo
-Histórico Regional de Boyacá, Legajo 009, 1573–1574) — to demonstrate
-a working Core + Hierarchy build out of the box.
+The `zasqua-template` repository ships a small bilingual sample dataset
+in `exports/` to demonstrate a working Core + Hierarchy + Entities +
+Places build out of the box. It holds two multilevel fonds drawn from
+the published worked examples in the ISAD(G) standard, reproduced with
+acknowledgement (see the template's `NOTICE` file): an English-language
+Department of Railways and Canals fonds (records held by Library and
+Archives Canada, `ca-lac-r610`) and a Spanish-language Consejo Real de
+España e Indias fonds (records held by the Archivo General de Simancas,
+`es-ags-crei`). Replace `exports/` with your own data before publishing.
 
 ---
 
@@ -224,8 +232,9 @@ Pages: <N>   Site size: <size>
 ```
 
 The sample dataset shipped in the `zasqua-template` repository produces
-27 Hugo pages in your `public/` directory, including hierarchy pages at
-`/co-ahrb-aht-009/`, `/co-ahrb-aht-009-d001/`, and so on.
+31 Hugo pages in your `public/` directory, including the two fonds at
+`/ca-lac-r610/` and `/es-ags-crei/` and their nested hierarchy pages
+(`/ca-lac-r610-134/`, `/es-ags-crei-hacienda/`, and so on).
 
 ---
 
@@ -296,7 +305,16 @@ institution uses (`Agent`, `Creator`, `Locality`, or similar).
 
 ### Colour and font palette (tokens.css)
 
-Your stub overlay theme ships a `tokens.css` file at
+Everything beyond identity strings — colours, fonts, layout overrides —
+lives in an overlay theme, which a fresh fork does not include. Create
+one and put it first in the theme chain so it takes precedence over the
+base. In `hugo.toml`, change the theme line to list your overlay first:
+
+```toml
+theme = ["my-theme", "base"]
+```
+
+Then create the overlay directory and add a `tokens.css` file at
 `themes/my-theme/assets/css/tokens.css`. This is where you redefine the
 engine's design tokens — colours, font stacks, and spacing variables —
 using a Tailwind v4 `@theme` block:
