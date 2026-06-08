@@ -16,11 +16,11 @@
  * Five behavior groups:
  *
  *   1. "isadg.yaml completeness" — asserts isadg.yaml exists, parses, and
- *      its es.fields array matches the parity baseline (21 field entries in
+ *      its es.fields array matches the parity baseline (22 field entries in
  *      the exact order the single-description page renders them).
  *
  *   2. "isadg.yaml en↔es field key-parity" — asserts en.fields and es.fields
- *      have identical key sets (same 21 keys, possibly different labels).
+ *      have identical key sets (same 22 keys, possibly different labels).
  *
  *   3. "isadg.yaml es parity baseline" — asserts every field label and level
  *      label in isadg.yaml.es matches the snapshot extracted verbatim from the
@@ -70,6 +70,7 @@ const ISADG_ES_FIELD_PARITY_BASELINE = {
   repository:               'Repositorio',
   date_formatted:           'Fecha',
   reference_code:           'Código de referencia',
+  local_identifier:         'Identificador local',
   scope_content:            'Alcance y contenido',
   extent:                   'Extensión',
   arrangement:              'Signatura original',
@@ -93,7 +94,7 @@ const ISADG_ES_FIELD_PARITY_BASELINE = {
 // Verbatim field order from the single-description page (parity-critical —
 // the rendered page lists these fields in exactly this sequence)
 const ISADG_FIELD_ORDER = [
-  'repository', 'date_formatted', 'reference_code', 'scope_content', 'extent',
+  'repository', 'date_formatted', 'reference_code', 'local_identifier', 'scope_content', 'extent',
   'arrangement', 'publication_title', 'series_statement', 'uniform_title',
   'section_title', 'edition_statement', 'imprint', 'pages', 'access_conditions',
   'reproduction_conditions', 'language', 'location_of_originals', 'location_of_copies',
@@ -190,15 +191,15 @@ describe('isadg.yaml completeness — file exists and parses', () => {
     ).toBeDefined();
   });
 
-  it('isadg.yaml es.fields is an array of exactly 21 entries', () => {
+  it('isadg.yaml es.fields is an array of exactly 22 entries', () => {
     const { data, error } = loadYaml(isadgPath);
     expect(error).toBeNull();
     const fields = data?.es?.fields;
     expect(Array.isArray(fields), 'es.fields must be an array').toBe(true);
     expect(
       fields?.length,
-      `es.fields must have exactly 21 entries (got ${fields?.length})`
-    ).toBe(21);
+      `es.fields must have exactly 22 entries (got ${fields?.length})`
+    ).toBe(22);
   });
 
   it('isadg.yaml es.fields key order matches ISADG_FIELD_ORDER exactly', () => {
@@ -261,15 +262,15 @@ describe('isadg.yaml en↔es field key-parity', () => {
     expect(enKeys).toEqual(esKeys);
   });
 
-  it('isadg.yaml en.fields has exactly 21 entries', () => {
+  it('isadg.yaml en.fields has exactly 22 entries', () => {
     const { data, error } = loadYaml(isadgPath);
     expect(error).toBeNull();
     const fields = data?.en?.fields;
     expect(Array.isArray(fields), 'en.fields must be an array').toBe(true);
     expect(
       fields?.length,
-      `en.fields must have exactly 21 entries (got ${fields?.length})`
-    ).toBe(21);
+      `en.fields must have exactly 22 entries (got ${fields?.length})`
+    ).toBe(22);
   });
 });
 
@@ -450,4 +451,4 @@ describe('vocab files — required sections present', () => {
   });
 });
 
-// Version: v0.1.0
+// Version: v1.1.0

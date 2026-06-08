@@ -13,7 +13,7 @@
 
   Contract version: 1.0 (independent of engine package version)
 
-  Version: v0.2.0
+  Version: v1.1.0
 -->
 
 # Zasqua Data Contract v1.0
@@ -85,6 +85,7 @@ published page.
 |-------|------|----------|-------------|
 | `id` | integer | Yes | Internal numeric identifier. |
 | `reference_code` | string | Yes | Unique identifier; becomes the URL slug (e.g. `co-ahrb-aht-009-d001`). |
+| `local_identifier` | string | No | Institution-specific reference code per ISAD(G) 3.1.1 / DACS 2.1 ("local identifier"). Use it to preserve the archive's original code (which may contain spaces or punctuation) when `reference_code` is a slugified form. Rendered in the identity area. |
 | `title` | string | Yes | Title of the unit of description per ISAD(G) 3.1.2. |
 | `description_level` | string | Yes | Level of arrangement. Must be a canonical key from the `isadg.yaml` vocabulary (e.g. `fonds`, `series`, `item`). |
 | `parent_reference_code` | string or null | Yes | `reference_code` of the parent description; `null` for top-level (fonds) descriptions. |
@@ -108,6 +109,9 @@ published page.
 | `iiif_manifest_url` | string | No | URL of the IIIF Presentation manifest for the digitized material. Enables the deep-zoom viewer when the `iiif` module is active. |
 | `mets_url` | string | No | URL of a METS package, if available. Displayed in the reuse section. |
 | `ocr_text` | string | No | Full-text OCR content for Pagefind indexing. Active when the `ocr` module is enabled. May contain `{{ }}` / `{% %}` template syntax — passed through unchanged. |
+| `archivist_note` | string | No | Archivist's note per ISAD(G) 3.7.1 — how the description was prepared and by whom, including sources consulted. Rendered in the Control section. |
+| `rules_conventions` | string | No | Rules or conventions per ISAD(G) 3.7.2 (the descriptive standard followed, e.g. ISAD(G), DACS, RAD). Rendered in the Control section. |
+| `date_of_description` | string | No | Date(s) of description per ISAD(G) 3.7.3. When present, it is shown in the Control section in place of the build-derived last-modified date. |
 | `modified_at` | string | No | ISO date (YYYY-MM-DD) of the last backend modification; used for per-page ETag stability. |
 | `parent_id` | integer or null | No | Numeric id of the parent description; `null` for top-level descriptions. |
 
