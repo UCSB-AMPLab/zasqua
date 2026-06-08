@@ -3,8 +3,8 @@
  * Generate Hugo Content JSON
  *
  * This script does the heavy lifting between the raw Zasqua archival
- * exports and the Hugo static-site build. It reads the canonical B2
- * downloads under `exports/`, attaches every piece of computed context
+ * exports and the Hugo static-site build. It reads the contract files
+ * under `exports/`, attaches every piece of computed context
  * each Hugo template will need (breadcrumb chains, pre-formatted dates,
  * inline repository objects, translated role labels, linked-document
  * counts), and writes three denormalised JSON files to `assets/hugo-
@@ -224,7 +224,7 @@ async function main() {
     if (!fs.existsSync(full)) {
       throw new Error(
         `[${moduleName}] module enabled in manifest but ${full} not found — ` +
-        'run zasqua build (zasqua fetch + precompute-links) to generate this file, ' +
+        'add this file to exports/ (or run zasqua import to generate it), ' +
         'or run zasqua validate to check your exports'
       );
     }

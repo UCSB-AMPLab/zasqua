@@ -3,7 +3,7 @@
  * Zasqua CLI
  *
  * This is the command-line entry point for the @ucsb-ampl/zasqua
- * engine. It exposes six commands — `build`, `fetch`, `dev`, `init`,
+ * engine. It exposes five commands — `build`, `dev`, `init`,
  * `validate`, and `import` — that wrap the build pipeline, setup helpers,
  * and data importers through the engine + instance directory structure.
  * The CLI is invoked from the instance directory; it reads the instance
@@ -13,7 +13,6 @@
  *
  * Commands:
  *   zasqua build    — validate manifest, copy base theme, run the full pipeline
- *   zasqua fetch    — run Stage 1 (B2 data download) only
  *   zasqua dev      — copy base theme and start `hugo server`
  *   zasqua init     — scan data dir, scaffold a commented zasqua.manifest.toml
  *   zasqua validate — validate the manifest + data inputs standalone
@@ -31,10 +30,8 @@
  *   --standard <std> for `import`: descriptive standard key passed to the
  *                    adapter (default: isadg)
  *
- * Env flags forwarded to build.sh (unchanged from current conventions):
- *   SKIP_DOWNLOAD  — skip Stage 1 (B2 download)
+ * Env flags forwarded to build.sh:
  *   DEV_LIMIT      — integer cap on records in generate-content.js
- *   B2_APPLICATION_KEY_ID / B2_APPLICATION_KEY — required for fetch/build
  *
  * Single-pin mechanism:
  *   The CLI copies the engine's `themes/base` into the instance's
@@ -48,12 +45,12 @@
  *   `lib/pipeline.js`, `lib/init.js`, `lib/validator.js`, and
  *   `lib/importers/dispatch.js`.
  *
- * @version v1.3.0
+ * @version v1.2.0
  */
 
 'use strict';
 
-const { runBuild, runFetch, runDev } = require('../lib/pipeline');
+const { runBuild, runDev } = require('../lib/pipeline');
 const { runInit } = require('../lib/init');
 const { runValidate } = require('../lib/validator');
 
@@ -87,7 +84,6 @@ function usage() {
     'Usage: zasqua <command> [flags]\n\n' +
     'Commands:\n' +
     '  build    Validate manifest, copy base theme, run the full 7-stage pipeline\n' +
-    '  fetch    Run Stage 1 (B2 data download) only\n' +
     '  dev      Copy base theme and start hugo server (127.0.0.1:1313)\n' +
     '  init     Scan data dir and scaffold a commented zasqua.manifest.toml\n' +
     '  validate Validate manifest + data inputs (standalone)\n' +
@@ -113,10 +109,6 @@ async function main() {
   switch (COMMAND) {
     case 'build':
       await runBuild({ skipValidate: flags.skipValidate });
-      break;
-
-    case 'fetch':
-      await runFetch();
       break;
 
     case 'dev':
@@ -172,4 +164,4 @@ if (require.main === module) {
 
 module.exports = { main };
 
-// Version: v1.3.0
+// Version: v1.2.0

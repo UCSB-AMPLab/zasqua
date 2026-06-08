@@ -1,7 +1,7 @@
 # Zasqua engine-internal smoke fixture — Hugo configuration.
 #
-# Minimal Hugo config for SKIP_DOWNLOAD=1 zasqua build and zasqua validate
-# smoke tests inside the engine repo. Not a deployer starter — the canonical
+# Minimal Hugo config for zasqua build and zasqua validate smoke tests
+# inside the engine repo. Not a deployer starter — the canonical
 # onboarding workspace is UCSB-AMPLab/zasqua-template.
 #
 # Version: v1.0.0

@@ -10,6 +10,32 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
+## [1.2.0] — 2026-06-08
+
+### Removed
+
+- The `zasqua fetch` command and the engine's built-in data download.
+  `zasqua build` now reads the six contract files from the local
+  `exports/` directory and renders the site; the engine no longer fetches
+  data or carries any storage backend. Through 1.1.x, `build.sh` hardcoded
+  a Backblaze B2 download from a specific private bucket — it required
+  Python and the B2 CLI and tied every deployment to one storage
+  arrangement. Getting exports onto disk is now the deployer's step: a
+  `zasqua import` run, a copy from a cataloging system, or a fetch step in
+  a deployment's own pipeline, run before `zasqua build`.
+
+### Changed
+
+- `zasqua build` fails fast with a clear message when the core contract
+  files (`descriptions.json`, `repositories.json`) are absent from
+  `exports/`, instead of attempting a download. The `SKIP_DOWNLOAD`
+  environment variable is no longer needed and is ignored.
+
+The six-file data contract (v1.0) is unchanged. A site built with 1.1.x
+rebuilds identically once its data is on disk; deployments that relied on
+the built-in B2 download must add their own data-fetch step before
+`zasqua build`.
+
 ## [1.1.0] — 2026-06-08
 
 ### Added
@@ -132,6 +158,8 @@ the infrastructure needs to outlast the projects and grants that funded it.
   field reference (`docs/data-contract.md`), and per-format importer mapping
   references for CSV, EAD3, and CollectiveAccess.
 
+[1.2.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.2.0
+[1.1.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.1.0
 [1.0.2]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.0.2
 [1.0.1]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.0.1
 [1.0.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.0.0

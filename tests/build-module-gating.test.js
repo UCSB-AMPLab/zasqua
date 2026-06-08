@@ -12,10 +12,11 @@
  * optional explorer modules.
  *
  * These tests run the real build.sh end-to-end against a minimal Core-only
- * temp instance with SKIP_DOWNLOAD=1 and stubbed npm/hugo/pagefind binaries
- * (zero-op stubs that exit 0). This exercises the data-derivation and
- * copy stages that contain the gating logic, while bypassing the heavy
- * dependencies (Backblaze B2 download, npm ci, Hugo, Pagefind).
+ * temp instance with stubbed npm/hugo/pagefind binaries (zero-op stubs that
+ * exit 0). This exercises the data-derivation and copy stages that contain
+ * the gating logic, while bypassing the heavy dependencies (npm ci, Hugo,
+ * Pagefind). Data is supplied locally in exports/ — the engine builds from
+ * local data only, so there is no download stage to skip.
  *
  * Three behaviors asserted:
  *
@@ -64,7 +65,7 @@ function writeStub(dir, name) {
 
 /**
  * Create a minimal temp instance and run build.sh against it with:
- *   SKIP_DOWNLOAD=1     — skip the B2 download stage
+ *   exports/ supplied locally — the engine builds from local data only
  *   PATH prepended with stub binaries for npm, hugo, pagefind
  *   ENGINE_ROOT         — pointing at the engine repo root
  *
@@ -151,8 +152,9 @@ function makeInstanceAndStubs(modules = {}) {
 }
 
 /**
- * Run build.sh from the given instance directory with SKIP_DOWNLOAD=1
- * and the stub bin directory prepended to PATH.
+ * Run build.sh from the given instance directory with the stub bin
+ * directory prepended to PATH. The engine builds from the local exports/
+ * supplied by makeInstance — there is no download stage.
  *
  * @param {string} instanceDir
  * @param {string} stubBinDir
@@ -161,7 +163,6 @@ function makeInstanceAndStubs(modules = {}) {
 function runBuildSh(instanceDir, stubBinDir) {
   const env = {
     ...process.env,
-    SKIP_DOWNLOAD: '1',
     ENGINE_ROOT,
     INSTANCE_ROOT: instanceDir,
     PATH: `${stubBinDir}:${ENGINE_ROOT}/node_modules/.bin:${process.env.PATH}`,
