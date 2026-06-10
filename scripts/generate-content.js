@@ -46,6 +46,17 @@
  *   entities.json     — display_name, date_formatted range, _linked_count,
  *                        and pass-through ISAAR CPF fields.
  *   places.json       — display_name, _linked_count, pass-through fields.
+ *   repositories.json — every repository record passed through, plus an
+ *                        auto-derived root_descriptions array (the top-level
+ *                        descriptions that seed the repository page's first
+ *                        Miller column) when the deployer did not supply one.
+ *
+ * Every enriched description also carries a `mets_url` for the reuse section,
+ * three-state on `[params].mets_base_url` (shared with generate-mets.js via
+ * readMetsConfig): base set → `${base}/{slug}.xml` (ignore inbound); base unset
+ * → respect an inbound `mets_url`, else the default `/mets/{slug}.xml`. The
+ * `zasqua mets` command writes the matching file; both derive the slug and base
+ * the same way, so links and files agree. See deriveMetsUrl.
  *
  * Env flags:
  *   INSTANCE_ROOT  — path to the instance directory; defaults to process.cwd().
@@ -61,10 +72,11 @@
  * Exits 0 on success, 1 on any IO error, 2 on an ancestor-chain cycle
  * (a backend data bug — fail loudly so it gets fixed upstream).
  *
- * Side-step: copies repositories.json verbatim from exports/ to
- * assets/hugo-data/ so the Hugo home-page template can load it via
- * `resources.Get` and render description counts identical to what
- * Eleventy emits.
+ * Repository pass-through: writes repositories.json to assets/hugo-data/ so
+ * the Hugo home-page template and the repository content adapter can load it
+ * via `resources.Get`. Every original field is preserved (description counts,
+ * imagery, identity); the only addition is an auto-derived root_descriptions
+ * array when the deployer omitted one.
  *
  * Guarded reads: the optional-module input files (entities.json,
  * places.json, desc-entity-lookup.json, desc-place-lookup.json) are loaded
@@ -85,7 +97,7 @@
  * the script throws an actionable Error naming the module and the missing
  * path rather than letting a raw ENOENT stack escape.
  *
- * @version v2.2.0
+ * @version v1.3.0
  */
 
 'use strict';
@@ -98,6 +110,7 @@ const { numberFormat } = require('./enrichment/number-format.js');
 const { buildAncestorChain } = require('./enrichment/ancestor-chain.js');
 const { enrichEntityLinks, enrichPlaceLinks } = require('./enrichment/link-enrichment.js');
 const { loadManifest } = require('../lib/manifest.js');
+const { readMetsConfig } = require('./generate-mets.js');
 
 const INSTANCE_ROOT = process.env.INSTANCE_ROOT || process.cwd();
 const DATA_DIR = process.env.DATA_DIR || path.join(INSTANCE_ROOT, 'exports');
@@ -153,7 +166,30 @@ function loadLinkedCounts(indexFile, keyField) {
   return map;
 }
 
-function enrichDescriptions(descriptions, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap) {
+/**
+ * Derive the reuse-section METS link for a description. Three-state on the
+ * deployer's `mets_base_url` ([params] in hugo.toml, read via readMetsConfig):
+ *   - base SET   → `${base}/${slug}.xml` for every record, ignoring any inbound
+ *                  mets_url (consistency + future records get a uniform URL).
+ *   - base UNSET → respect an inbound `mets_url` when present, else derive the
+ *                  default `/mets/{slug}.xml` (served with the site).
+ * slug = reference_code with ? and # stripped — matches the permalink and the
+ * filename generate-mets.js writes. The base and the file generator read the
+ * same config, so links and files agree regardless of which runs first.
+ *
+ * @param {object} desc
+ * @param {string|null} metsBaseUrl — trailing-slash-stripped, or null when unset
+ * @returns {string}
+ */
+function deriveMetsUrl(desc, metsBaseUrl) {
+  const slug = desc.reference_code ? String(desc.reference_code).replace(/[?#]/g, '') : '';
+  if (metsBaseUrl) {
+    return slug ? `${metsBaseUrl}/${slug}.xml` : '';
+  }
+  return desc.mets_url || (slug ? `/mets/${slug}.xml` : '');
+}
+
+function enrichDescriptions(descriptions, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap, metsBaseUrl) {
   return descriptions.map(desc => ({
     ...desc,
     ancestor_chain: buildAncestorChain(desc, byRefCode),
@@ -161,7 +197,77 @@ function enrichDescriptions(descriptions, byRefCode, reposByCode, descEntityLook
     date_formatted: formatDateNarrative(desc.date_expression),
     entity_links: enrichEntityLinks(desc.reference_code, descEntityLookup, rolesMap),
     place_links: enrichPlaceLinks(desc.reference_code, descPlaceLookup),
+    mets_url: deriveMetsUrl(desc, metsBaseUrl),
   }));
+}
+
+/**
+ * Auto-derive root_descriptions per repository.
+ *
+ * The repository landing page renders its top-level descriptions (fonds, etc.)
+ * as the first Miller column. A "root" is a description with no parent —
+ * neither parent_id nor parent_reference_code. For each repository this
+ * collects its roots as small stubs {id, reference_code, title,
+ * description_level, child_count}. child_count is the number of direct
+ * children, computed from the same parent relationships derive-children.js
+ * keys on (including the parent_reference_code fallback), so a root's expand
+ * affordance in the first column agrees with the children shards.
+ *
+ * A deployer may set root_descriptions on a repository explicitly; the caller
+ * respects that and does not overwrite it. This derivation only fills the gap
+ * when it is absent or empty, so a fresh contract export renders a working
+ * tree without hand-authoring the first column.
+ *
+ * @param {Array} descriptions — the flat contract array
+ * @returns {Map<string, Array>} repository_code → array of root stubs
+ */
+function deriveRootDescriptions(descriptions) {
+  const byId = new Map();
+  const byRef = new Map();
+  for (const d of descriptions) {
+    if (d.id !== undefined && d.id !== null) byId.set(d.id, d);
+    if (d.reference_code) byRef.set(d.reference_code, d);
+  }
+
+  // Count direct children per parent, resolving the parent by id first and
+  // falling back to parent_reference_code — the same resolution order
+  // derive-children.js uses, so counts and shards stay consistent.
+  const directChildren = new Map();
+  for (const d of descriptions) {
+    let parent = null;
+    if (d.parent_id !== null && d.parent_id !== undefined) {
+      parent = byId.get(d.parent_id) || null;
+    }
+    if (!parent && d.parent_reference_code) {
+      parent = byRef.get(d.parent_reference_code) || null;
+    }
+    if (parent && parent.reference_code) {
+      directChildren.set(parent.reference_code, (directChildren.get(parent.reference_code) || 0) + 1);
+    }
+  }
+
+  const byRepo = new Map();
+  for (const d of descriptions) {
+    const hasParent =
+      (d.parent_id !== null && d.parent_id !== undefined) ||
+      (d.parent_reference_code !== null && d.parent_reference_code !== undefined && d.parent_reference_code !== '');
+    if (hasParent) continue;
+    const repoCode = d.repository_code;
+    if (!byRepo.has(repoCode)) byRepo.set(repoCode, []);
+    byRepo.get(repoCode).push({
+      id: d.id,
+      reference_code: d.reference_code,
+      title: d.title,
+      description_level: d.description_level,
+      child_count: directChildren.get(d.reference_code) || 0,
+    });
+  }
+
+  // Stable shelf order within each repository's first column.
+  for (const roots of byRepo.values()) {
+    roots.sort((a, b) => String(a.reference_code || '').localeCompare(String(b.reference_code || '')));
+  }
+  return byRepo;
 }
 
 function enrichEntities(entities, countByCode) {
@@ -188,19 +294,11 @@ async function main() {
   console.log(`[generate-content] DATA_DIR=${DATA_DIR}`);
   if (DEV_LIMIT) console.log(`[generate-content] DEV_LIMIT=${DEV_LIMIT}`);
 
-  // Copy repositories.json verbatim to assets/hugo-data/ so the Hugo
-  // home-page template can load it via `resources.Get` and keep
-  // description counts identical to the Eleventy build's behaviour.
-  const repositoriesSrc = path.join(DATA_DIR, 'repositories.json');
-  const repositoriesDst = path.join(OUT_DIR, 'repositories.json');
-  if (fs.existsSync(repositoriesSrc)) {
-    fs.copyFileSync(repositoriesSrc, repositoriesDst);
-    console.log(`[generate-content] repositories.json copied (${fs.statSync(repositoriesDst).size.toLocaleString()} bytes)`);
-  } else {
-    console.warn(`[generate-content] WARN: ${repositoriesSrc} not found — home page repo grid will fail until this file exists`);
-  }
-
   const manifest = loadManifest(INSTANCE_ROOT);
+  // METS link base — shared with generate-mets.js so the HTML link and the
+  // generated file agree. null when [params].mets_base_url is unset (the
+  // three-state derivation in deriveMetsUrl then respects inbound / defaults).
+  const { metsBaseUrl } = readMetsConfig(INSTANCE_ROOT);
 
   // Core reads — always required, never guarded
   const descriptions = readJSON('descriptions.json');
@@ -244,12 +342,32 @@ async function main() {
   const reposByCode = new Map();
   for (const r of repositories) reposByCode.set(r.code, r);
 
+  // Write the repository data the Hugo home grid and repository adapter both
+  // load from assets/hugo-data/repositories.json. Each record is passed
+  // through verbatim, then auto-derived root_descriptions are attached when
+  // the deployer did not supply them — so the repository landing page's first
+  // Miller column works straight from a fresh six-file contract export. Roots
+  // are derived from the FULL descriptions array (never the DEV_LIMIT slice)
+  // so the first column is complete even during truncated local iteration.
+  const rootsByRepo = deriveRootDescriptions(descriptions);
+  const enrichedRepositories = repositories.map(r => {
+    if (Array.isArray(r.root_descriptions) && r.root_descriptions.length > 0) {
+      return r; // deployer-supplied — respect it
+    }
+    return { ...r, root_descriptions: rootsByRepo.get(r.code) || [] };
+  });
+  writeJSON('repositories.json', enrichedRepositories);
+  const derivedRepoCount = enrichedRepositories.filter(
+    r => (rootsByRepo.get(r.code) || []).length > 0
+  ).length;
+  console.log(`[generate-content] repositories.json: ${numberFormat(enrichedRepositories.length)} records (root_descriptions auto-derived for ${numberFormat(derivedRepoCount)})`);
+
   const descSlice = DEV_LIMIT ? descriptions.slice(0, DEV_LIMIT) : descriptions;
   const entitySlice = DEV_LIMIT ? entities.slice(0, DEV_LIMIT) : entities;
   const placeSlice = DEV_LIMIT ? places.slice(0, DEV_LIMIT) : places;
 
   const descStart = Date.now();
-  const enrichedDescs = enrichDescriptions(descSlice, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap);
+  const enrichedDescs = enrichDescriptions(descSlice, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap, metsBaseUrl);
   // Shard by a fixed record count. One unified descriptions.json at the
   // full scale would weigh ~610 MB — over V8's 512 MiB max-string limit,
   // which means no Node consumer could JSON.parse it. Sharding by
@@ -324,4 +442,4 @@ if (require.main === module) {
   });
 }
 
-// Version: v2.2.0
+// Version: v1.3.0

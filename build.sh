@@ -9,6 +9,9 @@
 # indexes the output three times with Pagefind (one index per discovery
 # surface: descriptions, entity explorer, place explorer).
 #
+# METS generation is NOT part of this script — it is the separate `zasqua mets`
+# command (scripts/generate-mets.js), run independently of the Hugo build.
+#
 # Data acquisition is NOT the engine's job. The build reads whatever is in
 # exports/; how those six files get there — a `zasqua import` run, a copy
 # from a cataloguing system, or a deployment's own fetch step — is the
@@ -48,7 +51,7 @@
 #   DEV_LIMIT       — integer cap on records processed by generate-content.js
 #                     (fast local iteration; leave unset for full-corpus)
 #
-# Version: v1.2.0
+# Version: v1.3.0
 set -euo pipefail
 
 # Resolve ENGINE_ROOT: default to the directory that contains this script,
@@ -185,8 +188,14 @@ echo "=== Stage 7: generate-pagefind-indices.js (Node API, 3 bundles) ==="
 node "$ENGINE_ROOT/scripts/generate-pagefind-indices.js"
 
 # ---- Done ----
+# Note: METS generation is NOT a build stage. It is the separate `zasqua mets`
+# command (scripts/generate-mets.js), which reads exports/ + hugo.toml and
+# writes to METS_DIR independently of the Hugo build — so it can run on its own
+# step/cadence and target a different host (e.g. a manifests bucket) without
+# being swept into the site output. A single-bucket deployer runs it after
+# `zasqua build` into the default public/mets/.
 echo "=== Build complete ==="
 echo "Pages:     $(find public -name 'index.html' | wc -l)"
 echo "Site size: $(du -sh public | cut -f1)"
 
-# Version: v1.2.0
+# Version: v1.3.0
