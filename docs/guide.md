@@ -12,7 +12,7 @@
   The guide is linear. Follow the numbered legs in order; each step
   produces verified output that the next step consumes.
 
-  Version: v1.2.0
+  Version: v1.3.0
 -->
 
 # Run Your Own Instance
@@ -234,6 +234,37 @@ The sample dataset shipped in the `zasqua-template` repository produces
 31 Hugo pages in your `public/` directory, including the two fonds at
 `/ca-lac-r610/` and `/es-ags-crei/` and their nested hierarchy pages
 (`/ca-lac-r610-134/`, `/es-ags-crei-hacienda/`, and so on).
+
+### METS documents (`zasqua mets`)
+
+METS generation is a separate command, not a build stage — it reads
+`exports/` and `hugo.toml` directly (not the rendered site), so it can run on
+its own and target its own host:
+
+```
+zasqua mets
+```
+
+This writes one METS 1.12.1 XML document per description (Dublin Core
+descriptive metadata) to `METS_DIR`, which defaults to `public/mets/` — so a
+single-bucket deployment runs `zasqua build` then `zasqua mets` and serves both
+together at `/mets/{reference_code}.xml`. A deployment that hosts METS on a
+separate domain sets `METS_DIR` to a staging directory outside `public/` and
+points the reuse-section link at it with `mets_base_url`. METS configuration
+lives in `hugo.toml [params]`:
+
+- `mets_creator_name` / `mets_creator_url` — the METS CREATOR agent (default:
+  the site `title`, and `about_url`/`source_url`).
+- `mets_default_rights` — optional `dc:rights` fallback for records with no
+  per-record or per-repository rights.
+- `mets_base_url` — the public URL base for the reuse-section METS link
+  (default: `/mets`, served with the site).
+
+`dc:rights` is data-driven: a repository's `image_reproduction_text` for a
+digitised item, else the record's own reproduction/access conditions, else the
+optional house default, else omitted. IIIF manifests, when a record supplies
+`iiif_manifest_url`, are referenced from `<fileSec>` — the engine never
+generates IIIF.
 
 ---
 
