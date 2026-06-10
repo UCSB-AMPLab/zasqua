@@ -341,4 +341,73 @@ describe('deriveChildren — shard envelope format', () => {
   });
 });
 
-// Version: v0.1.0
+// ---------------------------------------------------------------------------
+// Behavior 6: parent_reference_code fallback
+//
+// A contract export produced outside the original cataloguing backend often
+// sets parent_reference_code but leaves parent_id null. The shard is still
+// keyed by the parent's numeric id, resolved through the reference_code → id
+// map, so the Miller-column tree expands instead of silently rendering empty.
+// ---------------------------------------------------------------------------
+
+describe('deriveChildren — parent_reference_code fallback', () => {
+  it('links a child by parent_reference_code when parent_id is null', () => {
+    const descs = [
+      makeDesc({ id: 1, parent_id: null, reference_code: 'co-ahr-t001' }),
+      makeDesc({
+        id: 2,
+        parent_id: null,
+        parent_reference_code: 'co-ahr-t001',
+        reference_code: 'co-ahr-t001-s01',
+      }),
+    ];
+    const { shards, warnings } = deriveChildren(descs);
+    expect(warnings).toHaveLength(0);
+    // Shard is keyed by the parent's numeric id (1), not its reference_code.
+    expect(shards.has(1)).toBe(true);
+    expect(shards.get(1).results.map(r => r.id)).toEqual([2]);
+  });
+
+  it('prefers parent_id when both parent_id and parent_reference_code are set', () => {
+    const descs = [
+      makeDesc({ id: 1, parent_id: null, reference_code: 'co-ahr-t001' }),
+      makeDesc({ id: 9, parent_id: null, reference_code: 'co-ahr-t009' }),
+      makeDesc({
+        id: 2,
+        parent_id: 9,
+        parent_reference_code: 'co-ahr-t001', // ignored in favour of parent_id=9
+        reference_code: 'co-ahr-t009-s01',
+      }),
+    ];
+    const { shards } = deriveChildren(descs);
+    expect(shards.has(9)).toBe(true);
+    expect(shards.has(1)).toBe(false);
+  });
+
+  it('warns and skips when parent_reference_code resolves to nothing', () => {
+    const descs = [
+      makeDesc({ id: 1, parent_id: null, reference_code: 'co-ahr-t001' }),
+      makeDesc({
+        id: 2,
+        parent_id: null,
+        parent_reference_code: 'co-ahr-does-not-exist',
+        reference_code: 'co-ahr-orphan',
+      }),
+    ];
+    const { shards, warnings } = deriveChildren(descs);
+    expect(shards.size).toBe(0);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/parent_reference_code=co-ahr-does-not-exist/);
+  });
+
+  it('treats a record with neither parent field as a root (no shard, no warning)', () => {
+    const descs = [
+      makeDesc({ id: 1, parent_id: null, parent_reference_code: null, reference_code: 'co-ahr-t001' }),
+    ];
+    const { shards, warnings } = deriveChildren(descs);
+    expect(shards.size).toBe(0);
+    expect(warnings).toHaveLength(0);
+  });
+});
+
+// Version: v1.3.0
