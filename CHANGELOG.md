@@ -10,6 +10,58 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
+## [1.3.0] — 2026-06-09
+
+### Added
+
+- METS generation, as a new `zasqua mets` command. It writes one METS 1.12.1
+  XML document per description (Dublin Core descriptive metadata) to a
+  configurable output directory, making the reuse section's "uses the METS
+  standard for metadata" claim resolve to a real file on every description
+  page. The command is independent of the Hugo build — it reads `exports/`
+  and `hugo.toml`, not the rendered site — so a deployment can generate and
+  upload METS on its own step and to its own host. By default it writes
+  `public/mets/{reference_code}.xml` (served with the site); a deployment with
+  a separate manifests host sets `METS_DIR` and `mets_base_url` accordingly.
+  Until now METS was produced by a separate, now-retired cataloging backend;
+  bringing generation into the engine removes that external dependency.
+  Generation is deployment-agnostic — every institution-specific value is
+  deployer-owned configuration in `hugo.toml [params]`:
+    - `mets_creator_name` (defaults to the site `title`) and `mets_creator_url`
+      (defaults to `about_url`/`source_url`) — the METS CREATOR agent.
+    - `mets_default_rights` — an optional house `dc:rights` fallback.
+    - `mets_base_url` — the public METS URL base for the reuse-section link.
+  `dc:rights` is data-driven: the repository's `image_reproduction_text` for a
+  digitised item, else the record's own reproduction/access conditions, else
+  the optional house default, else omitted. No institution name or rights text
+  is hardcoded. The metsHdr carries no `CREATEDATE` (a build-time creation date
+  is meaningless and would make output non-deterministic).
+- IIIF passthrough in METS. When a description carries an `iiif_manifest_url`
+  (a deployer-supplied field), the METS document points at it from `<fileSec>`.
+  The engine never generates IIIF tiles or manifests — it only references what
+  the deployer supplies.
+
+### Fixed
+
+- The Miller-column hierarchy tree no longer renders empty when a contract
+  export sets `parent_reference_code` but leaves `parent_id` null — common
+  for data produced outside the original cataloging backend.
+  `derive-children` now resolves the parent through a reference-code → id
+  map when the numeric id is absent, keying the children shard by the
+  resolved id.
+- Repository landing pages now show their top-level descriptions (the first
+  Miller column) straight from a fresh six-file export. `root_descriptions`
+  is auto-derived per repository — the descriptions with no parent — when
+  the deployer did not supply one. An explicit `root_descriptions` is
+  respected and never overwritten.
+
+The six-file data contract (v1.0) is unchanged. `mets_url` is engine-derived
+from `mets_base_url` and need not be supplied; when `mets_base_url` is unset a
+deployer-supplied `mets_url` is respected. The descriptions' optional
+`creator_display`, `place_display`, and `imprint` fields (populated by upstream
+cataloging) now feed `dc:creator`, `dc:subject`, and `dc:publisher`, and the
+repository `image_reproduction_text` field now also feeds digitised `dc:rights`.
+
 ## [1.2.0] — 2026-06-08
 
 ### Removed
