@@ -3,7 +3,7 @@
  * Zasqua CLI
  *
  * This is the command-line entry point for the @ucsb-ampl/zasqua
- * engine. It exposes five commands — `build`, `dev`, `init`,
+ * engine. It exposes six commands — `build`, `dev`, `mets`, `init`,
  * `validate`, and `import` — that wrap the build pipeline, setup helpers,
  * and data importers through the engine + instance directory structure.
  * The CLI is invoked from the instance directory; it reads the instance
@@ -14,6 +14,8 @@
  * Commands:
  *   zasqua build    — validate manifest, copy base theme, run the full pipeline
  *   zasqua dev      — copy base theme and start `hugo server`
+ *   zasqua mets     — generate one METS XML per description into METS_DIR
+ *                     (default public/mets); independent of the Hugo build
  *   zasqua init     — scan data dir, scaffold a commented zasqua.manifest.toml
  *   zasqua validate — validate the manifest + data inputs standalone
  *   zasqua import   — convert a source dataset into the six-file contract
@@ -45,12 +47,12 @@
  *   `lib/pipeline.js`, `lib/init.js`, `lib/validator.js`, and
  *   `lib/importers/dispatch.js`.
  *
- * @version v1.2.0
+ * @version v1.3.0
  */
 
 'use strict';
 
-const { runBuild, runDev } = require('../lib/pipeline');
+const { runBuild, runDev, runMets } = require('../lib/pipeline');
 const { runInit } = require('../lib/init');
 const { runValidate } = require('../lib/validator');
 
@@ -85,6 +87,7 @@ function usage() {
     'Commands:\n' +
     '  build    Validate manifest, copy base theme, run the full 7-stage pipeline\n' +
     '  dev      Copy base theme and start hugo server (127.0.0.1:1313)\n' +
+    '  mets     Generate one METS XML per description into METS_DIR (default public/mets)\n' +
     '  init     Scan data dir and scaffold a commented zasqua.manifest.toml\n' +
     '  validate Validate manifest + data inputs (standalone)\n' +
     '  import   Convert a source dataset into the six-file contract format\n' +
@@ -113,6 +116,10 @@ async function main() {
 
     case 'dev':
       await runDev();
+      break;
+
+    case 'mets':
+      await runMets();
       break;
 
     case 'init':
@@ -164,4 +171,4 @@ if (require.main === module) {
 
 module.exports = { main };
 
-// Version: v1.2.0
+// Version: v1.3.0

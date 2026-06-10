@@ -13,7 +13,7 @@
 
   Contract version: 1.0 (independent of engine package version)
 
-  Version: v1.1.0
+  Version: v1.3.0
 -->
 
 # Zasqua Data Contract v1.0
@@ -107,7 +107,10 @@ published page.
 | `finding_aids` | string | No | Finding aids per ISAD(G) 3.4.5. |
 | `notes` | string | No | General notes per ISAD(G) 3.6.1. |
 | `iiif_manifest_url` | string | No | URL of the IIIF Presentation manifest for the digitized material. Enables the deep-zoom viewer when the `iiif` module is active. |
-| `mets_url` | string | No | URL of a METS package, if available. Displayed in the reuse section. |
+| `mets_url` | string | No | URL of the description's METS document, shown in the reuse section. **Engine-derived** from `[params].mets_base_url` (`${mets_base_url}/{reference_code}.xml`), so you do not need to supply it. Three-state: when `mets_base_url` is **set**, every record's link is derived from it and any supplied `mets_url` is ignored (uniform URLs); when `mets_base_url` is **unset**, a supplied `mets_url` is respected, else it defaults to `/mets/{reference_code}.xml`. |
+| `creator_display` | string | No | Pre-formatted creator string (ISAD(G) 3.2.1), populated by upstream cataloging — **not** produced by `zasqua import`. Feeds METS `dc:creator`. May be a multi-value `;`-joined display string (not DC-atomic). |
+| `place_display` | string | No | Pre-formatted place string, populated by upstream cataloging — not produced by `zasqua import`. Feeds METS `dc:subject`. |
+| `imprint` | string | No | Publication imprint for bibliographic items, populated by upstream cataloging — not produced by `zasqua import`. Feeds METS `dc:publisher`. |
 | `ocr_text` | string | No | Full-text OCR content for Pagefind indexing. Active when the `ocr` module is enabled. May contain `{{ }}` / `{% %}` template syntax — passed through unchanged. |
 | `archivist_note` | string | No | Archivist's note per ISAD(G) 3.7.1 — how the description was prepared and by whom, including sources consulted. Rendered in the Control section. |
 | `rules_conventions` | string | No | Rules or conventions per ISAD(G) 3.7.2 (the descriptive standard followed, e.g. ISAD(G), DACS, RAD). Rendered in the Control section. |
@@ -135,7 +138,7 @@ the `code` field via `repository_code`.
 | `country` | string | No | Country where the repository is located. |
 | `city` | string | No | City where the repository is located. |
 | `description_count` | integer | No | Total number of descriptions held by this repository. Used on repository landing pages. |
-| `image_reproduction_text` | string | No | Repository-specific text for the image reproduction / reuse section. |
+| `image_reproduction_text` | string | No | Repository-specific reproduction-rights text. Feeds METS `dc:rights` for that repository's **digitised** descriptions (`has_digital = true`); records that are not digitised fall through to their own conditions or the `mets_default_rights` fallback. |
 | `root_descriptions` | array | No | Array of top-level fonds codes for this repository's landing page. |
 | `modified_at` | string | No | ISO date (YYYY-MM-DD) of the last backend modification; used for per-page ETag stability. |
 | `descriptive_standard` | string | No | The descriptive standard applied to this repository's holdings (e.g. `isadg`, `dacs`, `rad`). |

@@ -31,13 +31,20 @@
  *                    Set by the Zasqua CLI so exports/ resolves to the instance.
  *   DATA_DIR       — override the default exports directory (absolute path).
  *
- * Orphan handling: a child whose parent_id does not appear in the
- * descriptions array is warned about and skipped — no shard is written for
- * that parent_id and the child is not promoted to root. A `[derive-children]
- * WARN` line is emitted for each orphan so operators can investigate data
- * integrity issues without a build crash.
+ * Parent resolution: a child is linked by its numeric parent_id when present.
+ * When parent_id is null but parent_reference_code is set — common in a
+ * six-file contract export produced outside the original cataloguing backend —
+ * the parent is resolved through a reference_code → id map and the shard is
+ * keyed by that resolved id. Keying solely on parent_id used to leave such a
+ * tree silently empty.
  *
- * @version v0.1.0
+ * Orphan handling: a child whose parent_id (or resolved parent_reference_code)
+ * does not appear in the descriptions array is warned about and skipped — no
+ * shard is written for that parent and the child is not promoted to root. A
+ * `[derive-children] WARN` line is emitted for each orphan so operators can
+ * investigate data integrity issues without a build crash.
+ *
+ * @version v1.3.0
  */
 
 const fs = require('fs');
@@ -113,8 +120,17 @@ function serializePythonJson(value) {
  * @returns {{ shards: Map<number, object>, warnings: string[] }}
  */
 function deriveChildren(descriptions) {
-  // Build a set of valid ids so we can detect orphans cheaply.
+  // Build a set of valid ids so we can detect orphans cheaply, plus a
+  // reference_code → id map so children that only carry a
+  // parent_reference_code (no numeric parent_id) can still be linked. A
+  // six-file contract export produced outside the original cataloguing
+  // backend commonly sets parent_reference_code but leaves parent_id null;
+  // keying solely on parent_id silently produced an empty tree for those.
   const validIds = new Set(descriptions.map(d => d.id));
+  const idByRefCode = new Map();
+  for (const d of descriptions) {
+    if (d.reference_code) idByRefCode.set(d.reference_code, d.id);
+  }
 
   // Group children by parent_id. Each group entry is an array of
   // child objects with exactly the 9 contract fields in confirmed order.
@@ -122,7 +138,23 @@ function deriveChildren(descriptions) {
   const warnings = [];
 
   for (const desc of descriptions) {
-    const parentId = desc.parent_id;
+    // Resolve the effective parent id. Prefer an explicit parent_id; fall
+    // back to resolving parent_reference_code through the ref→id map. The
+    // shard is keyed by the parent's numeric id because the tree fetches
+    // /data/children/{id}.json (id from the parent's root/child stub).
+    let parentId = desc.parent_id;
+    if ((parentId === null || parentId === undefined) && desc.parent_reference_code) {
+      const resolved = idByRefCode.get(desc.parent_reference_code);
+      if (resolved === undefined) {
+        warnings.push(
+          `orphan child id=${desc.id} reference_code=${desc.reference_code} ` +
+          `has parent_reference_code=${desc.parent_reference_code} which is not ` +
+          `present in descriptions.json`
+        );
+        continue;
+      }
+      parentId = resolved;
+    }
 
     // Root records have no parent — skip.
     if (parentId === null || parentId === undefined) {
@@ -242,4 +274,4 @@ if (require.main === module) {
   });
 }
 
-// Version: v0.1.0
+// Version: v1.3.0

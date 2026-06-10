@@ -25,6 +25,7 @@ data/*
 !data/ui.yaml
 exports/
 !example/exports/
+!tests/fixtures/*/exports/
 static/data/
 assets/hugo-data/*.json
 assets/hugo-data/descriptions/
