@@ -10,6 +10,42 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
+## [1.4.0] — 2026-07-06
+
+### Changed
+
+- **Entity network graph expansion is now fast and data-driven.** Expanding an
+  entity in the co-occurrence graph now reads each neighbour's name, type, and
+  linked-record count from a single structured index file
+  (`static/data/entity-index.json`), fetched once and reused for every
+  expansion. Previously this metadata was read out of each entity's rendered
+  page one request at a time; on large graphs, against a production host, that
+  could take twenty to forty-five seconds. Expansion is now near-instant.
+- **The deep-zoom image viewer attaches its custom controls more reliably.** The
+  self-hosted TIFY viewer now adds its custom toolbar controls (expand, collapse,
+  full screen, thumbnails) the moment the viewer signals it is ready, rather than
+  after a fixed delay. The old delay could fire before a large document had
+  finished rendering — leaving the custom controls missing — or wait needlessly
+  on a small one. The thumbnails (Miniaturas) toggle is now driven through the
+  viewer's public interface and reads the panel's open or closed state live, so
+  it stays in step with the viewer's own keyboard shortcut for thumbnails.
+
+### Fixed
+
+- **Century and decade counts in the date filter are correct for records whose
+  dates span a boundary.** The century → decade → year facet tree now counts each
+  record once per century and decade it covers, using the counts the search
+  indexer produces, rather than adding up year-level counts — which over- or
+  under-counted a record whose date range crossed a century or decade boundary.
+  Century rows now look their counts up by the same Roman-numeral key the indexer
+  emits (for example `XVIII`), so century totals render correctly.
+- **Client-side HTML escaping now also escapes single quotes.** The escaping
+  helpers used when the place timeline builds its markup now escape `'` alongside
+  `&`, `<`, `>`, and `"`, matching the standard escape set.
+- **Deployment guide correction.** The guide now states correctly that the
+  Cloudflare Worker and R2 upload tooling belong to the site instance, not the
+  engine.
+
 ## [1.3.0] — 2026-06-09
 
 ### Added
@@ -210,6 +246,8 @@ the infrastructure needs to outlast the projects and grants that funded it.
   field reference (`docs/data-contract.md`), and per-format importer mapping
   references for CSV, EAD3, and CollectiveAccess.
 
+[1.4.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.4.0
+[1.3.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.3.0
 [1.2.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.2.0
 [1.1.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.1.0
 [1.0.2]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.0.2
