@@ -4,19 +4,20 @@
 # engine's full test suite before publishing to ensure a red build is
 # never tagged to the registry.
 #
-# Provenance and authentication:
-#   First-publish bootstrap uses NPM_TOKEN (classic Automation token, narrowest
-#   publish scope) combined with the --provenance flag. After the first publish,
-#   configure trusted publishing on npmjs.com (Settings > Trusted Publishers)
-#   and remove the NPM_TOKEN secret — the OIDC identity token issued to this
-#   workflow by GitHub replaces the long-lived token entirely.
+# Authentication — trusted publishing (OIDC):
+#   The package is published through npm trusted publishing. npmjs.com holds a
+#   Trusted Publisher entry for this repository's release.yml workflow, and npm
+#   exchanges the workflow's GitHub-issued OIDC identity token for a short-lived
+#   publish credential at run time. There is no long-lived npm token — the
+#   NPM_TOKEN secret the initial releases used has been retired.
 #
-#   id-token: write is required for provenance OIDC minting even during the
-#   bootstrap phase; setup-node registry-url is required for NODE_AUTH_TOKEN
-#   to work (without it, setup-node does not write the .npmrc entry). npm 9.5+
-#   is required for --provenance; the engine ships npm 11.x via Node 22.
+#   id-token: write is required so GitHub mints the OIDC token (used both for
+#   the trusted-publishing credential exchange and for --provenance).
+#   setup-node's registry-url points npm at the public registry. Trusted
+#   publishing needs npm 11.5.1+; Node 22 ships npm 10.x, so the upgrade step
+#   below clears that bar before publishing.
 #
-# Version: v1.0.0
+# Version: v1.4.0
 
 name: Publish to npm
 
@@ -40,6 +41,9 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: npm
 
+      - name: Upgrade npm for OIDC trusted publishing (needs 11.5.1+)
+        run: npm install -g npm@latest
+
       - name: Install dependencies
         run: npm ci
 
@@ -48,7 +52,5 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-# Version: v1.0.0
+# Version: v1.4.0
