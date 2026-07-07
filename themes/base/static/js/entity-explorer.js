@@ -17,13 +17,13 @@
  * WebAssembly runtime takes a noticeable moment to load its filter
  * chunks; rendering the sidebar off `pagefind.filters()` alone meant
  * the user saw stale or empty counts for a couple of seconds after
- * every reload. The explorer therefore also fetches three JSON
- * sidecars emitted by the indexer at build time — a landing-facets
- * file (global counts), a pair-wise pivot file (intersection counts
- * when one facet filter is active), and a triple-wise pivot file
- * (intersection counts when two are active) — and serves the
- * sidebar synchronously from those while Pagefind warms in the
- * background. Once Pagefind's filter cache has warmed, subsequent
+ * every reload. The explorer therefore also fetches two JSON
+ * sidecars emitted by the indexer at build time — a pair-wise pivot
+ * file (intersection counts when one facet filter is active) and a
+ * triple-wise pivot file (intersection counts when two are active) —
+ * and serves the sidebar synchronously from those while Pagefind
+ * warms in the background. There is no landing-facets sidecar for
+ * `/entidades/`. Once Pagefind's filter cache has warmed, subsequent
  * renders route through it for cross-facet narrowing.
  *
  * `selectFacetCounts` is the canonical helper that picks between
@@ -42,9 +42,10 @@
  *
  * Pipeline context:
  *   Build-time inputs: the `/pagefind-entities/` Pagefind bundle
- *   plus `/entidades-facets.json`, `/entidades-pivots.json`, and
- *   `/entidades-triples.json` sidecars, all written alongside the
- *   main Hugo build. Run-time inputs: URL parameters, search and
+ *   plus `/entidades-pivots.json` and `/entidades-triples.json`
+ *   sidecars (no `/entidades-facets.json` — two branches, not
+ *   three), all written alongside the main Hugo build. Run-time
+ *   inputs: URL parameters, search and
  *   facet clicks, graph viewport changes. Outputs: DOM updates
  *   inside the explorer host (`#entity-explorer`), the sidebar
  *   facet panel (`#sidebar-facets`), and callbacks the wiring
@@ -58,7 +59,7 @@
  * Entity-type labels come from data-entity-types keyed by entity_type
  * code (no branching on display text).
  *
- * @version v1.3.0
+ * @version v1.4.0
  */
 
 /**
@@ -403,7 +404,7 @@ class EntityExplorer {
     this._visibleCodeSource = null;
     this._visibleEntitiesSource = null;
 
-    // Callback hooks — set by wiring script in entidades.njk
+    // Callback hooks — set by wiring script in themes/base/layouts/entidades/list.html
     this.onEntitySelected = null;  // (entityCode) — fired when user clicks entity in results
     this.onFilterChanged = null;   // (filters) — fired when any filter/search changes
     this.onFocalRoleFilterChanged = null;  // (Set<role>) — focal-card role filter changed
@@ -415,7 +416,8 @@ class EntityExplorer {
     // (no DOM) when `tests/pagefind-facets.test.js` requires it for the
     // helper export. In the browser `document` is always defined.
     this.compactMode = typeof document !== 'undefined' && !!document.getElementById('sidebar-facets');
-    // Note: init() is called explicitly by the wiring script (entidades.njk) to control
+    // Note: init() is called explicitly by the wiring script
+    // (themes/base/layouts/entidades/list.html) to control
     // initialization order. Do not call this.init() here.
   }
 
@@ -528,7 +530,9 @@ class EntityExplorer {
         this.state.dateFilter = { level: 'decade', label: `${fechaValor}s`, years };
       } else if (fechaNivel === 'century') {
         const num = parseInt(fechaValor, 10);
-        const base = (num - 1) * 100;
+        // Strict century span: siglo N covers years (N-1)*100+1 .. N*100
+        // (e.g. XVIII = 1701..1800), matching the indexer/date-tree convention.
+        const base = (num - 1) * 100 + 1;
         const years = [];
         for (let i = base; i < base + 100; i++) years.push(String(i));
         this.state.dateFilter = { level: 'century', label: this._i18n.centuryLabel.replace('{roman}', this.romanCentury(num)), years };
@@ -554,7 +558,7 @@ class EntityExplorer {
         params.set('fecha_valor', df.years[0]);
       } else if (df.level === 'century') {
         const firstYear = parseInt(df.years[0], 10);
-        const centuryNum = Math.floor(firstYear / 100) + 1;
+        const centuryNum = Math.floor((firstYear - 1) / 100) + 1;
         params.set('fecha_nivel', 'century');
         params.set('fecha_valor', String(centuryNum));
       }
@@ -2076,7 +2080,11 @@ class EntityExplorer {
       const year = parseInt(yearStr, 10);
       if (isNaN(year)) continue;
       if (count === 0) continue;
-      const centuryNum = Math.floor(year / 100) + 1;
+      // Strict century convention (e.g. 1601-1700 = siglo XVII): must match
+      // the indexer's romanCentury ((year-1)/100+1) so the century facet counts
+      // looked up below align with how years are grouped here. Boundary year
+      // 1700 groups under XVII, not XVIII. Same rule as search.js#renderDateTree.
+      const centuryNum = Math.floor((year - 1) / 100) + 1;
       const decadeBase = Math.floor(year / 10) * 10;
 
       if (!centuries.has(centuryNum)) {
@@ -2104,7 +2112,7 @@ class EntityExplorer {
       if (df && df.level === 'century' && df.label !== centuryLabel) continue;
       if (df && (df.level === 'decade' || df.level === 'year')) {
         const selectedYear = parseInt(df.years[0], 10);
-        const selectedCentury = Math.floor(selectedYear / 100) + 1;
+        const selectedCentury = Math.floor((selectedYear - 1) / 100) + 1;
         if (selectedCentury !== centuryNum) continue;
       }
 
@@ -2137,7 +2145,14 @@ class EntityExplorer {
 
       const countSpan = document.createElement('span');
       countSpan.className = 'date-tree-count';
-      const centuryEntityCount = centuryFacet[String(centuryNum)];
+      // The indexer keys the century facet by ROMAN numeral ("XVIII", via
+      // generate-pagefind-indices.js#romanCentury), not by Arabic number —
+      // look up with the same romanCentury conversion used for the label.
+      // this.romanCentury covers I-XXII with a String(num) fallback, a
+      // superset of the indexer's I-XXI table over any corpus-producible
+      // century. Same lookup in search.js#renderDateTree — keep the two
+      // in sync.
+      const centuryEntityCount = centuryFacet[this.romanCentury(centuryNum)];
       const centuryDisplay = (centuryEntityCount != null ? centuryEntityCount : centuryData.total);
       countSpan.textContent = `(${this._fmt.format(Number(centuryDisplay))})`;
 
@@ -2559,7 +2574,8 @@ class EntityExplorer {
 }
 
 // EntityExplorer is instantiated and initialised by the wiring script in
-// entidades.njk, which controls initialization order relative to the graph.
+// themes/base/layouts/entidades/list.html, which controls initialization
+// order relative to the graph.
 
 // Conditional CommonJS export so `selectFacetCounts` can be unit-tested
 // from `tests/pagefind-facets.test.js` under Node. The browser loads
@@ -2570,4 +2586,4 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS };
 }
 
-// Version: v1.3.0
+// Version: v1.4.0
