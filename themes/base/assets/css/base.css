@@ -29,7 +29,7 @@
  * GL's unlayered default popup styles, and only wins the cascade
  * when it is itself unlayered.
  *
- * @version v2.3.0
+ * @version v1.4.0
  */
 
 /* source(none) disables Tailwind's automatic file scanning so the utility
@@ -778,18 +778,6 @@
     text-decoration: none;
   }
 
-  .btn-outline {
-    background: transparent;
-    border: 2px solid var(--color-burgundy);
-    color: var(--color-burgundy);
-  }
-
-  .btn-outline:hover {
-    background: var(--color-burgundy);
-    color: #fff;
-    text-decoration: none;
-  }
-
   .btn-pill {
     border-radius: 50px;
     padding: 12px 28px;
@@ -963,87 +951,12 @@
   }
 
   /* ====================
-     Description List
-     ==================== */
-
-  .description-list {
-    border: 1px solid var(--color-stone-300);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .description-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--color-stone-100);
-    @apply text-stone-900;
-    transition: background-color 0.15s ease;
-  }
-
-  .description-item:last-child {
-    border-bottom: none;
-  }
-
-  .description-item:hover {
-    @apply bg-stone-100;
-    text-decoration: none;
-  }
-
-  .description-item-content {
-    flex: 1;
-  }
-
-  .description-item-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0 0 4px;
-    @apply text-stone-900;
-  }
-
-  .description-item-meta {
-    font-size: 0.875rem;
-    @apply text-stone-400;
-    display: flex;
-    gap: 1rem;
-  }
-
-  .description-item-arrow {
-    font-size: 1.5rem;
-    @apply text-stone-400;
-    margin-left: 1rem;
-  }
-
-  /* ====================
-     Placeholder Image
-     ==================== */
-
-  .placeholder-img {
-    background-color: var(--color-bg);
-    border: 2px solid var(--color-stone-200);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  .placeholder-img img {
-    width: 65%;
-    height: auto;
-    opacity: 0.3;
-  }
-
-  /* ====================
      Utilities
      ==================== */
 
   /* Note: .text-center, .mt-0, .mb-0 are covered by Tailwind native utilities.
      Keeping only those with custom values or non-standard Tailwind equivalents. */
   .text-muted { @apply text-stone-400; }
-  .bg-gray { @apply bg-stone-100; }
-  .mb-md { margin-bottom: 1rem; }
-  .mb-lg { margin-bottom: 1.5rem; }
 
   /* ====================
      Error Page
@@ -1085,39 +998,6 @@
   /* ====================
      Search Results
      ==================== */
-
-  .search-header {
-    @apply bg-stone-100;
-    padding: 1.5rem 0;
-  }
-
-  .search-form-large {
-    display: flex;
-    max-width: 600px;
-    margin: 0 auto;
-    background: #fff;
-    border: 1px solid var(--color-stone-300);
-    border-radius: 50px;
-    overflow: hidden;
-  }
-
-  .search-form-large input {
-    flex: 1;
-    border: none;
-    padding: 0.75rem 1.25rem;
-    font-size: 1rem;
-    outline: none;
-    border-radius: 50px 0 0 50px;
-  }
-
-  .search-form-large button {
-    background: transparent;
-    border: none;
-    border-left: 1px solid var(--color-stone-300);
-    padding: 0.75rem 1.25rem;
-    cursor: pointer;
-    border-radius: 0 50px 50px 0;
-  }
 
   .search-empty-query {
     padding: 3rem 0 2rem;
@@ -1358,12 +1238,6 @@
   .sort-divider {
     color: var(--color-stone-300);
     margin: 0 2px;
-  }
-
-  .result-path {
-    font-size: 13px;
-    @apply text-stone-400;
-    margin-top: 4px;
   }
 
   .result-repo {
@@ -2006,12 +1880,6 @@
     margin-top: 6px;
   }
 
-  .search-prompt {
-    padding: 3rem 0;
-    @apply text-stone-400;
-    font-size: 0.95rem;
-  }
-
   .search-no-results {
     text-align: center;
     padding: 3rem 0;
@@ -2262,10 +2130,6 @@
     @apply text-white;
   }
 
-  .miller-item.selected .miller-item-count {
-    color: rgba(255,255,255,0.8);
-  }
-
   .miller-item.selected .miller-item-arrow {
     color: #fff;
   }
@@ -2300,11 +2164,6 @@
 
   .miller-item.selected .miller-item-subtitle {
     color: rgba(255,255,255,0.7);
-  }
-
-  .miller-item-count {
-    font-size: 12px;
-    @apply text-stone-400;
   }
 
   .miller-item-arrow {
@@ -2795,153 +2654,8 @@
   .desc-viewer:-webkit-full-screen .viewer-pill-contraer { display: none !important; }
 
   /* ====================
-     Children Tree
-     ==================== */
-
-  .children-tree-item {
-    padding: 0;
-  }
-
-  .children-tree-bordered {
-    border-bottom: 1px solid var(--color-stone-100);
-  }
-
-  .children-tree-row {
-    display: flex;
-    align-items: flex-start;
-    padding: 0.75rem 0;
-    gap: 0.5rem;
-  }
-
-  .children-tree-toggle {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    @apply text-stone-400;
-  }
-
-  .children-tree-chevron {
-    font-size: 24px;
-    transition: transform 0.15s ease;
-  }
-
-  .children-tree-toggle[aria-expanded="true"] .children-tree-chevron {
-    transform: rotate(90deg);
-  }
-
-  .children-tree-spacer {
-    width: 24px;
-    flex-shrink: 0;
-  }
-
-  .children-tree-content {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .children-tree-title-row {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-
-  .children-tree-title {
-    font-size: 0.95rem;
-    @apply text-stone-900;
-  }
-
-  .children-tree-title:hover {
-    color: var(--color-burgundy-light);
-  }
-
-  .children-tree-title-nested {
-    font-size: 0.9rem;
-  }
-
-  .children-tree-meta {
-    font-size: 13px;
-    @apply text-stone-400;
-    margin-top: 2px;
-  }
-
-  .children-tree-refcode {
-    font-family: monospace;
-    font-size: 12px;
-    @apply text-stone-400;
-    margin-top: 2px;
-  }
-
-  .children-tree-nested {
-    display: none;
-    padding-left: 2rem;
-    border-left: 2px solid var(--color-stone-100);
-    margin-left: 11px;
-  }
-
-  .children-tree-item.expanded > .children-tree-nested {
-    display: block;
-  }
-
-  .children-tree-nested-item {
-    padding: 0.5rem 0;
-  }
-
-  .children-tree-nested-bordered {
-    border-bottom: 1px solid var(--color-stone-100);
-  }
-
-  .children-tree-more {
-    padding: 0.75rem 0;
-    padding-left: 2rem;
-    border-left: 2px solid var(--color-stone-100);
-    margin-left: 11px;
-  }
-
-  .children-tree-more-nested {
-    padding: 0.75rem 0;
-  }
-
-  .children-tree-more-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-burgundy-deep);
-  }
-
-  .children-tree-more-link:hover {
-    color: var(--color-burgundy-light);
-  }
-
-  .children-tree-more-link .material-symbols-outlined {
-    font-size: 18px;
-  }
-
-  /* ====================
      Entity & Place Detail Pages
      ==================== */
-
-  .variant-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .variant-tag {
-    @apply bg-stone-100 text-stone-700;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 0.78rem;
-  }
 
   /* Entity intro sentence */
   .entity-intro {
@@ -3057,20 +2771,6 @@
   .entity-role-btn.active:hover {
     background: var(--color-burgundy-deep);
     border-color: var(--color-burgundy-deep);
-  }
-
-  .entity-explore-link {
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 400;
-    padding: 4px 0;
-    color: var(--color-burgundy);
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .entity-explore-link:hover {
-    text-decoration: underline;
   }
 
   .entity-timeline-frame {
@@ -3205,47 +2905,6 @@
 
   .explorer-graph-panel canvas:active {
     cursor: grabbing;
-  }
-
-  /* Action button overlaid on the graph panel — currently used by the
-     "filter by graph viewport" toggle. Mirrors the place explorer's
-     map-area filter button styling. */
-  .explorer-graph-action {
-    position: absolute;
-    bottom: 12px;
-    right: 12px;
-    z-index: 6;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    background: #fff;
-    border: 1px solid var(--color-stone-300, #d6d3d1);
-    border-radius: 999px;
-    font-family: var(--font-sans);
-    font-size: 0.8125rem;
-    color: var(--color-stone-700, #44403c);
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-
-  .explorer-graph-action:hover {
-    background: var(--color-stone-50, #fafaf8);
-    border-color: var(--color-stone-400, #a8a29e);
-    color: var(--color-stone-900, #1c1917);
-  }
-
-  .explorer-graph-action.is-active {
-    background: var(--color-periwinkle, #c9d5ff);
-    border-color: var(--color-periwinkle, #c9d5ff);
-    color: #030213;
-  }
-
-  .explorer-graph-action.is-active:hover {
-    background: #b8c5ff;
-    border-color: #b8c5ff;
-    color: #030213;
   }
 
   /* Override entity-graph-frame defaults when used in the explorer panel */
@@ -3778,12 +3437,6 @@
     height: 400px;
   }
 
-  .authority-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
   .authority-pill {
     display: inline-flex;
     align-items: center;
@@ -3860,16 +3513,6 @@
     margin-left: auto;
   }
 
-  .linked-desc-link {
-    font-size: 0.9rem;
-    color: var(--color-burgundy);
-    text-decoration: none;
-  }
-
-  .linked-desc-link:hover {
-    text-decoration: underline;
-  }
-
   /* ====================
      Entity Explorer Result Row Components
      ==================== */
@@ -3900,70 +3543,6 @@
     font-size: 0.875rem;
     color: var(--color-stone-500);
     margin-top: 2px;
-  }
-
-  /* --- Network Graph Panel --- */
-
-  .graph-panel {
-    width: 100%;
-    margin-bottom: 24px; /* lg spacing */
-    position: relative;
-  }
-
-  .graph-canvas {
-    width: 100%;
-    height: 50vh;
-    background: var(--color-bg, #FAFAF9);
-    border: 1px solid oklch(97% 0.001 106.424); /* --color-stone-100 */
-    border-radius: 4px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .graph-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 0 8px; /* md top, sm bottom */
-  }
-
-  .graph-panel-heading {
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.4;
-    font-family: var(--font-body, 'DM Sans', sans-serif);
-  }
-
-  .graph-role-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px; /* md */
-    padding: 8px 0; /* sm vertical */
-    align-items: center;
-  }
-
-  .graph-role-filters .filter-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    line-height: 1.4;
-    color: oklch(44.4% 0.011 73.639); /* --color-stone-600 */
-    margin-right: 8px; /* sm */
-  }
-
-  .graph-role-filter-label {
-    display: flex;
-    align-items: center;
-    gap: 8px; /* sm */
-    font-size: 0.875rem;
-    font-weight: 400;
-    line-height: 1.4;
-    cursor: pointer;
-  }
-
-  .graph-role-filter-label input[type="checkbox"] {
-    accent-color: #8B2942; /* --color-burgundy */
-    width: 16px;
-    height: 16px;
   }
 
   .graph-tooltip {
@@ -4092,53 +3671,6 @@
     color: oklch(37.4% 0.01 67.558); /* --color-stone-700 */
   }
 
-  .graph-mobile-toggle {
-    display: none;
-  }
-
-  .graph-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    width: 100%;
-    color: oklch(55.3% 0.013 58.071); /* --color-stone-500 / stone-400 */
-    font-size: 0.875rem;
-    font-weight: 400;
-  }
-
-  @media (max-width: 768px) {
-    .graph-mobile-toggle {
-      display: block;
-    }
-
-    .graph-canvas {
-      height: 0;
-      overflow: hidden;
-      transition: height 0.3s ease;
-    }
-
-    .graph-canvas.graph-expanded {
-      height: 40vh;
-    }
-
-    .graph-role-filter-label {
-      min-height: 44px; /* WCAG 2.5.5 touch target */
-    }
-
-    .graph-panel-header,
-    .graph-role-filters {
-      display: none;
-    }
-
-    .graph-canvas.graph-expanded ~ .graph-panel-header,
-    .graph-canvas.graph-expanded ~ .graph-role-filters,
-    .graph-expanded ~ .graph-panel-header,
-    .graph-expanded ~ .graph-role-filters {
-      display: flex;
-    }
-  }
-
   /* ====================
      Colophon prose (/colofon/)
 
@@ -4243,4 +3775,4 @@
   border-top-color: rgba(28, 25, 23, 0.95);
 }
 
-/* Version: v2.3.0 */
+/* Version: v1.4.0 */
