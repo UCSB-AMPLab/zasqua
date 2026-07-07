@@ -12,7 +12,7 @@
   The guide is linear. Follow the numbered legs in order; each step
   produces verified output that the next step consumes.
 
-  Version: v1.3.0
+  Version: v1.4.0
 -->
 
 # Run Your Own Instance
@@ -284,9 +284,9 @@ cd public && npx serve .
 
 zasqua.org, the reference deployment, uses Cloudflare R2 for storage and
 a Cloudflare Worker for serving. This is not a requirement — it is one
-example of a hosting arrangement. The engine's `worker/` directory
-contains the reference Worker and `scripts/upload-to-r2.py` contains the
-diff-upload script for R2.
+example of a hosting arrangement. The reference Worker and the R2
+diff-upload script are not part of the engine package — deployment
+tooling now lives in the site-instance project's `deploy/` directory.
 
 For a simpler setup, Cloudflare Pages accepts a static output directory
 directly from a GitHub Actions build job.
