@@ -69,7 +69,7 @@
  * (or process.cwd() as a fallback) rather than from the script's own
  * location.
  *
- * @version v2.2.0
+ * @version v1.4.0
  */
 
 'use strict';
@@ -825,14 +825,6 @@ async function buildIndex(pagefind, corpus, records, outputSubdir, forceKeep) {
     // Apply suppression to the entity pivot and triples sidecars. Entities
     // have no landing-facets sidecar (entidades-facets.json does not exist),
     // so suppression applies only to pivot and triple keys.
-    const rawEntityTally = Object.create(null);
-    for (const key of ENTITY_PIVOT_FACET_KEYS) {
-      rawEntityTally[key] = pivots[key] ? Object.fromEntries(
-        Object.entries(pivots[key]).flatMap(([v, innerObj]) =>
-          Object.keys(innerObj).map(k => [k, 1])
-        )
-      ) : {};
-    }
     // For entities, suppression is computed from the per-facet distinct values
     // across the tally (same filter map). Build a simplified tally for suppression
     // by counting distinct values from the filters object (accumulated in pivots
@@ -1050,4 +1042,4 @@ module.exports = {
   suppressSingleValuedFacets,
 };
 
-// Version: v2.2.0
+// Version: v1.4.0

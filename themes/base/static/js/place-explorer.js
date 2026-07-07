@@ -41,7 +41,7 @@
  *   explorer template slots (`#place-search-input`,
  *   `#sidebar-facets`, `#place-explorer`, `#selected-place-card`).
  *
- * @version v1.3.0
+ * @version v1.4.0
  */
 
 /**
@@ -161,7 +161,7 @@ function buildPivotScopedFiltersPure(args) {
     }
   }
   const n = activeKeys.length;
-  if (n === 0) return null;          // isLanding branch handles.
+  if (n === 0) return null;
   if (n >= 3) return null;           // Quad-pivot deferred (wishlist).
 
   if (n === 1) {
@@ -1557,4 +1557,4 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS };
 }
 
-// Version: v1.3.0
+// Version: v1.4.0
