@@ -25,7 +25,7 @@
  * undated ("Sin fecha") at the tail. Display still uses
  * `date_expression`; only the sort key changes.
  *
- * @version v1.3.0
+ * @version v1.4.0
  */
 
 // Main page logic — shard loading, role filters, description list with sort
@@ -265,7 +265,8 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
 }
 
 })();
@@ -372,8 +373,8 @@ function escapeHtml(str) {
 
   function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 })();
 
-// Version: v1.3.0
+// Version: v1.4.0

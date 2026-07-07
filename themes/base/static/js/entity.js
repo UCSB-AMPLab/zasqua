@@ -18,11 +18,11 @@
  *     those stretched to 20–45 s on prod for large-focal entities
  *     because each check cost one Cloudflare/R2 RTT and ran
  *     serially.
- *   - Entity metadata for expanded entities is scraped from
- *     `/{entity_code}/` HTML via `#entity-intro` data-attributes
- *     (`data-entity-type-raw`, `data-count`). Earlier versions read
- *     the same fields from `data-pagefind-meta` tags; those were
- *     removed when the search pipeline moved to Node-API indexing.
+ *   - `/data/entity-index.json` — one record per entity carrying
+ *     display_name, entity_type, and linked_description_count.
+ *     `expandDocument` reads an expanded entity's label, type, and
+ *     linked count from this structured index (fetched once, memoized),
+ *     keyed by entity_code.
  *
  * i18n / single-source: the role-label table, role-group
  * accordion headers, and entity-type labels are NOT hardcoded here —
@@ -37,7 +37,7 @@
  * Month de YYYY" under es. Grouping LOGIC (role→group membership) stays
  * in JS; only display strings move to data attributes.
  *
- * @version v1.3.0
+ * @version v1.4.0
  */
 
 // Render-time vocabulary read from data attributes on #entity-intro
@@ -326,7 +326,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       otrosMembers.sort(function(a, b) { return b.count - a.count; });
       var otrosTotal = 0;
       for (var oti = 0; oti < otrosMembers.length; oti++) otrosTotal += otrosMembers[oti].count;
-      visibleGroups.push({ id: 'otros', label: _entityRoleGroupLabels.otros || 'otros', members: otrosMembers, total: otrosTotal });
+      var otrosId = 'otros';
+      visibleGroups.push({ id: otrosId, label: _entityRoleGroupLabels[otrosId] || otrosId, members: otrosMembers, total: otrosTotal });
     }
 
     if (visibleGroups.length === 0) { filtersEl.innerHTML = ''; return; }
@@ -481,6 +482,40 @@ document.addEventListener('DOMContentLoaded', async function() {
   var shardCache = new Map();  // entity_code → links array
   var activeTooltip = null;    // current tooltip element
   var tooltipNode = null;      // node the tooltip is attached to
+
+  // Entity index, fetched once and memoized. /data/entity-index.json
+  // carries display_name, entity_type, and linked_description_count per
+  // entity (emitted by scripts/precompute-links.js) — the fields an
+  // expanded-entity node needs, keyed by entity_code. One index fetch
+  // serves every expansion.
+  var entityIndexPromise = null;
+  var entityIndexMap = null;
+  function loadEntityIndex() {
+    if (entityIndexPromise) return entityIndexPromise;
+    entityIndexPromise = fetch('/data/entity-index.json')
+      .then(function (res) {
+        if (!res.ok) throw new Error('entity-index.json HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (records) {
+        var map = new Map();
+        for (var i = 0; i < records.length; i++) {
+          var r = records[i];
+          if (r && r.entity_code) map.set(r.entity_code, r);
+        }
+        entityIndexMap = map;
+        return map;
+      })
+      .catch(function () {
+        // Do not memoize a failed load: clear the promise so a later expansion
+        // refetches. A transient fetch failure must not permanently blank
+        // expanded-entity metadata for the page session; entityIndexMap stays
+        // null so callers keep retrying through loadEntityIndex().
+        entityIndexPromise = null;
+        return new Map();
+      });
+    return entityIndexPromise;
+  }
 
   function renderGraph(allLinks, activeFilters) {
     var canvas = document.getElementById('entity-graph-canvas');
@@ -862,39 +897,42 @@ document.addEventListener('DOMContentLoaded', async function() {
     var newEntities = entityCodes.filter(function(c) { return !graphNodes.has(c); });
     if (newEntities.length === 0) return;
 
-    // Fetch entity page to get name + type for each new entity
+    // Resolve name + type + linked count for each new entity from the
+    // entity index (display_name / entity_type / linked_description_count),
+    // keyed by entity_code. A code absent from the index is SKIPPED — node
+    // and edge both omitted: the entity-links/doc-entities shards are built
+    // from entity_links.json while the index and the /{entity_code}/ pages
+    // are built from entities.json, and nothing cross-checks that every
+    // linked code has an authority record. A node without one is a dead end
+    // (its page 404s), so omission is the correct failure mode here. This
+    // deliberately diverges from infinite-bipartite-explorer.js, which
+    // renders index-missing entities with a default label: expanded
+    // entities here are user-triggered detail; graph nodes there are bulk
+    // display.
+    var index = entityIndexMap || await loadEntityIndex();
     for (var i = 0; i < newEntities.length; i++) {
       var code = newEntities[i];
-      try {
-        var resp = await fetch('/' + code + '/');
-        if (!resp.ok) continue;
-        var html = await resp.text();
-        var titleMatch = html.match(/<title>(.*?)\s*\|/);
-        // Read the #entity-intro data attributes emitted by
-        // layouts/entidad/single.html. The regex tolerates both quoted and
-        // unquoted values because Hugo's --minify strips unnecessary quotes
-        // in production.
-        var typeMatch = html.match(/data-entity-type-raw=["']?([A-Za-z_]+)/);
-        var countMatch = html.match(/data-count=["']?(\d+)/);
-        var label = titleMatch ? titleMatch[1].trim() : code;
-        var eType = typeMatch ? typeMatch[1].trim() : 'person';
-        var linkedCount = countMatch ? parseInt(countMatch[1], 10) : 0;
-        graphNodes.set(code, {
-          id: code,
-          type: 'entity',
-          label: label,
-          entityType: eType,
-          linkedCount: linkedCount,
-          color: entityColors[eType] || entityColors.person
-        });
-        graphEdges.push({ source: code, target: refCode, role: '' });
-      } catch (e) { /* skip failed lookups */ }
+      var rec = index.get(code);
+      if (!rec) continue;
+      var label = rec.display_name || code;
+      var eType = rec.entity_type || 'person';
+      var linkedCount = rec.linked_description_count != null
+        ? rec.linked_description_count : 0;
+      graphNodes.set(code, {
+        id: code,
+        type: 'entity',
+        label: label,
+        entityType: eType,
+        linkedCount: linkedCount,
+        color: entityColors[eType] || entityColors.person
+      });
+      graphEdges.push({ source: code, target: refCode, role: '' });
     }
 
     // Also fetch shard for each new entity to find shared documents with existing nodes
     for (var j = 0; j < newEntities.length; j++) {
       var c = newEntities[j];
-      if (!graphNodes.has(c)) continue; // entity-page fetch failed above
+      if (!graphNodes.has(c)) continue; // skipped above (no entity-index record)
       if (!shardCache.has(c)) {
         try {
           var r = await fetch('/data/entity-links/' + c + '.json');
@@ -1091,4 +1129,4 @@ function escapeHtml(str) {
             .replace(/"/g, '&quot;');
 }
 
-// Version: v1.3.0
+// Version: v1.4.0

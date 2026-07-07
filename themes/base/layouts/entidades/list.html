@@ -42,7 +42,7 @@
   canonical entity codes in the current corpus. Refresh these codes
   whenever the underlying authority records change.
 
-  Version: v1.5.0
+  Version: v1.4.0
 */}}
 {{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
 
@@ -187,109 +187,6 @@
 {{ define "scripts" }}
   <script src="/js/infinite-bipartite-explorer.js"></script>
   <script src="/js/entity-explorer.js"></script>
-  <script>
-    (function() {
-      'use strict';
-
-      var _locale = document.documentElement.lang || 'es-CO';
-
-      var graphContainer = document.getElementById('graph-container');
-      var sidebarContainer = document.getElementById('entity-explorer');
-
-      var graph = new InfiniteBipartiteExplorer(graphContainer);
-      var sidebar = new EntityExplorer(sidebarContainer);
-
-      graph.onEntityFocused = function(entityCode, entityMeta, shard) {
-        sidebar.highlightEntity(entityCode, entityMeta, shard);
-      };
-
-      sidebar.onFocalRoleFilterChanged = function(rolesSet) {
-        graph.setFocalRoleFilter(rolesSet);
-      };
-
-      sidebar.onFocalCleared = function() {
-        graph.dismissTooltip && graph.dismissTooltip();
-      };
-
-      graph.onFocalVisibilityChanged = function(visible) {
-        var card = document.getElementById('focal-entity-card');
-        if (!card) return;
-        if (visible) {
-          card.classList.remove('is-excluded');
-        } else {
-          card.classList.add('is-excluded');
-        }
-      };
-
-      sidebar.onEntitySelected = function(entityCode) {
-        graph.refocusOn(entityCode);
-      };
-
-      sidebar.onFilterChanged = function(filters) {
-        graph.applyFilters(filters);
-      };
-
-      sidebar._visibleCodeSource = function() { return graph.getVisibleEntityCodes(); };
-      sidebar._visibleEntitiesSource = function() { return graph.getVisibleEntities(); };
-
-      var viewportToggle = document.getElementById('viewport-filter-toggle');
-      var viewportLabel = viewportToggle && viewportToggle.querySelector('.viewport-filter-label');
-      var rerunDebounced = null;
-      if (viewportToggle) {
-        var _i18n = {};
-        try { _i18n = JSON.parse(viewportToggle.dataset.i18n || '{}'); } catch (e) {}
-        viewportToggle.addEventListener('click', function() {
-          sidebar.viewportFilter = !sidebar.viewportFilter;
-          viewportToggle.classList.toggle('is-active', sidebar.viewportFilter);
-          viewportToggle.setAttribute('aria-pressed', sidebar.viewportFilter ? 'true' : 'false');
-          if (viewportLabel) {
-            viewportLabel.textContent = sidebar.viewportFilter
-              ? (_i18n.viewportFilterActive || 'Filtrando por vista del explorador')
-              : (_i18n.viewportFilterLabel || 'Filtrar por vista del explorador');
-          }
-          sidebar.state.page = 1;
-          sidebar.search();
-        });
-      }
-
-      var emptyState = document.getElementById('graph-empty-state');
-      var hasUrlEntity = !!new URLSearchParams(location.search).get('entidad');
-      if (emptyState) {
-        if (!hasUrlEntity) emptyState.classList.add('is-active');
-        emptyState.querySelectorAll('button[data-entity]').forEach(function(btn) {
-          btn.addEventListener('click', function() {
-            var code = btn.getAttribute('data-entity');
-            if (code) graph.refocusOn(code);
-          });
-        });
-      }
-
-      var prevOnFocused = graph.onEntityFocused;
-      graph.onEntityFocused = function(entityCode, entityMeta, shard) {
-        if (emptyState) emptyState.classList.remove('is-active');
-        if (prevOnFocused) prevOnFocused(entityCode, entityMeta, shard);
-      };
-
-      graph.init({ skipAutoLoad: !hasUrlEntity });
-      sidebar.init();
-
-      if (graph.graphInstance && typeof graph.graphInstance.onZoom === 'function') {
-        graph.graphInstance.onZoom(function() {
-          graph.updateTooltipPosition && graph.updateTooltipPosition();
-          if (!sidebar.viewportFilter) return;
-          clearTimeout(rerunDebounced);
-          rerunDebounced = setTimeout(function() { sidebar.search(); }, 250);
-        });
-      }
-
-      sidebar.onReady = function() {
-        var el = document.getElementById('entity-count-live');
-        if (el && typeof sidebar.getTotalEntityCount === 'function') {
-          var n = sidebar.getTotalEntityCount();
-          if (n > 0) el.textContent = new Intl.NumberFormat(_locale).format(n);
-        }
-      };
-    })();
-  </script>
+  <script src="/js/entidades-wiring.js"></script>
 {{ end }}
-{{/* Version: v1.5.0 */}}
+{{/* Version: v1.4.0 */}}

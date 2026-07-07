@@ -18,7 +18,7 @@
  * each copy button's data-i18n-copied (description.copied) — blob-only,
  * no Spanish fallback. Spanish lives only in es.toml.
  *
- * @version v1.1.0
+ * @version v1.4.0
  */
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -55,8 +55,10 @@ document.addEventListener("DOMContentLoaded", function() {
   var i18n = {};
   try { i18n = JSON.parse(viewerEl.dataset.i18n || "{}"); } catch (e) {}
 
-  // Init TIFY
-  new Tify({
+  // Init TIFY. Keep the instance handle so the viewer is driven through
+  // its public API (ready / setView) rather than by poking its internal
+  // DOM and Vue state.
+  var tify = new Tify({
     container: ".desc-viewer",
     manifestUrl: manifestUrl,
     colorMode: "dark",
@@ -70,13 +72,26 @@ document.addEventListener("DOMContentLoaded", function() {
     }, 200);
   }
 
-  // Wait for TIFY to render, then inject custom controls
-  setTimeout(function() {
+  // TIFY exposes a `ready` promise that resolves once the viewer is
+  // mounted and its header DOM exists — the correct signal to inject
+  // custom controls. Replaces a fixed setTimeout that could fire before
+  // the header rendered on a slow/large manifest, or needlessly late on a
+  // fast one.
+  tify.ready.then(function() {
     var header = viewerEl.querySelector(".tify-header");
     if (!header) return;
 
     var columns = header.querySelectorAll(".tify-header-column");
     if (columns.length < 3) return;
+
+    // Custom header buttons (Expand / Collapse / Full screen / Thumbnails)
+    // are appended directly into TIFY's internal `.tify-header-column` DOM
+    // because TIFY exposes no documented plugin or slot API for custom
+    // toolbar controls (upstream issue tify-iiif-viewer/tify#275: maintainers
+    // direct users to fork for this class of customization). This is a
+    // necessary coupling to TIFY internals — the `.tify-header` /
+    // `.tify-header-column` selectors are not public API and must be
+    // re-verified whenever the vendored TIFY bundle changes.
 
     // -- Left group (column 1): size toggle buttons --
     var leftBtns = document.createElement("div");
@@ -123,16 +138,18 @@ document.addEventListener("DOMContentLoaded", function() {
     var miniBtn = document.createElement("button");
     miniBtn.className = "viewer-pill viewer-pill-mini";
     miniBtn.innerHTML = '<span class="material-symbols-outlined">grid_view</span> ' + (i18n.tifyThumbnails || "");
+    // Toggle TIFY's thumbnails panel through its public setView() API.
+    // setView() sets the active view directly and does not toggle, and the
+    // open/closed state must be DERIVED at click time, never cached in a
+    // local flag: TIFY's own keyboard shortcuts (e.g. the `2` key, bound to
+    // the widget root and still active while the native header controls are
+    // CSS-hidden) can change the view behind this button. `tify.options` is
+    // the same object the viewer's internal store mutates in place on every
+    // view change, so `tify.options.view` is a live read of the current
+    // panel ("thumbnails" when open; "" or null when closed).
     miniBtn.addEventListener("click", function() {
-      // TIFY's popup is hidden via CSS; temporarily unhide to click the
-      // native Pages button, which properly toggles the thumbnails panel
-      // through Vue's internal state.
-      var popup = viewerEl.querySelector(".tify-header-popup");
-      if (!popup) return;
-      popup.style.cssText = "display:flex !important; visibility:hidden; position:absolute;";
-      var pagesBtn = popup.querySelectorAll(".tify-header-button")[1];
-      if (pagesBtn) pagesBtn.click();
-      setTimeout(function() { popup.style.cssText = ""; }, 50);
+      var thumbsOpen = tify.options && tify.options.view === "thumbnails";
+      tify.setView(thumbsOpen ? null : "thumbnails");
     });
 
     rightBtns.appendChild(miniBtn);
@@ -148,8 +165,13 @@ document.addEventListener("DOMContentLoaded", function() {
       resetViewport();
     });
 
-  }, 1500);
+  }).catch(function () {
+    // TIFY rejects `ready` when the manifest fails to load (a bad or missing
+    // IIIF manifest). The custom toolbar cannot be injected in that case;
+    // swallow the rejection so it does not surface as an unhandled promise
+    // rejection. The viewer still shows TIFY's own error state.
+  });
 
 });
 
-// Version: v1.1.0
+// Version: v1.4.0

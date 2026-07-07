@@ -477,7 +477,9 @@ class SearchPage {
       this.state.dateFilter = { level: 'decade', label: this._i18n.decadeLabel.replace('{decade}', urlDecade), years };
     } else if (urlCentury) {
       const num = parseInt(urlCentury, 10);
-      const base = (num - 1) * 100;
+      // Strict century span: siglo N covers years (N-1)*100+1 .. N*100
+      // (e.g. XVIII = 1701..1800), matching the indexer/date-tree convention.
+      const base = (num - 1) * 100 + 1;
       const years = [];
       for (let i = base; i < base + 100; i++) years.push(String(i));
       this.state.dateFilter = { level: 'century', label: this._i18n.centuryLabel.replace('{roman}', this.romanCentury(num)), years };
@@ -512,7 +514,7 @@ class SearchPage {
       else if (df.level === 'decade') params.set('decade', df.years[0]);
       else if (df.level === 'century') {
         const firstYear = parseInt(df.years[0], 10);
-        params.set('century', String(Math.floor(firstYear / 100) + 1));
+        params.set('century', String(Math.floor((firstYear - 1) / 100) + 1));
       }
     }
     for (const a of this.state.ancestor) {
@@ -1235,7 +1237,7 @@ class SearchPage {
 
     // Date tree (century → decade → year) — only show if any years have results
     if (filters.year && Object.values(filters.year).some(c => c > 0)) {
-      sidebar.appendChild(this.renderDateTree(filters.year));
+      sidebar.appendChild(this.renderDateTree(filters.year, filters.century || {}, filters.decade || {}));
     }
 
     // advanced facet groups (ancestor + entidad). Rendered
@@ -1443,7 +1445,16 @@ class SearchPage {
     return group;
   }
 
-  renderDateTree(yearData) {
+  renderDateTree(yearData, centuryFacet, decadeFacet) {
+    // centuryFacet / decadeFacet: pagefind filter maps from the dedicated
+    // description-level century/decade tags the indexer emits. Each record
+    // contributes once per century/decade it spans, so these counts
+    // represent unique records — preferred over summing per-year counts,
+    // which double- or under-counts records whose date range crosses a
+    // century/decade boundary. Year-level data is unchanged (single startYear
+    // per record). Mirrors entity-explorer.js#renderDateTree.
+    centuryFacet = centuryFacet || {};
+    decadeFacet = decadeFacet || {};
     const group = document.createElement('div');
     group.className = 'facet-group';
 
@@ -1475,7 +1486,11 @@ class SearchPage {
       const year = parseInt(yearStr, 10);
       if (isNaN(year)) continue;
       if (count === 0) continue;  // Hide years with zero results
-      const centuryNum = Math.floor(year / 100) + 1;
+      // Strict century convention (e.g. 1601-1700 = siglo XVII): must match
+      // the indexer's romanCentury ((year-1)/100+1 in generate-pagefind-indices.js)
+      // so the century facet counts looked up below align with how years are
+      // grouped here. A boundary year like 1700 groups under XVII, not XVIII.
+      const centuryNum = Math.floor((year - 1) / 100) + 1;
       const decadeBase = Math.floor(year / 10) * 10;
 
       if (!centuries.has(centuryNum)) {
@@ -1505,7 +1520,7 @@ class SearchPage {
       if (df && (df.level === 'decade' || df.level === 'year')) {
         // Check if this century contains the selected decade/year
         const selectedYear = parseInt(df.years[0], 10);
-        const selectedCentury = Math.floor(selectedYear / 100) + 1;
+        const selectedCentury = Math.floor((selectedYear - 1) / 100) + 1;
         if (selectedCentury !== centuryNum) continue;
       }
 
@@ -1539,7 +1554,16 @@ class SearchPage {
 
       const countSpan = document.createElement('span');
       countSpan.className = 'date-tree-count';
-      countSpan.textContent = `(${this._fmt.format(centuryData.total)})`;
+      // The indexer keys the century facet by ROMAN numeral ("XVIII", via
+      // generate-pagefind-indices.js#romanCentury), not by Arabic number —
+      // look up with the same romanCentury conversion used for the label.
+      // this.romanCentury covers I-XXII with a String(num) fallback, a
+      // superset of the indexer's I-XXI table over any corpus-producible
+      // century. Same lookup in entity-explorer.js#renderDateTree — keep
+      // the two in sync.
+      const centuryEntityCount = centuryFacet[this.romanCentury(centuryNum)];
+      const centuryDisplay = (centuryEntityCount != null ? centuryEntityCount : centuryData.total);
+      countSpan.textContent = `(${this._fmt.format(Number(centuryDisplay))})`;
 
       row.appendChild(toggleBtn);
       row.appendChild(checkbox);
@@ -1566,6 +1590,8 @@ class SearchPage {
 
         let decadeTotal = 0;
         for (const c of yearsMap.values()) decadeTotal += c;
+        const decadeEntityCount = decadeFacet[String(decadeBase)];
+        if (decadeEntityCount != null) decadeTotal = decadeEntityCount;
 
         const isDecadeActive = df && df.level === 'decade' && df.label === decadeLabel;
         const autoExpandDecade = isDecadeActive || (df && df.level === 'year');

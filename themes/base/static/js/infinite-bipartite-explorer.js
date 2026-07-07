@@ -20,15 +20,14 @@
  *     entities the user could expand into; those stretched to
  *     20–45 s on Bolívar-class focals on prod because each check
  *     cost one CDN round-trip and ran serially per doc.
- *   - Entity metadata: scraped from `/{entity_code}/` HTML via the
- *     `#entity-intro` data-attributes (see `fetchEntityMeta`).
- *     Earlier versions read the same fields from `data-pagefind-
- *     meta` tags; those were removed when the search pipeline
- *     moved to Node-API indexing.
+ *   - `/data/entity-index.json` — one record per entity carrying
+ *     display_name, entity_type, and linked_description_count.
+ *     `fetchEntityMeta` reads a node's label, type, and linked count
+ *     from this structured index (fetched once, memoized), keyed by
+ *     entity_code.
  *
  * Graph behaviour highlights: lazy node loading, hop-distance
  * pruning at MAX_HOPS, BFS distance recomputation on focal change,
- * dashed-border overflow circles for un-expanded doc groups,
  * separate hover tooltip renderers for entity and document nodes,
  * and URL state sync so the current focal is shareable.
  *
@@ -37,12 +36,12 @@
  * data-entity-type-labels on the #graph-container host (ui.yaml, keyed
  * by code). Every tooltip, legend, and count string is read from
  * the #graph-container data-i18n blob with no Spanish fallback:
- * linkedDocs / docsMore / loadNextBatch / refocus / overflowDocs, the
- * legend.* items, expand / loading, and the connectedTo {one,other}
- * plural (Intl.PluralRules). Date ordering is locale-aware: US
- * "Month D, YYYY" under en, "D de Month de YYYY" under es.
+ * linkedDocs / refocus, the legend.* items, expand / loading, and the
+ * connectedTo {one,other} plural (Intl.PluralRules). Date ordering is
+ * locale-aware: US "Month D, YYYY" under en, "D de Month de YYYY"
+ * under es.
  *
- * @version v1.2.0
+ * @version v1.4.0
  */
 (function () {
   'use strict';
@@ -61,8 +60,6 @@
   };
 
   var DOC_COLOR = '#A09888';
-  var OVERFLOW_COLOR = '#C0B8A8';
-  var MAX_INITIAL_DOCS = 30;
   // Soft pruning limit — distant branches get cleaned up only after very
   // deep exploration. The corpus's worst-case doc has 210 connected
   // entities and only one doc breaks 200, so a normal trail will never
@@ -112,6 +109,8 @@
     this.docEntitiesShards = new Set(); // focal codes whose sidecar has been merged
     this.docEntitiesMap = new Map();    // refCode -> [entityCodes] (merged across focals)
     this.entityMeta = new Map();   // entityCode -> {label, entity_type, linked_count}
+    this.entityIndexPromise = null; // memoized fetch of /data/entity-index.json
+    this.entityIndexMap = null;     // entity_code -> index record (built once)
     // Focal doc → aggregated role set. The entity-links shard format is
     // one entry per (focal × doc × role) triple, so a single doc can
     // appear with multiple roles. Tooltip reads this instead of an
@@ -384,22 +383,6 @@
 
       // Document title shown via the dark hover tooltip — no canvas label.
 
-    } else if (node.type === 'overflow') {
-      // Dashed border circle with count label — screen px
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, 7 / s, 0, 2 * Math.PI);
-      ctx.setLineDash([3 / s, 3 / s]);
-      ctx.strokeStyle = OVERFLOW_COLOR;
-      ctx.lineWidth = 1.5 / s;
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.font = (9 / s) + 'px DM Sans, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = OVERFLOW_COLOR;
-      var countText = node.label || ('+' + (node.hiddenCount || 0));
-      ctx.fillText(countText, node.x, node.y);
     }
 
     ctx.globalAlpha = 1.0;
@@ -415,8 +398,6 @@
     var r;
     if (node.type === 'entity') {
       r = Math.max(4, Math.min(11, Math.sqrt(node.linked_count || 1) * 1.5)) / s;
-    } else if (node.type === 'overflow') {
-      r = 8 / s;
     } else {
       r = 5 / s; // generous hit area for tiny doc nodes
     }
@@ -458,8 +439,6 @@
       this.showEntityHoverTooltip(node);
     } else if (node.type === 'document') {
       this.showDocumentHoverTooltip(node);
-    } else if (node.type === 'overflow') {
-      this.showOverflowHoverTooltip(node);
     } else {
       this.dismissHoverTooltip();
     }
@@ -516,22 +495,6 @@
     tooltip.style.display = 'block';
   };
 
-  InfiniteBipartiteExplorer.prototype.showOverflowHoverTooltip = function (node) {
-    var tooltip = this.tooltipEl;
-    if (!tooltip) return;
-
-    // graph.docsMore = "{count} documentos m\u00e1s"; graph.loadNextBatch chrome.
-    var _docsMore = (this._i18n.docsMore || '').replace('{count}', node.hiddenCount || 0);
-    var html = '';
-    html += '<div class="graph-tooltip-name">' + escapeHtml(_docsMore) + '</div>';
-    html += '<div class="graph-tooltip-meta">' + escapeHtml(this._i18n.loadNextBatch || '') + '</div>';
-
-    tooltip.innerHTML = html;
-    tooltip.classList.add('is-hover');
-    this.positionTooltip(node);
-    tooltip.style.display = 'block';
-  };
-
   InfiniteBipartiteExplorer.prototype.dismissHoverTooltip = function () {
     if (this.selectedNode) return; // click tooltip is open, leave it alone
     if (!this.tooltipEl) return;
@@ -546,9 +509,7 @@
 
   InfiniteBipartiteExplorer.prototype.handleNodeClick = function (node) {
     if (!node) return;
-    if (node.type === 'overflow') {
-      this.loadMoreDocs(node);
-    } else if (node.type === 'entity') {
+    if (node.type === 'entity') {
       // Always show the tooltip — non-focal entities get an explicit
       // "Centrar aquí" button instead of being refocused immediately on
       // click. Mirrors the doc-click pattern (which surfaces a "Desplegar"
@@ -851,6 +812,39 @@
   // Entity metadata fetch (with cache)
   // -----------------------------------------------------------------------
 
+  // Load and index /data/entity-index.json once. The index carries
+  // display_name, entity_type, and linked_description_count per entity —
+  // the same three fields the node needs — as structured data emitted by
+  // scripts/precompute-links.js. A single index fetch (memoized) serves
+  // every node, replacing one rendered-HTML page fetch per entity.
+  InfiniteBipartiteExplorer.prototype.loadEntityIndex = function () {
+    var self = this;
+    if (this.entityIndexPromise) return this.entityIndexPromise;
+    this.entityIndexPromise = fetch('/data/entity-index.json')
+      .then(function (res) {
+        if (!res.ok) throw new Error('entity-index.json HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (records) {
+        var map = new Map();
+        for (var i = 0; i < records.length; i++) {
+          var r = records[i];
+          if (r && r.entity_code) map.set(r.entity_code, r);
+        }
+        self.entityIndexMap = map;
+        return map;
+      })
+      .catch(function () {
+        // Do not memoize a failed load: clear the promise so a later expansion
+        // refetches. A transient fetch failure must not permanently blank
+        // expanded-entity metadata; entityIndexMap stays null so callers keep
+        // retrying through loadEntityIndex().
+        self.entityIndexPromise = null;
+        return new Map();
+      });
+    return this.entityIndexPromise;
+  };
+
   InfiniteBipartiteExplorer.prototype.fetchEntityMeta = async function (entityCode) {
     if (this.entityMeta.has(entityCode)) {
       return this.entityMeta.get(entityCode);
@@ -858,24 +852,14 @@
 
     var meta = { label: entityCode, entity_type: 'person', linked_count: 0 };
 
-    try {
-      var resp = await fetch('/' + entityCode + '/');
-      if (resp.ok) {
-        var html = await resp.text();
-        var titleMatch = html.match(/<title>(.*?)\s*\|/);
-        //removed the data-pagefind-meta
-        // tags that this used to scrape. The same data is exposed as
-        // #entity-intro attributes emitted by layouts/entidad/single.html.
-        // Regex tolerates both quoted and unquoted attribute values because
-        // Hugo's --minify strips unnecessary quotes in production.
-        var typeMatch = html.match(/data-entity-type-raw=["']?([A-Za-z_]+)/);
-        var countMatch = html.match(/data-count=["']?(\d+)/);
-        if (titleMatch) meta.label = titleMatch[1].trim();
-        if (typeMatch) meta.entity_type = typeMatch[1].trim();
-        if (countMatch) meta.linked_count = parseInt(countMatch[1], 10) || 0;
+    var index = this.entityIndexMap || await this.loadEntityIndex();
+    var rec = index.get(entityCode);
+    if (rec) {
+      if (rec.display_name) meta.label = rec.display_name;
+      if (rec.entity_type) meta.entity_type = rec.entity_type;
+      if (rec.linked_description_count != null) {
+        meta.linked_count = rec.linked_description_count;
       }
-    } catch (e) {
-      // use defaults
     }
 
     this.entityMeta.set(entityCode, meta);
@@ -1329,13 +1313,6 @@
       }
     });
 
-    // Also remove overflow nodes whose parent entity is pruned
-    this.graphNodes.forEach(function (node, id) {
-      if (node.type === 'overflow' && toRemove.has(node.parentEntityCode)) {
-        toRemove.add(id);
-      }
-    });
-
     if (toRemove.size === 0) return;
 
     // Reset the `expanded` flag on any surviving doc nodes whose connected
@@ -1413,63 +1390,6 @@
   };
 
   // -----------------------------------------------------------------------
-  // Load more docs from overflow
-  // -----------------------------------------------------------------------
-
-  InfiniteBipartiteExplorer.prototype.loadMoreDocs = function (overflowNode) {
-    var shard = this.shardCache.get(overflowNode.parentEntityCode) || [];
-    var _collRef = this._coll;
-    var sorted = shard.slice().sort(function (a, b) {
-      var da = a.date_expression || '';
-      var db = b.date_expression || '';
-      return _collRef.compare(db, da);
-    });
-
-    var batch = sorted.slice(overflowNode.nextBatchOffset, overflowNode.nextBatchOffset + MAX_INITIAL_DOCS);
-    if (batch.length === 0) return;
-
-    var self = this;
-    var entityCode = overflowNode.parentEntityCode;
-
-    var projection = this.buildFocalBipartite(entityCode, batch);
-    var newDocNodes = projection.docNodes;
-    var newDocEdges = projection.docEdges;
-
-    // Update overflow node state
-    overflowNode.nextBatchOffset += batch.length;
-    overflowNode.hiddenCount -= batch.length;
-
-    if (overflowNode.hiddenCount <= 0) {
-      // Remove the overflow node from the graph
-      this.graphNodes.delete(overflowNode.id);
-      // Normalise object-vs-string before the comparison (force-graph
-      // mutates e.source / e.target to node objects after settle). Same
-      // fix as in pruneDistantNodes.
-      this.graphEdges = this.graphEdges.filter(function (e) {
-        var s = typeof e.source === 'object' ? e.source.id : e.source;
-        var t = typeof e.target === 'object' ? e.target.id : e.target;
-        return s !== overflowNode.id && t !== overflowNode.id;
-      });
-      var current = this.graphInstance.graphData();
-      this.graphInstance.graphData({
-        nodes: current.nodes.filter(function (n) { return n.id !== overflowNode.id; }),
-        links: current.links.filter(function (l) {
-          var s = typeof l.source === 'object' ? l.source.id : l.source;
-          var t = typeof l.target === 'object' ? l.target.id : l.target;
-          return s !== overflowNode.id && t !== overflowNode.id;
-        })
-      });
-    } else {
-      // graph.overflowDocs = "+{count} documentos" (blob-only).
-      overflowNode.label = (this._i18n.overflowDocs || '').replace('{count}', overflowNode.hiddenCount);
-      this._redraw();
-    }
-
-    this.addNodesToGraph(newDocNodes, newDocEdges, entityCode);
-    this.computeHopDistances();
-  };
-
-  // -----------------------------------------------------------------------
   // Filter application
   // -----------------------------------------------------------------------
 
@@ -1500,10 +1420,6 @@
 
     // First pass: entity nodes
     this.graphNodes.forEach(function (node) {
-      if (node.type === 'overflow') {
-        node._visible = true;
-        return;
-      }
       if (node.type === 'entity') {
         var visible = true;
 
@@ -1581,21 +1497,6 @@
   };
 
   // -----------------------------------------------------------------------
-  // Clear all filters
-  // -----------------------------------------------------------------------
-
-  InfiniteBipartiteExplorer.prototype.clearFilters = function () {
-    this.graphNodes.forEach(function (node) {
-      node._visible = true;
-    });
-    this._redraw();
-    if (this.graphInstance) this.graphInstance.d3ReheatSimulation();
-    if (typeof this.onFocalVisibilityChanged === 'function') {
-      this.onFocalVisibilityChanged(true);
-    }
-  };
-
-  // -----------------------------------------------------------------------
   // Expose globally
   // -----------------------------------------------------------------------
 
@@ -1603,4 +1504,4 @@
 
 })();
 
-// Version: v1.2.0
+// Version: v1.4.0
