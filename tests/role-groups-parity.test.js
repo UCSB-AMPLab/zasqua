@@ -27,7 +27,7 @@
  * this test rather than silently misclassifying a role on one surface but
  * not the other.
  *
- * @version v0.1.0
+ * @version v1.4.0
  */
 
 import { describe, it, expect } from 'vitest';

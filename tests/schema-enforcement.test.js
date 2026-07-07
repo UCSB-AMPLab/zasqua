@@ -35,7 +35,7 @@
  * so would require inventing fixture data the engine-smoke fixture doesn't
  * carry, which is out of scope for this change.
  *
- * @version v1.0.0
+ * @version v1.4.0
  */
 
 import { describe, it, expect } from 'vitest';
@@ -81,40 +81,43 @@ describe('schema enforcement — engine-smoke fixture, strict mode', () => {
     // the pre-pass cannot see this — only the ajv schema pass enforces its
     // "type": "boolean" declaration in descriptions.schema.json.
     const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'zasqua-schema-enforcement-'));
-    const tmpExports = path.join(tmpRoot, 'exports');
-    fs.mkdirSync(tmpExports, { recursive: true });
+    try {
+      const tmpExports = path.join(tmpRoot, 'exports');
+      fs.mkdirSync(tmpExports, { recursive: true });
 
-    const descriptions = JSON.parse(
-      fs.readFileSync(path.join(FIXTURE, 'exports', 'descriptions.json'), 'utf8')
-    );
-    descriptions[0].has_children = 'not-a-boolean';
-    fs.writeFileSync(path.join(tmpExports, 'descriptions.json'), JSON.stringify(descriptions), 'utf8');
-    fs.copyFileSync(
-      path.join(FIXTURE, 'exports', 'repositories.json'),
-      path.join(tmpExports, 'repositories.json')
-    );
+      const descriptions = JSON.parse(
+        fs.readFileSync(path.join(FIXTURE, 'exports', 'descriptions.json'), 'utf8')
+      );
+      descriptions[0].has_children = 'not-a-boolean';
+      fs.writeFileSync(path.join(tmpExports, 'descriptions.json'), JSON.stringify(descriptions), 'utf8');
+      fs.copyFileSync(
+        path.join(FIXTURE, 'exports', 'repositories.json'),
+        path.join(tmpExports, 'repositories.json')
+      );
 
-    // Pre-pass alone: must report zero errors on this data — proves the
-    // failure below cannot be coming from the key + type pre-pass.
-    const preErrors = validateInputs(CORE_ONLY_MANIFEST, tmpExports);
-    expect(preErrors).toEqual([]);
+      // Pre-pass alone: must report zero errors on this data — proves the
+      // failure below cannot be coming from the key + type pre-pass.
+      const preErrors = validateInputs(CORE_ONLY_MANIFEST, tmpExports);
+      expect(preErrors).toEqual([]);
 
-    // Full strict run: must fail, and the failure must be attributable to
-    // the schema pass specifically (its errors are prefixed `schema=`,
-    // distinct from the pre-pass's `module=` prefix).
-    const fullErrors = runValidate({
-      manifest: CORE_ONLY_MANIFEST,
-      instanceRoot: tmpRoot,
-      engineRoot: ENGINE_ROOT,
-      strict: true,
-    });
-    expect(fullErrors.length).toBeGreaterThan(0);
-    const combined = fullErrors.join(' ');
-    expect(combined).toMatch(/schema=descriptions\.schema\.json/);
-    expect(combined).toMatch(/has_children/);
-
-    fs.rmSync(tmpRoot, { recursive: true, force: true });
+      // Full strict run: must fail, and the failure must be attributable to
+      // the schema pass specifically (its errors are prefixed `schema=`,
+      // distinct from the pre-pass's `module=` prefix).
+      const fullErrors = runValidate({
+        manifest: CORE_ONLY_MANIFEST,
+        instanceRoot: tmpRoot,
+        engineRoot: ENGINE_ROOT,
+        strict: true,
+      });
+      expect(fullErrors.length).toBeGreaterThan(0);
+      const combined = fullErrors.join(' ');
+      expect(combined).toMatch(/schema=descriptions\.schema\.json/);
+      expect(combined).toMatch(/has_children/);
+    } finally {
+      // Always remove the temp instance dir, even if an assertion above throws.
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });
 
-// Version: v1.0.0
+// Version: v1.4.0
