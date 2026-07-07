@@ -117,6 +117,63 @@
 // when walking the triples sidecar for the two-active-dimension branch.
 const PIVOT_KEYS = ['century', 'country', 'decade', 'digital_status', 'level', 'repository'];
 
+// Pagefind ranks a query's entire matching set before any result is
+// sliced off for display, and offers no cheaper/capped mode by design
+// (https://github.com/Pagefind/pagefind/discussions/726) — a short,
+// common fragment can therefore rank tens of thousands of records to
+// show 20. MIN_QUERY_TERM_LENGTH rejects sub-length terms before they
+// reach Pagefind at all, the same mitigation Pagefind's own large
+// deployers use for this exact failure mode.
+const MIN_QUERY_TERM_LENGTH = 3;
+
+// Exported so `tests/pagefind-facets.test.js` can pin the threshold
+// without exercising the DOM. Expects an already-trimmed term.
+function isSearchableTerm(term) {
+  return typeof term === 'string' && term.length >= MIN_QUERY_TERM_LENGTH;
+}
+
+// Splits raw query text into a positive query and NOT terms. Tokens
+// starting with '-' (length > 1) become NOT terms, so '-term' typed in
+// the header search box (e.g. '/buscar/?q=-tunja' or
+// '?q=cacique -tunja') engages Pagefind's native query-level negation
+// instead of being treated as a positive search for 'tunja'. Pure
+// (module-level rather than a class method) so `parseQueryParams`
+// below and `tests/pagefind-facets.test.js` can both call it without a
+// SearchPage instance.
+function tokenizeRawQuery(raw) {
+  const positive = [];
+  const notTerms = [];
+  const parts = String(raw || '').split(/\s+/).filter(Boolean);
+  for (const p of parts) {
+    if (p.startsWith('-') && p.length > 1) notTerms.push(p.slice(1));
+    else positive.push(p);
+  }
+  return { positive: positive.join(' '), notTerms };
+}
+
+// Parses the `/buscar/` query string into { q, textFilters }, applying
+// isSearchableTerm to every term regardless of source — a deep-linked
+// or hand-edited URL (e.g. `?q=a`) reaches Pagefind exactly the same
+// way a typed refine-box term does, so it must clear the same minimum
+// length. Pure — `parseUrlParams()` is the thin `window.location`
+// adapter that calls this and assigns the result onto `this.state`.
+function parseQueryParams(search) {
+  const params = new URLSearchParams(search);
+  const qValues = params.getAll('q');
+  const textFilters = qValues.slice(1)
+    .map(v => (v.startsWith('-') ? { term: v.slice(1), op: 'NOT' } : { term: v, op: 'AND' }))
+    .filter(f => isSearchableTerm(f.term));
+
+  const { positive, notTerms } = tokenizeRawQuery(qValues[0] || '');
+  const q = isSearchableTerm(positive) ? positive : '';
+  for (const term of notTerms) {
+    if (isSearchableTerm(term) && !textFilters.some(f => f.term === term && f.op === 'NOT')) {
+      textFilters.push({ term, op: 'NOT' });
+    }
+  }
+  return { q, textFilters };
+}
+
 /**
  * Pure helper that computes a scoped filters object from the pivot /
  * triple sidecars, given a set of active filter dimensions and the
@@ -424,41 +481,11 @@ class SearchPage {
     }
   }
 
-  tokenizeRawQuery(raw) {
-    // Split on whitespace; tokens starting with '-' (and length > 1) become
-    // NOT terms, rest rejoin as the positive query. This routes
-    // '-tunja' typed in the header form into a NOT chip so Pagefind's
-    // native query-level negation (`cacique -tunja`) is engaged instead of
-    // treating '-tunja' as a positive search for 'tunja'.
-    const positive = [];
-    const notTerms = [];
-    const parts = String(raw || '').split(/\s+/).filter(Boolean);
-    for (const p of parts) {
-      if (p.startsWith('-') && p.length > 1) notTerms.push(p.slice(1));
-      else positive.push(p);
-    }
-    return { positive: positive.join(' '), notTerms };
-  }
-
   parseUrlParams() {
     const params = new URLSearchParams(window.location.search);
-    const qValues = params.getAll('q');
-    this.state.textFilters = qValues.slice(1).map(v => {
-      if (v.startsWith('-')) {
-        return { term: v.slice(1), op: 'NOT' };
-      }
-      return { term: v, op: 'AND' };
-    });
-    // Tokenize the main q so '-term' tokens typed in the
-    // header search box (e.g. '/buscar/?q=-tunja' or '?q=cacique -tunja')
-    // are promoted to NOT filters rather than treated as positive queries.
-    const { positive, notTerms } = this.tokenizeRawQuery(qValues[0] || '');
-    this.state.q = positive;
-    for (const term of notTerms) {
-      if (!this.state.textFilters.some(f => f.term === term && f.op === 'NOT')) {
-        this.state.textFilters.push({ term, op: 'NOT' });
-      }
-    }
+    const { q, textFilters } = parseQueryParams(window.location.search);
+    this.state.q = q;
+    this.state.textFilters = textFilters;
     this.state.country = params.getAll('country');
     this.state.repository = params.getAll('repository');
     this.state.level = params.getAll('level');
@@ -985,7 +1012,7 @@ class SearchPage {
 
     const addTerm = () => {
       const term = input.value.trim();
-      if (!term) return;
+      if (!isSearchableTerm(term)) return;
       const exists = this.state.textFilters.some(f => f.term === term && f.op === currentOp);
       if (!exists) {
         this.state.textFilters.push({ term, op: currentOp });
@@ -2313,7 +2340,7 @@ if (typeof document !== 'undefined') {
 // this file as a classic <script>; `typeof module` is undefined there,
 // so the block is a no-op.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS };
+  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, isSearchableTerm, MIN_QUERY_TERM_LENGTH, tokenizeRawQuery, parseQueryParams };
 }
 
-// Version: v1.4.0
+// Version: v1.4.1

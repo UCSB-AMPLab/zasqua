@@ -10,6 +10,18 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
+## [1.4.1] — 2026-07-07
+
+### Changed
+
+- **Very short free-text search terms are no longer sent to Pagefind.** Search
+  terms under three characters previously triggered the same full-corpus
+  ranking pass as any other query. Pagefind ranks every matching record before
+  slicing off the displayed page, with no cheaper mode for very large result
+  sets, so a short, common fragment could take noticeably longer to return
+  than a typical search. The minimum length applies only to the free-text
+  search box; filter selections are unaffected.
+
 ## [1.4.0] — 2026-07-06
 
 ### Changed
@@ -246,6 +258,7 @@ the infrastructure needs to outlast the projects and grants that funded it.
   field reference (`docs/data-contract.md`), and per-format importer mapping
   references for CSV, EAD3, and CollectiveAccess.
 
+[1.4.1]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.4.1
 [1.4.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.4.0
 [1.3.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.3.0
 [1.2.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.2.0
