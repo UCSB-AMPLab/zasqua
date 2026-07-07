@@ -47,7 +47,7 @@ import { createRequire } from 'node:module';
 // `typeof module`. Vitest's default ESM transform does not expose those
 // named bindings, so we sidestep it with createRequire.
 const require = createRequire(import.meta.url);
-const { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, isSearchableTerm, MIN_QUERY_TERM_LENGTH } = require('../themes/base/static/js/search.js');
+const { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, isSearchableTerm, MIN_QUERY_TERM_LENGTH, parseQueryParams } = require('../themes/base/static/js/search.js');
 
 // The entity-explorer copy of selectFacetCounts is kept byte-equivalent to
 // the search.js canonical shape. Import it via the same createRequire bridge
@@ -159,6 +159,45 @@ describe('isSearchableTerm (minimum query-term length gate)', () => {
   it('rejects non-string input defensively', () => {
     expect(isSearchableTerm(null)).toBe(false);
     expect(isSearchableTerm(undefined)).toBe(false);
+  });
+});
+
+describe('parseQueryParams (minimum-length gate applies to URL-sourced terms too)', () => {
+  // A deep-linked or hand-edited URL reaches Pagefind exactly the same
+  // way a typed refine-box term does, so it must clear the same
+  // MIN_QUERY_TERM_LENGTH the interactive path enforces — otherwise
+  // `?q=a` still triggers full-corpus ranking on page load.
+  it('drops a sub-length main query', () => {
+    expect(parseQueryParams('?q=a')).toEqual({ q: '', textFilters: [] });
+  });
+
+  it('keeps a main query at or above the minimum length', () => {
+    expect(parseQueryParams('?q=casa')).toEqual({ q: 'casa', textFilters: [] });
+  });
+
+  it('drops a sub-length repeated q= AND term but keeps a valid one', () => {
+    expect(parseQueryParams('?q=casa&q=a&q=grande')).toEqual({
+      q: 'casa',
+      textFilters: [{ term: 'grande', op: 'AND' }],
+    });
+  });
+
+  it('drops a sub-length NOT term embedded in the main q', () => {
+    expect(parseQueryParams('?q=casa -a')).toEqual({
+      q: 'casa',
+      textFilters: [],
+    });
+  });
+
+  it('keeps a NOT term at or above the minimum length', () => {
+    expect(parseQueryParams('?q=casa -tunja')).toEqual({
+      q: 'casa',
+      textFilters: [{ term: 'tunja', op: 'NOT' }],
+    });
+  });
+
+  it('drops a sub-length repeated q= NOT term (leading -)', () => {
+    expect(parseQueryParams('?q=casa&q=-a')).toEqual({ q: 'casa', textFilters: [] });
   });
 });
 
