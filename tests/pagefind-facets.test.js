@@ -47,7 +47,7 @@ import { createRequire } from 'node:module';
 // `typeof module`. Vitest's default ESM transform does not expose those
 // named bindings, so we sidestep it with createRequire.
 const require = createRequire(import.meta.url);
-const { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS } = require('../themes/base/static/js/search.js');
+const { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, isSearchableTerm, MIN_QUERY_TERM_LENGTH } = require('../themes/base/static/js/search.js');
 
 // The entity-explorer copy of selectFacetCounts is kept byte-equivalent to
 // the search.js canonical shape. Import it via the same createRequire bridge
@@ -136,6 +136,29 @@ describe('selectFacetCounts', () => {
     };
     const active = { repository: ['AHR'] };
     expect(selectFacetCounts(result, 'repository', 'AHR', active)).toBe(55359);
+  });
+});
+
+describe('isSearchableTerm (minimum query-term length gate)', () => {
+  // Pagefind ranks a query's full matching set before slicing off a
+  // page of results, with no cheaper capped mode — see
+  // https://github.com/Pagefind/pagefind/discussions/726. Sub-length
+  // terms are rejected before reaching Pagefind at all.
+  it('rejects terms shorter than MIN_QUERY_TERM_LENGTH', () => {
+    expect(isSearchableTerm('a')).toBe(false);
+    expect(isSearchableTerm('ab')).toBe(false);
+    expect(isSearchableTerm('')).toBe(false);
+  });
+
+  it('accepts terms at or above MIN_QUERY_TERM_LENGTH', () => {
+    expect(MIN_QUERY_TERM_LENGTH).toBe(3);
+    expect(isSearchableTerm('abc')).toBe(true);
+    expect(isSearchableTerm('casa')).toBe(true);
+  });
+
+  it('rejects non-string input defensively', () => {
+    expect(isSearchableTerm(null)).toBe(false);
+    expect(isSearchableTerm(undefined)).toBe(false);
   });
 });
 
@@ -1196,4 +1219,4 @@ describe('entity-explorer sort UI parity', () => {
   });
 });
 
-// Version: v2.1.0
+// Version: v2.2.0

@@ -117,6 +117,21 @@
 // when walking the triples sidecar for the two-active-dimension branch.
 const PIVOT_KEYS = ['century', 'country', 'decade', 'digital_status', 'level', 'repository'];
 
+// Pagefind ranks a query's entire matching set before any result is
+// sliced off for display, and offers no cheaper/capped mode by design
+// (https://github.com/Pagefind/pagefind/discussions/726) — a short,
+// common fragment can therefore rank tens of thousands of records to
+// show 20. MIN_QUERY_TERM_LENGTH rejects sub-length terms before they
+// reach Pagefind at all, the same mitigation Pagefind's own large
+// deployers use for this exact failure mode.
+const MIN_QUERY_TERM_LENGTH = 3;
+
+// Exported so `tests/pagefind-facets.test.js` can pin the threshold
+// without exercising the DOM. Expects an already-trimmed term.
+function isSearchableTerm(term) {
+  return typeof term === 'string' && term.length >= MIN_QUERY_TERM_LENGTH;
+}
+
 /**
  * Pure helper that computes a scoped filters object from the pivot /
  * triple sidecars, given a set of active filter dimensions and the
@@ -985,7 +1000,7 @@ class SearchPage {
 
     const addTerm = () => {
       const term = input.value.trim();
-      if (!term) return;
+      if (!isSearchableTerm(term)) return;
       const exists = this.state.textFilters.some(f => f.term === term && f.op === currentOp);
       if (!exists) {
         this.state.textFilters.push({ term, op: currentOp });
@@ -2313,7 +2328,7 @@ if (typeof document !== 'undefined') {
 // this file as a classic <script>; `typeof module` is undefined there,
 // so the block is a no-op.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS };
+  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, isSearchableTerm, MIN_QUERY_TERM_LENGTH };
 }
 
-// Version: v1.4.0
+// Version: v1.4.1
