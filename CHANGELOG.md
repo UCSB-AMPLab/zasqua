@@ -10,6 +10,54 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
+## [1.5.0] — 2026-10-24
+
+### Added
+
+- **A new `zasqua eac` command writes one EAC-CPF record per entity.** Each
+  person, corporate body and family in `entities.json` gets an EAC-CPF 2010
+  authority record, carrying its names and name variants, dates of existence,
+  functions, history and any VIAF or Wikidata identifiers, so other archival
+  systems can take the entities in the standard they use for authority
+  records. Like `zasqua mets`, the command runs apart from the site build and
+  writes to `EAC_DIR` (by default `public/eac/`, served with the site); the
+  maintenance agency, agency code and record language come from new `eac_*`
+  settings in `hugo.toml`, and `eac_base_url` names the host the records are
+  served from; when it is an absolute URL and the output would land under
+  `public/`, the command warns that the records would be served with the
+  site instead. The records carry no timestamps, so an unchanged export
+  produces identical files.
+- **A new `zasqua places` command writes one Linked Places record per
+  place.** Each place in `places.json` gets a Linked Places Format record (the
+  GeoJSON-LD format gazetteers such as the World Historical Gazetteer
+  ingest), carrying its names, feature class and type, coordinates, any WHG,
+  TGN or Wikidata identifiers, and the span of years in which the archive's
+  dated descriptions mention it. Alongside the per-place files the command
+  writes `index.json`, every dated place in one collection, ready for a
+  gazetteer's bulk upload; a place that no dated description mentions is
+  published only as its own file, since the format requires a date on each
+  place in a collection. Like `zasqua eac`, it runs apart from the site
+  build and writes to `PLACES_DIR` (by default `public/places/`). A new
+  `places_language` setting in `hugo.toml` sets the language of the place
+  names, and `places_base_url` names the host the records are served from,
+  with the same warning as `eac_base_url`. An unchanged export produces
+  identical files.
+- **Entity and place pages link to their EAC-CPF and Linked Places
+  records.** When a site sets `eac_base_url` or `places_base_url` in
+  `hugo.toml`, the reuse section of each entity or place page shows the URL
+  of its record (`{eac_base_url}/{entity_code}.xml` or
+  `{places_base_url}/{place_code}.json`) with a copy button, as description
+  pages already do for METS. A trailing slash on either setting is dropped.
+  When a setting is unset, the page keeps its "Coming soon" note; a site that
+  serves the records with its pages sets `/eac` and `/places`, the default
+  output directories.
+
+The six-file data contract (v1.0) is unchanged. The entity schema now lists
+the optional `wikidata_id` field, and the place schema the optional `label`
+and `fclass` fields; `zasqua places` skips a place without a valid
+`fclass`. The data contract reference notes which EAC-CPF or Linked Places
+element each entity and place field feeds.
+
 ## [1.4.1] — 2026-07-07
 
 ### Changed
@@ -258,6 +306,7 @@ the infrastructure needs to outlast the projects and grants that funded it.
   field reference (`docs/data-contract.md`), and per-format importer mapping
   references for CSV, EAD3, and CollectiveAccess.
 
+[1.5.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.5.0
 [1.4.1]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.4.1
 [1.4.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.4.0
 [1.3.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.3.0

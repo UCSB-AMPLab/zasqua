@@ -1,6 +1,6 @@
 {
   "name": "@ucsb-ampl/zasqua",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Zasqua: open-source archival platform for hosting and discovering digitized historical documents.",
   "bin": {
     "zasqua": "./bin/zasqua.js"
@@ -13,6 +13,8 @@
     "scripts/generate-content.js",
     "scripts/generate-pagefind-indices.js",
     "scripts/generate-mets.js",
+    "scripts/generate-eac.js",
+    "scripts/generate-places.js",
     "scripts/enrichment/",
     "schemas/",
     "docs/",

@@ -356,6 +356,34 @@ run continues. So is a place whose code would be written as `index.json`,
 and a place whose `place_code` is not an XML name token (letters, digits, `.`,
 `_`, `:` and `-` only), since the code becomes the record's URL and filename.
 
+### Reuse links
+
+Each description, entity and place page has a reuse section that points at
+the page's record in a standard format. Three `hugo.toml [params]` settings
+name where those records are served, and each matches the command that
+writes them:
+
+- `mets_base_url` — METS documents written by `zasqua mets`, linked from
+  description pages as `{mets_base_url}/{reference_code}.xml` (default:
+  `/mets`, served with the site). See
+  [METS documents](#mets-documents-zasqua-mets).
+- `eac_base_url` — EAC-CPF records written by `zasqua eac`, linked from
+  entity pages as `{eac_base_url}/{entity_code}.xml`. See
+  [EAC-CPF records](#eac-cpf-records-zasqua-eac).
+- `places_base_url` — Linked Places records written by `zasqua places`,
+  linked from place pages as `{places_base_url}/{place_code}.json`. See
+  [Linked Places records](#linked-places-records-zasqua-places).
+
+A trailing slash on any of the three is dropped, so each link has a single
+slash between the base and the code. When `eac_base_url` or
+`places_base_url` is unset, the entity or place page shows a "coming soon"
+note in place of the link: unlike `mets_base_url`, the two have no default,
+so a site that serves the records with its pages sets them to `/eac` and
+`/places`, the directories the commands write to by default. Run each command, and upload its output to the
+host its setting names, before the site that links to it goes live.
+
+---
+
 ## 7. Host
 
 The build output is a standard static site in `public/`. Any static host

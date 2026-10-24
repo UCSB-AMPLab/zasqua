@@ -122,7 +122,7 @@ enabling the modules your data supports. Review it and adjust before building.
 
 ```
 zasqua validate
-SKIP_DOWNLOAD=1 zasqua build
+zasqua build
 ```
 
 The static site lands in `public/`. Serve it from any static host. For a complete
@@ -136,8 +136,10 @@ walkthrough — from install to a hosted, branded site — see
 | Command | What it does |
 |---------|--------------|
 | `zasqua build` | Validate the manifest and data, assemble the base theme, and run the full static-site pipeline into `public/` |
-| `zasqua fetch` | Run the data-download stage only |
 | `zasqua dev` | Assemble the theme and start a local Hugo preview server at `127.0.0.1:1313` |
+| `zasqua mets` | Write one METS XML document per description to `METS_DIR` (default `public/mets/`) |
+| `zasqua eac` | Write one EAC-CPF XML record per entity to `EAC_DIR` (default `public/eac/`) |
+| `zasqua places` | Write one Linked Places record per place, plus an `index.json` collection, to `PLACES_DIR` (default `public/places/`) |
 | `zasqua init` | Scan `exports/` and scaffold a commented `zasqua.manifest.toml` |
 | `zasqua validate` | Check the dataset against the contract (`--strict` adds full JSON Schema conformance) |
 | `zasqua import <format> <src>` | Convert a source dataset (`csv`, `ead3`, `collectiveaccess`, `fisqua`) into the six-file contract |
