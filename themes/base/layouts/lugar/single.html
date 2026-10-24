@@ -14,7 +14,12 @@
     - Right: Map (when coordinates present) or no-coordinates notice;
       linked-descriptions list with chronological / alphabetical sort
   - head block: MapLibre GL CSS+JS (conditional on coordinates)
-  - scripts block: /js/place.js
+  - scripts block: /js/copy-url.js, /js/place.js
+
+  The Reuse block links the place's Linked Places record at
+  {places_base_url}/{place_code}.json, with a copy button, when the site
+  param places_base_url is set and the page has a place_code; a trailing
+  slash on the param is trimmed. Otherwise it shows place.comingSoon.
 
   ISO-3 country codes are mapped to display names via i18n lookups
   (place.countries.*) covering every country the Zasqua corpus
@@ -185,7 +190,21 @@
           <div class="reuse-manifest">
             <strong class="reuse-manifest-label">Linked Places</strong>
             <div class="reuse-manifest-row">
-              <code class="reuse-manifest-url reuse-coming-soon">{{ i18n "place.comingSoon" }}</code>
+              {{/* The base keeps its value for the test, so "/" still links; the
+                   trimmed copy is joined to the code with one slash. The code is
+                   trimmed as the generator trims it for the filename. */}}
+              {{ $placesBase := site.Params.places_base_url | default "" }}
+              {{ $code := .Params.place_code | default "" | strings.TrimSpace }}
+              {{ if and $placesBase $code }}
+                {{ $url := printf "%s/%s.json" (strings.TrimRight "/" $placesBase) $code }}
+                <code class="reuse-manifest-url">{{ $url }}</code>
+                <button class="reuse-copy-btn" data-copy-url="{{ $url }}" data-i18n-copied="{{ i18n "description.copied" }}">
+                  <span class="material-symbols-outlined">content_copy</span>
+                  {{- i18n "description.copyButton" -}}
+                </button>
+              {{ else }}
+                <code class="reuse-manifest-url reuse-coming-soon">{{ i18n "place.comingSoon" }}</code>
+              {{ end }}
             </div>
           </div>
         </div>
@@ -268,6 +287,7 @@
 {{ end }}
 
 {{ define "scripts" }}
+  <script src="/js/copy-url.js"></script>
   <script src="/js/place.js"></script>
 {{ end }}
 {{/* Version: v1.5.0 */}}

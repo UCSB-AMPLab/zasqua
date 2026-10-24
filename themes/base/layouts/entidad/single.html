@@ -11,7 +11,12 @@
   - Two-column: Identification / Functions / History / Authority IDs /
     Control / Reuse on the left; timeline + graph toggle on the right
   - head block: force-graph CDN script
-  - scripts block: /js/entity.js
+  - scripts block: /js/copy-url.js, /js/entity.js
+
+  The Reuse block links the entity's EAC-CPF record at
+  {eac_base_url}/{entity_code}.xml, with a copy button, when the site
+  param eac_base_url is set and the page has an entity_code; a trailing
+  slash on the param is trimmed. Otherwise it shows entity.comingSoon.
 
   The #entity-intro element carries data-entity-type-raw so
   infinite-bipartite-explorer.js and entity.js can recover the
@@ -33,7 +38,7 @@
   blob-only, no Spanish fallback. Spanish lives only in es.toml;
   en.toml mirrors.
 
-  Version: v1.4.0
+  Version: v1.5.0
 */}}
 {{ define "title" }}{{ .Params.display_name }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
@@ -197,7 +202,21 @@
           <div class="reuse-manifest">
             <strong class="reuse-manifest-label">EAC-CPF</strong>
             <div class="reuse-manifest-row">
-              <code class="reuse-manifest-url reuse-coming-soon">{{ i18n "entity.comingSoon" }}</code>
+              {{/* The base keeps its value for the test, so "/" still links; the
+                   trimmed copy is joined to the code with one slash. The code is
+                   trimmed as the generator trims it for the filename. */}}
+              {{ $eacBase := site.Params.eac_base_url | default "" }}
+              {{ $code := .Params.entity_code | default "" | strings.TrimSpace }}
+              {{ if and $eacBase $code }}
+                {{ $url := printf "%s/%s.xml" (strings.TrimRight "/" $eacBase) $code }}
+                <code class="reuse-manifest-url">{{ $url }}</code>
+                <button class="reuse-copy-btn" data-copy-url="{{ $url }}" data-i18n-copied="{{ i18n "description.copied" }}">
+                  <span class="material-symbols-outlined">content_copy</span>
+                  {{- i18n "description.copyButton" -}}
+                </button>
+              {{ else }}
+                <code class="reuse-manifest-url reuse-coming-soon">{{ i18n "entity.comingSoon" }}</code>
+              {{ end }}
             </div>
           </div>
         </div>
@@ -284,6 +303,7 @@
 {{ end }}
 
 {{ define "scripts" }}
+  <script src="/js/copy-url.js"></script>
   <script src="/js/entity.js"></script>
 {{ end }}
-{{/* Version: v1.4.0 */}}
+{{/* Version: v1.5.0 */}}
