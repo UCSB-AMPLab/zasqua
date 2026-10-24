@@ -14,7 +14,11 @@
  * `process.cwd()` resolves to the engine root when invoked from this
  * directory, which is the expected call path.
  *
- * @version v2.0.0
+ * The worker pool is capped at two forks (`poolOptions.forks.maxForks`, the
+ * Vitest 2 setting) because the development machines are shared and an
+ * uncapped run can exhaust their memory.
+ *
+ * @version v1.5.0
  */
 
 import { defineConfig } from 'vitest/config';
@@ -24,5 +28,10 @@ export default defineConfig({
     include: ['tests/**/*.test.js'],
     environment: 'node',
     testTimeout: 10000,
+    // The development machines are shared; cap the worker pool (Vitest 2 uses
+    // poolOptions.forks, not maxWorkers).
+    poolOptions: { forks: { minForks: 1, maxForks: 2 } },
   },
 });
+
+// Version: v1.5.0
