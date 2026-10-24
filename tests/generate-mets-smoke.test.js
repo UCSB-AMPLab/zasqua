@@ -67,3 +67,5 @@ describe('zasqua mets — command smoke test', () => {
     fs.rmSync(dir2, { recursive: true, force: true });
   });
 });
+
+// Version: v1.3.0
