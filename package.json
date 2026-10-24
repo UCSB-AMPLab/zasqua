@@ -50,7 +50,7 @@
     "fast-xml-parser": "5.8.0",
     "graphology": "^0.26.0",
     "graphology-layout-forceatlas2": "^0.10.1",
-    "hugo-extended": "0.160.1",
+    "hugo-extended": "0.168.0",
     "pagefind": "^1.5.2",
     "sanitize-html": "2.17.4",
     "smol-toml": "1.6.1",
