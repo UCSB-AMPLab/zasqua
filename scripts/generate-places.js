@@ -31,8 +31,10 @@
  * EAC-CPF. Each place is written as its own one-feature collection, and
  * index.json holds, in one collection, every written feature that carries a
  * when: the LPF-conformant corpus, in the form WHG takes for a bulk upload.
- * LPF requires a when on each feature, so a place no dated description
- * mentions is published only as its own file. A record that cannot be built (a contract
+ * LPF requires a record-level when or a citation year on a name; a place no
+ * dated description mentions has neither, so its own file is LPF-shaped but
+ * not a conformant record, and it is left out of index.json. A record that
+ * cannot be built (a contract
  * violation: a blank or malformed place_code, a blank display_name, an
  * unknown fclass, or coordinates that are not a valid pair) makes
  * buildPlaceFeature throw, naming the record; main() skips it with a warning
@@ -558,7 +560,8 @@ async function main() {
   // index.json is the corpus for bulk ingest, so it holds only the features
   // that carry a when: LPF requires each feature to have a when (or a dated
   // citation), and a place no dated description mentions has neither. Those
-  // places are still written as their own files.
+  // places are still written as their own files, so the link on their pages
+  // resolves, though the file is not a conformant record.
   const features = [];
   const dated = [];
   let skipped = 0;
@@ -600,7 +603,7 @@ async function main() {
 
   console.log(`[generate-places] Wrote ${features.length} place files + index.json to ${PLACES_DIR}`);
   if (withoutWhen > 0) {
-    console.warn(`[generate-places] ${withoutWhen} record(s) without a when: written as place files, left out of index.json`);
+    console.warn(`[generate-places] ${withoutWhen} record(s) without a when: written as place files (not conformant LPF records), left out of index.json`);
   } else {
     console.log('[generate-places] every record carries a when');
   }

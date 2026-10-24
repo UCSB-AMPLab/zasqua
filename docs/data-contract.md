@@ -227,10 +227,11 @@ identifier and becomes the URL slug.
 
 The Linked Places `when` comes from the dated descriptions linked to the
 place in `place_links.json` (their `date_start` and `date_expression`). Every
-place is written as its own Linked Places file; `index.json`, the
-LPF-conformant corpus for bulk ingest, holds only the places that carry a
-`when`, so a place no dated description mentions is published individually
-only. The contract carries no language for place names, so a name declares a
+place is written as its own file; `index.json`, the LPF-conformant corpus for
+bulk ingest, holds only the places that carry a `when`. A place no dated
+description mentions has neither a `when` nor a citation year, so its own
+file is not a conformant LPF record, and it is left out of `index.json`. The
+contract carries no language for place names, so a name declares a
 `lang` only when the deployer sets `places_language` in `hugo.toml`.
 
 ---

@@ -113,7 +113,7 @@ describe('zasqua places — command smoke test', () => {
     expect(o1).not.toHaveProperty('when');
     expect(o1.geometry).toBeNull();
     expect(o1.names.map((n) => n.toponym)).toEqual(['Smoke Hill (Smoke City)', 'Smoke Hill']);
-    expect(result.stderr).toContain('[generate-places] 1 record(s) without a when: written as place files, left out of index.json');
+    expect(result.stderr).toContain('[generate-places] 1 record(s) without a when: written as place files (not conformant LPF records), left out of index.json');
   });
 
   it('is deterministic — a second run produces byte-identical output', () => {
@@ -165,7 +165,7 @@ describe('zasqua places — command smoke test', () => {
       const run = runPlaces(outDir, instance);
       expect(run.status).toBe(0);
       expect(run.stdout).toContain('[generate-places] no place_links.json/descriptions.json — records carry no when');
-      expect(run.stderr).toContain('[generate-places] 3 record(s) without a when: written as place files, left out of index.json');
+      expect(run.stderr).toContain('[generate-places] 3 record(s) without a when: written as place files (not conformant LPF records), left out of index.json');
       expect(fs.readdirSync(outDir).sort()).toEqual(files);
       const index = JSON.parse(fs.readFileSync(join(outDir, 'index.json'), 'utf8'));
       expect(index.features).toEqual([]);

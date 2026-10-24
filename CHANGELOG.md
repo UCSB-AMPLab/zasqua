@@ -27,7 +27,7 @@ here.
   `public/`, the command warns that the records would be served with the
   site instead. The records carry no timestamps, so an unchanged export
   produces identical files.
-- **A new `zasqua places` command writes one Linked Places record per
+- **A new `zasqua places` command writes one Linked Places file per
   place.** Each place in `places.json` gets a Linked Places Format record (the
   GeoJSON-LD format gazetteers such as the World Historical Gazetteer
   ingest), carrying its names, feature class and type, coordinates, any WHG,
@@ -35,8 +35,8 @@ here.
   dated descriptions mention it. Alongside the per-place files the command
   writes `index.json`, every dated place in one collection, ready for a
   gazetteer's bulk upload; a place that no dated description mentions is
-  published only as its own file, since the format requires a date on each
-  place in a collection. Like `zasqua eac`, it runs apart from the site
+  published only as its own file, which is not a conformant record, since the
+  format requires a `when` or a citation year on every place. Like `zasqua eac`, it runs apart from the site
   build and writes to `PLACES_DIR` (by default `public/places/`). A new
   `places_language` setting in `hugo.toml` sets the language of the place
   names, and `places_base_url` names the host the records are served from,

@@ -317,13 +317,15 @@ and target its own host:
 zasqua places
 ```
 
-This writes one Linked Places Format (LPF) record per place to `PLACES_DIR`,
+This writes one Linked Places Format (LPF) file per place to `PLACES_DIR`,
 which defaults to `public/places/`: each place as its own collection at
 `{place_code}.json`, and every place that carries a `when` together in
 `index.json`. `index.json` is the LPF-conformant corpus, the file to upload to
 the World Historical Gazetteer (WHG) or another gazetteer that ingests LPF in
-bulk; LPF requires a `when` on each place, so a place without one is
-published only as its own file. A single-bucket deployment runs `zasqua build` then
+bulk. LPF requires a record-level `when` or a citation year on a name, and a
+place no dated description mentions has neither: its file is written, so the
+link on its page resolves, but it is not a conformant record and is left out
+of `index.json`. A single-bucket deployment runs `zasqua build` then
 `zasqua places` and serves the records with the site at
 `/places/{place_code}.json`. A deployment that hosts the records on a separate
 domain sets `PLACES_DIR` to a staging directory outside `public/` and uploads
