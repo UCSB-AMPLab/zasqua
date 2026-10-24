@@ -14,7 +14,11 @@
 # npm packages are locked via package-lock.json; vitest runs with
 # `npm test` (which is `vitest run`).
 #
-# Version: v1.0.0
+# Action pinning: the two GitHub-maintained actions below are pinned to a full
+# commit SHA, with the version in a trailing comment, rather than a moving tag —
+# matching release.yml, so a hijacked upstream tag cannot alter CI.
+#
+# Version: v1.4.0
 
 name: Engine tests
 
@@ -28,10 +32,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -42,4 +46,4 @@ jobs:
       - name: Run vitest suite
         run: npm test
 
-# Version: v1.0.0
+# Version: v1.4.0

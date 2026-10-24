@@ -1,48 +1,26 @@
 /**
  * Description Detail Page Controller (`/{reference_code}/`)
  *
- * Drives the description detail page. Two responsibilities: (1)
- * "Copy" button next to the IIIF manifest URL — clicks copy the URL
- * to the clipboard and flash a "Copied" confirmation; (2) embed
- * the TIFY IIIF image viewer when the description has an associated
- * manifest, then inject custom header controls (Expand, Collapse,
+ * Drives the description detail page: embeds the TIFY IIIF image
+ * viewer when the description has an associated manifest, then
+ * injects custom header controls (Expand, Collapse,
  * Full screen, Thumbnails) so the viewer integrates with the rest of
  * the page chrome rather than showing TIFY's default toolbar. The
  * script is loaded as a classic `<script>` tag (no ES module imports)
  * and self-runs on `DOMContentLoaded`.
  *
- * i18n / single-source: all control labels and the copy
- * confirmation are read from data attributes injected by
- * descripcion/single.html — the TIFY labels from the .desc-viewer
- * data-i18n blob (description.tify* keys), the copy confirmation from
- * each copy button's data-i18n-copied (description.copied) — blob-only,
- * no Spanish fallback. Spanish lives only in es.toml.
+ * The Reuse-block copy buttons are handled by the shared copy-url.js,
+ * which descripcion/single.html loads alongside this script.
  *
- * @version v1.4.0
+ * i18n / single-source: all control labels are read from the
+ * .desc-viewer data-i18n blob injected by descripcion/single.html
+ * (description.tify* keys) — blob-only, no Spanish fallback. Spanish
+ * lives only in es.toml.
+ *
+ * @version v1.5.0
  */
 
 document.addEventListener("DOMContentLoaded", function() {
-
-  // Copy-to-clipboard for IIIF manifest URL
-  var copyBtns = document.querySelectorAll(".reuse-copy-btn");
-  for (var i = 0; i < copyBtns.length; i++) {
-    copyBtns[i].addEventListener("click", function() {
-      var btn = this;
-      var url = btn.getAttribute("data-copy-url");
-      if (!url) return;
-      navigator.clipboard.writeText(url).then(function() {
-        var icon = btn.querySelector(".material-symbols-outlined");
-        var originalHTML = btn.innerHTML;
-        icon.textContent = "check";
-        // description.copied, injected per button as data-i18n-copied
-        // (blob-only, no Spanish fallback).
-        btn.lastChild.textContent = btn.getAttribute("data-i18n-copied") || "";
-        setTimeout(function() {
-          btn.innerHTML = originalHTML;
-        }, 2000);
-      });
-    });
-  }
 
   // IIIF Viewer (TIFY)
   var viewerEl = document.querySelector(".desc-viewer[data-manifest]");
@@ -174,4 +152,4 @@ document.addEventListener("DOMContentLoaded", function() {
 
 });
 
-// Version: v1.4.0
+// Version: v1.5.0

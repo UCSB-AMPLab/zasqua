@@ -29,11 +29,12 @@
 
   The IIIF viewer element (.desc-viewer) carries a data-i18n blob with
   the TIFY control labels description.js injects. Each copy button
-  carries data-i18n-copied for the "Copied" confirmation flash — blob-only,
+  carries data-i18n-copied for the "Copied" confirmation flash, which
+  the shared /js/copy-url.js handler reads — blob-only,
   no Spanish fallback. Spanish lives only in es.toml; en.toml
   mirrors it.
 
-  Version: v1.3.0
+  Version: v1.5.0
 */}}
 {{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
@@ -365,9 +366,10 @@
   {{ if .Params.iiif_manifest_url }}
     <script src="/vendor/tify/tify.js"></script>
   {{ end }}
+  <script src="/js/copy-url.js"></script>
   <script src="/js/description.js"></script>
   {{ if .Params.has_children }}
     <script src="/js/tree.js"></script>
   {{ end }}
 {{ end }}
-{{/* Version: v1.1.0 */}}
+{{/* Version: v1.5.0 */}}

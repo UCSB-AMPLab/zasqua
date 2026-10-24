@@ -1,0 +1,33 @@
+# Dependabot — automated dependency and GitHub Actions update proposals.
+#
+# Dependabot watches this repository's dependency manifests and opens a pull
+# request whenever a newer version is available, so security patches and stale
+# pins do not accumulate silently. Two ecosystems are tracked:
+#
+#   npm             — the engine's runtime and dev dependencies, resolved from
+#                     package.json / package-lock.json at the repository root.
+#   github-actions  — the actions referenced by the workflows under
+#                     .github/workflows/. Those actions are pinned to commit
+#                     SHAs; Dependabot bumps both the SHA and its version comment.
+#
+# Both ecosystems are checked weekly. Every bump arrives as a pull request
+# against main and must pass the test suite before it can merge — nothing lands
+# automatically.
+#
+# Version: v1.4.0
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+# Version: v1.4.0

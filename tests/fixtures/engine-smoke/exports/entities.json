@@ -1,0 +1,40 @@
+[
+  {
+    "entity_code": "ne-smoke-p1",
+    "display_name": "Don Pedro Humo",
+    "entity_type": "person",
+    "sort_name": "Humo, Pedro",
+    "surname": "Humo",
+    "given_name": "Pedro",
+    "honorific": "Don",
+    "dates_of_existence": "1812 .. 1822",
+    "date_earliest": "1812",
+    "date_latest": "1822",
+    "primary_function": "notary",
+    "functions": [
+      { "function": "notary", "count": 2 }
+    ],
+    "viaf_id": "9776644",
+    "name_variants": ["Pedro Humo", "P. Humo"]
+  },
+  {
+    "entity_code": "ne-smoke-c1",
+    "display_name": "Smoke & Sons <Ltd>",
+    "entity_type": "corporate",
+    "sort_name": "Smoke & Sons <Ltd>",
+    "dates_of_existence": "1928",
+    "date_earliest": "1928",
+    "date_latest": "1928",
+    "functions": [],
+    "name_variants": ["Smoke and Sons"]
+  },
+  {
+    "entity_code": "ne-smoke-f1",
+    "display_name": "Familia Humo",
+    "entity_type": "family",
+    "sort_name": "Humo, familia",
+    "dates_of_existence": "fl. 1700",
+    "functions": [],
+    "name_variants": []
+  }
+]

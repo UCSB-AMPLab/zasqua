@@ -17,6 +17,13 @@
 #   publishing needs npm 11.5.1+; Node 22 ships npm 10.x, so the upgrade step
 #   below clears that bar before publishing.
 #
+# Action pinning:
+#   The two GitHub-maintained actions below are pinned to a full commit SHA,
+#   with the human-readable version in a trailing comment, rather than a moving
+#   major-version tag. A tag can be force-moved or hijacked; a commit SHA cannot,
+#   so a compromised upstream tag cannot silently inject code into the run that
+#   holds this workflow's npm publish credential.
+#
 # Version: v1.4.0
 
 name: Publish to npm
@@ -33,9 +40,9 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'

@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "place_code": "nl-smoke-p1",
+    "label": "Smoke City",
+    "display_name": "Smoke City",
+    "place_type": "city",
+    "fclass": "P",
+    "latitude": 4.6,
+    "longitude": -74.1,
+    "country_code": "",
+    "name_variants": ["Smoke Town", "Smoke Town"],
+    "wikidata_id": "",
+    "whg_id": "176861",
+    "tgn_id": "",
+    "hgis_id": ""
+  },
+  {
+    "id": 2,
+    "place_code": "nl-smoke-r1",
+    "label": "Smoke River",
+    "display_name": "Smoke River",
+    "place_type": "river",
+    "fclass": "H",
+    "latitude": null,
+    "longitude": null,
+    "country_code": "",
+    "name_variants": [],
+    "wikidata_id": "",
+    "whg_id": "",
+    "tgn_id": "",
+    "hgis_id": ""
+  },
+  {
+    "id": 3,
+    "place_code": "nl-smoke-o1",
+    "label": "Smoke Hill",
+    "display_name": "Smoke Hill (Smoke City)",
+    "place_type": "other",
+    "fclass": "T",
+    "latitude": null,
+    "longitude": null,
+    "country_code": "",
+    "name_variants": [],
+    "wikidata_id": "",
+    "whg_id": "",
+    "tgn_id": "",
+    "hgis_id": ""
+  }
+]

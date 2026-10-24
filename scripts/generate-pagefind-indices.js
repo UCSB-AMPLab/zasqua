@@ -69,7 +69,7 @@
  * (or process.cwd() as a fallback) rather than from the script's own
  * location.
  *
- * @version v1.4.0
+ * @version v1.5.0
  */
 
 'use strict';
@@ -78,6 +78,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { loadManifest } = require('../lib/manifest');
+const { descriptionYearRange } = require('../lib/year-range');
 
 const INSTANCE_ROOT = process.env.INSTANCE_ROOT || process.cwd();
 // PROJECT_ROOT is the base used only to render readable relative paths in
@@ -131,28 +132,9 @@ function decadesInRange(startYear, endYear) {
   return Array.from(set);
 }
 
-// Description year derivation. Enriched JSON does NOT carry
-// `date_start_year`/`date_end_year` — derive from `date_start`
-// (ISO YYYY-MM-DD) when present, otherwise scrape years from
-// `date_expression` (e.g. "1780.. 1822", "1620 - 1623", "fl. 1911").
-function descriptionYearRange(record) {
-  let s = null;
-  let e = null;
-  if (record.date_start && typeof record.date_start === 'string') {
-    const m = record.date_start.match(/^(\d{4})/);
-    if (m) s = Number(m[1]);
-  }
-  if (record.date_expression && typeof record.date_expression === 'string') {
-    const matches = record.date_expression.match(/\d{4}/g);
-    if (matches && matches.length) {
-      if (s == null) s = Number(matches[0]);
-      e = Number(matches[matches.length - 1]);
-    }
-  }
-  if (s != null && e == null) e = s;
-  if (s == null && e != null) s = e;
-  return { startYear: s, endYear: e };
-}
+// Description year derivation lives in lib/year-range.js, shared with the
+// Linked Places generator; it is re-exported below so this module's public
+// surface is unchanged.
 
 // ---------------------------------------------------------------------------
 // FIELD_MAP — the contract between assets/hugo-data/*.json and the
@@ -1042,4 +1024,4 @@ module.exports = {
   suppressSingleValuedFacets,
 };
 
-// Version: v1.4.0
+// Version: v1.5.0

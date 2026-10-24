@@ -28,6 +28,7 @@
       "name_variants": { "type": "array" },
       "history": { "type": "string" },
       "viaf_id": { "type": "string" },
+      "wikidata_id": { "type": "string" },
       "dbe_id": { "type": ["integer", "null"] },
       "modified_at": { "type": "string" }
     }
