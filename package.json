@@ -45,7 +45,7 @@
   "dependencies": {
     "@tailwindcss/cli": "^4.2.2",
     "ajv": "8.20.0",
-    "csv-parse": "6.2.1",
+    "csv-parse": "7.0.3",
     "entities": "7.0.1",
     "fast-xml-parser": "5.8.0",
     "graphology": "^0.26.0",
