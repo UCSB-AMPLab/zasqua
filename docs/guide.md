@@ -12,7 +12,7 @@
   The guide is linear. Follow the numbered legs in order; each step
   produces verified output that the next step consumes.
 
-  Version: v1.4.0
+  Version: v1.5.0
 -->
 
 # Run Your Own Instance
@@ -266,7 +266,95 @@ optional house default, else omitted. IIIF manifests, when a record supplies
 `iiif_manifest_url`, are referenced from `<fileSec>` — the engine never
 generates IIIF.
 
----
+### EAC-CPF records (`zasqua eac`)
+
+EAC-CPF generation is also a separate command, not a build stage. It reads
+`exports/entities.json` and `hugo.toml` directly, so it can run on its own and
+target its own host:
+
+```
+zasqua eac
+```
+
+This writes one EAC-CPF 2010 XML record per entity (person, corporate body or
+family) to `EAC_DIR`, which defaults to `public/eac/`, so a single-bucket
+deployment runs `zasqua build` then `zasqua eac` and serves the records with the
+site at `/eac/{entity_code}.xml`. A deployment that hosts the records on a
+separate domain sets `EAC_DIR` to a staging directory outside `public/` and
+uploads it there. EAC-CPF configuration lives in `hugo.toml [params]`:
+
+- `eac_agency_name` — the maintenance agency named in each record (default: the
+  site `title`, else `Zasqua`).
+- `eac_agency_code` — optional agency code, such as an ISIL; omitted when unset.
+- `eac_language_code` — optional ISO 639-2 code for the language of the
+  records (e.g. `spa`), declared with Latin script; omitted when unset.
+- `eac_base_url` — the public URL base the records are served from; when it is
+  an absolute URL and `EAC_DIR` resolves under `public/`, `zasqua eac` warns
+  that the files would be served with the site instead.
+
+An `eac_agency_code` that is not an ISIL code, or an `eac_language_code` that
+is not a three-letter lowercase code, is ignored with a warning, and the
+records are written without it.
+
+Only populated elements are emitted: names and name variants, dates of
+existence, functions, history, and VIAF and Wikidata links each appear when
+the entity carries them. The output carries no timestamps, so an unchanged
+export produces byte-identical files. A record that breaks the entity contract
+(no `entity_code`, an unknown `entity_type`), or whose filename an earlier
+record has already taken, is skipped with a warning naming it, and the run
+continues. So is a record whose `entity_code` is not an XML name token
+(letters, digits, `.`, `_`, `:` and `-` only), since EAC-CPF uses the code as
+the record identifier.
+
+### Linked Places records (`zasqua places`)
+
+Linked Places generation is also a separate command, not a build stage. It
+reads `exports/places.json`, `exports/place_links.json`,
+`exports/descriptions.json` and `hugo.toml` directly, so it can run on its own
+and target its own host:
+
+```
+zasqua places
+```
+
+This writes one Linked Places Format (LPF) record per place to `PLACES_DIR`,
+which defaults to `public/places/`: each place as its own collection at
+`{place_code}.json`, and every place that carries a `when` together in
+`index.json`. `index.json` is the LPF-conformant corpus, the file to upload to
+the World Historical Gazetteer (WHG) or another gazetteer that ingests LPF in
+bulk; LPF requires a `when` on each place, so a place without one is
+published only as its own file. A single-bucket deployment runs `zasqua build` then
+`zasqua places` and serves the records with the site at
+`/places/{place_code}.json`. A deployment that hosts the records on a separate
+domain sets `PLACES_DIR` to a staging directory outside `public/` and uploads
+it there. Linked Places configuration lives in `hugo.toml`:
+
+- `places_language` (in `[params]`) — the language tag declared on each
+  place name (e.g. `es`); omitted when unset. The site's
+  `defaultContentLanguage` is not used, since the language of the interface
+  says nothing about the language of the place names.
+- `places_base_url` (in `[params]`) — the public URL base the records are
+  served from; when it is an absolute URL and `PLACES_DIR` resolves under
+  `public/`, `zasqua places` warns that the files would be served with the
+  site instead.
+
+Each record's `@id` is the place's page on the site (`baseURL` followed by
+`/{place_code}/`), and its first name cites the site `title`. The record's
+`when` is the span from the earliest to the latest year of the dated
+descriptions linked to the place in `place_links.json`, each description's
+years taken from its `date_start` and `date_expression` as the date facets
+take them. A place that no dated description mentions, or every place when
+`place_links.json` or `descriptions.json` is absent, carries no `when`; it is
+written as its own file and left out of `index.json`, and the command reports
+how many records lack one. Of the authority identifiers, only WHG, TGN and
+Wikidata ids are emitted, as `closeMatch` links. The output carries no
+timestamps, so an unchanged export produces byte-identical files. A record
+that breaks the place contract (no `place_code`, no `display_name`, an unknown
+`fclass`, or coordinates that are not a valid pair), or whose filename an
+earlier record has already taken, is skipped with a warning naming it, and the
+run continues. So is a place whose code would be written as `index.json`,
+and a place whose `place_code` is not an XML name token (letters, digits, `.`,
+`_`, `:` and `-` only), since the code becomes the record's URL and filename.
 
 ## 7. Host
 

@@ -3,8 +3,8 @@
  * Zasqua CLI
  *
  * This is the command-line entry point for the @ucsb-ampl/zasqua
- * engine. It exposes six commands — `build`, `dev`, `mets`, `init`,
- * `validate`, and `import` — that wrap the build pipeline, setup helpers,
+ * engine. It exposes eight commands — `build`, `dev`, `mets`, `eac`, `places`,
+ * `init`, `validate`, and `import` — that wrap the build pipeline, setup helpers,
  * and data importers through the engine + instance directory structure.
  * The CLI is invoked from the instance directory; it reads the instance
  * root from `process.cwd()`, copies `themes/base` from the engine's
@@ -16,6 +16,11 @@
  *   zasqua dev      — copy base theme and start `hugo server`
  *   zasqua mets     — generate one METS XML per description into METS_DIR
  *                     (default public/mets); independent of the Hugo build
+ *   zasqua eac      — generate one EAC-CPF XML per entity into EAC_DIR
+ *                     (default public/eac); independent of the Hugo build
+ *   zasqua places   — generate one Linked Places record per place, plus
+ *                     index.json, into PLACES_DIR (default public/places);
+ *                     independent of the Hugo build
  *   zasqua init     — scan data dir, scaffold a commented zasqua.manifest.toml
  *   zasqua validate — validate the manifest + data inputs standalone
  *   zasqua import   — convert a source dataset into the six-file contract
@@ -47,12 +52,12 @@
  *   `lib/pipeline.js`, `lib/init.js`, `lib/validator.js`, and
  *   `lib/importers/dispatch.js`.
  *
- * @version v1.3.0
+ * @version v1.5.0
  */
 
 'use strict';
 
-const { runBuild, runDev, runMets } = require('../lib/pipeline');
+const { runBuild, runDev, runMets, runEac, runPlaces } = require('../lib/pipeline');
 const { runInit } = require('../lib/init');
 const { runValidate } = require('../lib/validator');
 
@@ -88,6 +93,8 @@ function usage() {
     '  build    Validate manifest, copy base theme, run the full 7-stage pipeline\n' +
     '  dev      Copy base theme and start hugo server (127.0.0.1:1313)\n' +
     '  mets     Generate one METS XML per description into METS_DIR (default public/mets)\n' +
+    '  eac      Generate one EAC-CPF XML per entity into EAC_DIR (default public/eac)\n' +
+    '  places   Generate one Linked Places record per place, plus index.json, into PLACES_DIR (default public/places)\n' +
     '  init     Scan data dir and scaffold a commented zasqua.manifest.toml\n' +
     '  validate Validate manifest + data inputs (standalone)\n' +
     '  import   Convert a source dataset into the six-file contract format\n' +
@@ -120,6 +127,14 @@ async function main() {
 
     case 'mets':
       await runMets();
+      break;
+
+    case 'eac':
+      await runEac();
+      break;
+
+    case 'places':
+      await runPlaces();
       break;
 
     case 'init':
@@ -171,4 +186,4 @@ if (require.main === module) {
 
 module.exports = { main };
 
-// Version: v1.3.0
+// Version: v1.5.0

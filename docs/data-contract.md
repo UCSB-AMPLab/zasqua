@@ -13,7 +13,7 @@
 
   Contract version: 1.0 (independent of engine package version)
 
-  Version: v1.3.0
+  Version: v1.5.0
 -->
 
 # Zasqua Data Contract v1.0
@@ -157,21 +157,22 @@ families). `entity_code` is the primary identifier and becomes the URL slug.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `entity_code` | string | Yes | Unique identifier with `ne-` prefix (e.g. `ne-da5jn`); becomes the URL slug at `/{entity_code}/`. |
-| `display_name` | string | Yes | Full display name used in page titles, list cards, and graph labels. |
-| `entity_type` | string | Yes | Entity type: `person`, `corporate`, or `family`. |
+| `display_name` | string | Yes | Full display name used in page titles, list cards, and graph labels. Feeds the EAC-CPF authorized `nameEntry`. |
+| `entity_type` | string | Yes | Entity type: `person`, `corporate`, or `family`. Feeds EAC-CPF `entityType`. `corporate` is the contract value; the EAC-CPF exporter also accepts `corporate_body` and `corporateBody`. |
 | `sort_name` | string | No | Normalized name used for alphabetical sorting (typically surname-first for persons). |
 | `primary_function` | string | No | Primary function or occupation; used as a Pagefind facet. |
-| `functions` | array | No | Array of function objects (`{function, count}`); displayed in the entity detail page. |
-| `dates_of_existence` | string | No | Free-text dates of existence per ISAAR-CPF 5.2.1. |
-| `date_earliest` | string | No | Earliest year of activity (YYYY or YYYY-MM-DD); used for date facets. |
-| `date_latest` | string | No | Latest year of activity (YYYY or YYYY-MM-DD); used for date facets. |
-| `surname` | string | No | Surname component of a person's name; used in structured name display. |
-| `given_name` | string | No | Given name component; used in structured name display. |
-| `honorific` | string | No | Title or honorific (e.g. `Don`, `Doña`); used in structured name display. |
-| `name_variants` | array | No | Array of name variant strings; included in Pagefind metadata. |
-| `history` | string | No | Biographical or administrative history per ISAAR-CPF 5.2.2. |
-| `viaf_id` | string | No | VIAF authority identifier; displayed as an external authority link. |
-| `dbe_id` | integer or null | No | DBE (Diccionario Biográfico Español) identifier; `null` when absent. |
+| `functions` | array | No | Array of function objects (`{function, count}`); displayed in the entity detail page. Each non-empty `function` feeds an EAC-CPF `function` term; counts are not exported. |
+| `dates_of_existence` | string | No | Free-text dates of existence per ISAAR-CPF 5.2.1. Feeds the text of EAC-CPF `existDates`. |
+| `date_earliest` | string | No | Earliest year of activity (YYYY or YYYY-MM-DD); used for date facets. Feeds the EAC-CPF `existDates` `standardDate`; the EAC-CPF exporter accepts an integer year as well as the string forms. |
+| `date_latest` | string | No | Latest year of activity (YYYY or YYYY-MM-DD); used for date facets. Feeds the EAC-CPF `existDates` `standardDate`; the EAC-CPF exporter accepts an integer year as well as the string forms. |
+| `surname` | string | No | Surname component of a person's name; used in structured name display. Feeds an EAC-CPF name `part` (`localType="surname"`). |
+| `given_name` | string | No | Given name component; used in structured name display. Feeds an EAC-CPF name `part` (`localType="forename"`). |
+| `honorific` | string | No | Title or honorific (e.g. `Don`, `Doña`); used in structured name display. Feeds an EAC-CPF name `part` (`localType="honorific"`). |
+| `name_variants` | array | No | Array of name variant strings; included in Pagefind metadata. Each distinct variant feeds a further EAC-CPF `nameEntry`. |
+| `history` | string | No | Biographical or administrative history per ISAAR-CPF 5.2.2. Feeds EAC-CPF `biogHist`. |
+| `viaf_id` | string | No | VIAF authority identifier; displayed as an external authority link. Feeds an EAC-CPF identity `cpfRelation` to `https://viaf.org/viaf/{viaf_id}`. |
+| `wikidata_id` | string | No | Wikidata identifier (e.g. `Q12345`). Feeds an EAC-CPF identity `cpfRelation` to `http://www.wikidata.org/entity/{wikidata_id}`. |
+| `dbe_id` | integer or null | No | DBE (Diccionario Biográfico Español) identifier; `null` when absent. Not yet exported as an EAC-CPF link. |
 | `modified_at` | string | No | ISO date (YYYY-MM-DD) of the last backend modification; used for per-page ETag stability. |
 
 ---
@@ -210,17 +211,27 @@ identifier and becomes the URL slug.
 |-------|------|----------|-------------|
 | `id` | integer | Yes | Internal numeric identifier. |
 | `place_code` | string | Yes | Unique identifier with `nl-` prefix (e.g. `nl-qfsbu`); becomes the URL slug at `/{place_code}/`. |
-| `display_name` | string | Yes | Display name used in page titles, markers, and list cards. |
-| `place_type` | string | No | Place type (e.g. `city`, `administrative_division`, `region`, `country`, `geographical_feature`, `river`, `other`). |
-| `latitude` | number or null | No | WGS 84 latitude; `null` for places without known coordinates. Places without coordinates are valid — the map skips them. |
-| `longitude` | number or null | No | WGS 84 longitude; `null` for places without known coordinates. |
-| `country_code` | string | No | ISO 3166-1 alpha-2 or alpha-3 country code; resolved to a country name via the Intl API. |
-| `name_variants` | array | No | Array of name variant strings; included in Pagefind metadata. |
-| `wikidata_id` | string | No | Wikidata identifier (e.g. `Q12345`); displayed as an external authority link. |
-| `tgn_id` | string | No | Getty Thesaurus of Geographic Names identifier; displayed as an external authority link. |
-| `whg_id` | string | No | World Historical Gazetteer identifier; displayed as an external authority link. |
-| `hgis_id` | string | No | HGIS de las Indias identifier; displayed as an external authority link. |
+| `display_name` | string | Yes | Display name used in page titles, markers, and list cards. Feeds the Linked Places `title` and first, cited name. |
+| `label` | string | No | Short name of the place. Feeds a further Linked Places name when it differs from `display_name`. |
+| `place_type` | string | No | Place type (e.g. `city`, `administrative_division`, `region`, `country`, `geographical_feature`, `river`, `other`). Feeds Linked Places `types` for `city`, `river` and `region` (Getty AAT concepts); other values are not exported. |
+| `fclass` | string | No | GeoNames feature class: one of `A`, `H`, `L`, `P`, `R`, `S`, `T`. Optional in the contract but required by `zasqua places`, which feeds it to Linked Places `fclasses` and skips a place without a valid one. |
+| `latitude` | number or null | No | WGS 84 latitude; `null` for places without known coordinates. Places without coordinates are valid — the map skips them. Feeds the Linked Places Point geometry, which is `null` when both coordinates are. |
+| `longitude` | number or null | No | WGS 84 longitude; `null` for places without known coordinates. Feeds the Linked Places Point geometry. |
+| `country_code` | string | No | ISO 3166-1 alpha-2 or alpha-3 country code; resolved to a country name via the Intl API. Not yet exported; would feed Linked Places `ccodes` when populated. |
+| `name_variants` | array | No | Array of name variant strings; included in Pagefind metadata. Each distinct variant feeds a further Linked Places name. |
+| `wikidata_id` | string | No | Wikidata identifier (e.g. `Q12345`); displayed as an external authority link. Feeds a Linked Places `closeMatch` link to `http://www.wikidata.org/entity/{wikidata_id}`. |
+| `tgn_id` | string | No | Getty Thesaurus of Geographic Names identifier; displayed as an external authority link. Feeds a Linked Places `closeMatch` link to `http://vocab.getty.edu/tgn/{tgn_id}`. |
+| `whg_id` | string | No | World Historical Gazetteer identifier; displayed as an external authority link. Feeds a Linked Places `closeMatch` link to `https://whgazetteer.org/places/{whg_id}/detail`. |
+| `hgis_id` | string | No | HGIS de las Indias identifier; displayed as an external authority link. Not exported as a Linked Places link. |
 | `modified_at` | string | No | ISO date (YYYY-MM-DD) of the last backend modification; used for per-page ETag stability. |
+
+The Linked Places `when` comes from the dated descriptions linked to the
+place in `place_links.json` (their `date_start` and `date_expression`). Every
+place is written as its own Linked Places file; `index.json`, the
+LPF-conformant corpus for bulk ingest, holds only the places that carry a
+`when`, so a place no dated description mentions is published individually
+only. The contract carries no language for place names, so a name declares a
+`lang` only when the deployer sets `places_language` in `hugo.toml`.
 
 ---
 
