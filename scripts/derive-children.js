@@ -10,12 +10,16 @@
  * without downloading pre-computed data from external storage.
  *
  * Each shard is a small JSON file named after the parent's numeric id
- * (e.g. `exports/children/1.json`). It contains a Django REST Framework
- * pagination envelope — `{"count": N, "results": [...]}` — listing the
+ * (e.g. `exports/children/1.json`). It contains a paginated-API
+ * envelope — `{"count": N, "results": [...]}` — listing the
  * children in `reference_code` ascending order so the tree renders them
- * in archival shelf order. Each child object carries exactly nine fields:
- * id, reference_code, title, description_level, date_expression,
- * scope_content, child_count, children_level, and has_digital.
+ * in archival shelf order. Each child object carries nine fields: id,
+ * reference_code, title, description_level, date_expression, scope_content,
+ * child_count, children_level, and has_digital. A tenth, local_identifier,
+ * follows them when the record carries that field (null and the empty string
+ * included); the tree shows it as the item number. When the record does not
+ * carry the field at all, as in an export that predates it, the key is left
+ * out so the tree can tell that case from "no identifier".
  *
  * Pipeline context: runs as Stage 2b in `build.sh`, after precompute-links
  * (Stage 2) and before npm ci (Stage 3). Reads `exports/descriptions.json`
@@ -44,7 +48,7 @@
  * `[derive-children] WARN` line is emitted for each orphan so operators can
  * investigate data integrity issues without a build crash.
  *
- * @version v1.3.0
+ * @version v1.6.0
  */
 
 const fs = require('fs');
@@ -56,9 +60,9 @@ const DATA_DIR = process.env.DATA_DIR || path.join(INSTANCE_ROOT, 'exports');
 // ---------------------------------------------------------------------------
 // JSON serializer that matches Python's json.dumps default format exactly:
 //   separators = (", ", ": ")  →  {"key": value, "key2": value2}
-// The B2 reference shards were produced by Django REST Framework (Python),
-// which uses this separator style. Byte-parity against those reference
-// shards requires matching it exactly.
+// Earlier shards were produced by a Python backend, which uses this
+// separator style. Shards from the two sources are byte-identical only if
+// this serializer matches it exactly.
 //
 // Node's JSON.stringify uses no spaces, so we need a custom encoder.
 // The output is UTF-8 with raw Unicode characters (not \uXXXX escapes),
@@ -174,9 +178,10 @@ function deriveChildren(descriptions) {
       byParent.set(parentId, []);
     }
 
-    // Emit exactly the 9 confirmed fields in confirmed order.
-    // date_expression defaults to '' when null (pipeline contract).
-    byParent.get(parentId).push({
+    // Emit the 9 confirmed fields in confirmed order, then local_identifier
+    // when the record has the key. date_expression defaults to '' when null
+    // (pipeline contract).
+    const child = {
       id: desc.id,
       reference_code: desc.reference_code,
       title: desc.title,
@@ -186,12 +191,16 @@ function deriveChildren(descriptions) {
       child_count: desc.child_count || 0,
       children_level: desc.children_level !== undefined ? desc.children_level : null,
       has_digital: desc.has_digital || false,
-    });
+    };
+    if (Object.prototype.hasOwnProperty.call(desc, 'local_identifier')) {
+      child.local_identifier = desc.local_identifier;
+    }
+    byParent.get(parentId).push(child);
   }
 
   // Sort each parent's children by reference_code ascending — this matches the
-  // ordering of every multi-child shard in the B2 reference set, confirmed by
-  // spot-check. Use localeCompare for safe string sort; reference_code values
+  // ordering of every multi-child shard in the earlier Python-generated
+  // set, confirmed by spot-check. Use localeCompare for safe string sort; reference_code values
   // are pure ASCII in practice but localeCompare is defensive against any
   // future Unicode codes.
   const shards = new Map();
@@ -243,7 +252,7 @@ async function main() {
 
   // Write one shard per parent. The serialization must match Python's
   // json.dumps default format (", " and ": " separators, raw UTF-8) to
-  // achieve byte-parity with the B2 reference shards.
+  // stay byte-identical to the earlier Python-generated shards.
   const childrenDir = path.join(DATA_DIR, 'children');
   fs.mkdirSync(childrenDir, { recursive: true });
 
@@ -274,4 +283,4 @@ if (require.main === module) {
   });
 }
 
-// Version: v1.3.0
+// Version: v1.6.0
