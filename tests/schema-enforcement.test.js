@@ -35,7 +35,7 @@
  * so would require inventing fixture data the engine-smoke fixture doesn't
  * carry, which is out of scope for this change.
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
@@ -120,4 +120,56 @@ describe('schema enforcement — engine-smoke fixture, strict mode', () => {
   });
 });
 
-// Version: v1.4.0
+describe('schema enforcement — string ids and null optional fields (Fisqua-shaped export)', () => {
+  it('passes the full strict path when ids are UUID strings, parent_id follows, and empty optional fields are null', () => {
+    // Exports from Fisqua carry UUID strings as ids and null for optional
+    // fields with no value; exports from the retired Django backend carried
+    // integers and omitted the keys. Both shapes must pass strict validation.
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'zasqua-schema-fisqua-shape-'));
+    try {
+      const tmpExports = path.join(tmpRoot, 'exports');
+      fs.mkdirSync(tmpExports, { recursive: true });
+      const read = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURE, 'exports', name), 'utf8'));
+      const write = (name, data) => fs.writeFileSync(path.join(tmpExports, name), JSON.stringify(data), 'utf8');
+
+      const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+      const descriptions = read('descriptions.json').map((d) => ({
+        ...d,
+        id: uuid(d.id),
+        parent_id: d.parent_id === null || d.parent_id === undefined ? null : uuid(d.parent_id),
+        related_materials: null,
+      }));
+      const repositories = read('repositories.json').map((r) => ({ ...r, id: uuid(r.id) }));
+      const entities = read('entities.json').map((e) => ({
+        ...e, date_earliest: null, date_latest: null, viaf_id: null, wikidata_id: null,
+      }));
+      const places = read('places.json').map((p) => ({
+        ...p, id: uuid(p.id), country_code: null, wikidata_id: null, tgn_id: null, whg_id: null, hgis_id: null,
+      }));
+      write('descriptions.json', descriptions);
+      write('repositories.json', repositories);
+      write('entities.json', entities);
+      write('places.json', places);
+      write('place_links.json', read('place_links.json'));
+      write('entity_links.json', []);
+
+      const manifest = {
+        modules: {
+          hierarchy: false,
+          entities: true,
+          entities_graph: false,
+          places: true,
+          places_map: false,
+          iiif: false,
+          ocr: false,
+        },
+      };
+      const errors = runValidate({ manifest, instanceRoot: tmpRoot, engineRoot: ENGINE_ROOT, strict: true });
+      expect(errors).toEqual([]);
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+// Version: v1.6.0

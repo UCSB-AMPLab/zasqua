@@ -9,7 +9,7 @@
  * existence with JSON array shape and required keys plus primitive types,
  * and full JSON Schema validation via ajv draft-07 under `--strict`.
  *
- * Ten behaviors covered:
+ * Behaviors covered:
  *
  *   1. Dependency violation (entities_graph without entities) —
  *      validateManifest returns an error mentioning entities_graph
@@ -48,19 +48,36 @@
  *      TypeError. A primitive string element is likewise reported, not
  *      thrown on.
  *
+ *  11. Older spellings of the corporate entity type — a warning naming
+ *      `corporate`, never an error.
+ *
+ *  12. Codes the vocabulary does not define — one warning per distinct
+ *      code absent from vocabulary.json (or, without the file, from the
+ *      bundled vocabulary), compared untrimmed, roles in lowercase and
+ *      types as written, as vocab.html compares them, with its file,
+ *      record count and how the pages show it; the result and the exit
+ *      status of `zasqua validate` are unchanged.
+ *
+ *  13. Former codes that are also live codes — one warning per clash in
+ *      descriptions, entities and places, naming the code and the record
+ *      that lists it; a code listed twice by one record is reported once;
+ *      no warning when the former codes are free; never an error.
+ *
  * All fixtures are written to os.tmpdir() — no real corpus data needed.
  *
- * @version v0.3.1
+ * @version v1.6.0
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { createRequire } from 'module';
+import { spawnSync } from 'child_process';
+import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
-const { validateManifest, validateInputs, validateSchemas } = require('../lib/validator.js');
+const { validateManifest, validateInputs, validateSchemas, runValidate } = require('../lib/validator.js');
 
 // ---------------------------------------------------------------------------
 // Fixture helpers
@@ -366,7 +383,7 @@ describe('validateInputs — conformant data', () => {
 // ---------------------------------------------------------------------------
 
 describe('validateInputs — wrong primitive type', () => {
-  it('returns an error when id is a string instead of a number', () => {
+  it('returns an error when title is a number instead of a string', () => {
     const manifest = {
       modules: {
         hierarchy: false,
@@ -378,7 +395,7 @@ describe('validateInputs — wrong primitive type', () => {
         ocr: false,
       },
     };
-    const badDesc = makeDesc({ id: 'not-a-number' });
+    const badDesc = makeDesc({ title: 42 });
     const dataDir = makeTmpDataDir({
       'descriptions.json': [badDesc],
       'repositories.json': [makeRepo()],
@@ -387,7 +404,7 @@ describe('validateInputs — wrong primitive type', () => {
     expect(Array.isArray(errors)).toBe(true);
     expect(errors.length).toBeGreaterThan(0);
     const combined = errors.join(' ');
-    expect(combined).toMatch(/id/);
+    expect(combined).toMatch(/key 'title'/);
   });
 });
 
@@ -431,4 +448,316 @@ describe('validateSchemas (--strict mode)', () => {
   });
 });
 
-// Version: v0.3.1
+// ---------------------------------------------------------------------------
+// Record ids: integers (Django-era exports) and strings (Fisqua exports) both
+// pass the key pre-pass; any other type is still rejected.
+// ---------------------------------------------------------------------------
+
+describe('validateInputs — id may be an integer or a string', () => {
+  const manifest = {
+    modules: {
+      hierarchy: false,
+      entities: false,
+      entities_graph: false,
+      places: false,
+      places_map: false,
+      iiif: false,
+      ocr: false,
+    },
+  };
+  const desc = (id) => ({
+    id,
+    reference_code: 'co-ahrb-aht-001',
+    title: 'Fondo',
+    description_level: 'fonds',
+    parent_reference_code: null,
+    repository_code: 'ahrb',
+  });
+
+  it('accepts a UUID string id on descriptions and repositories', () => {
+    const dataDir = makeTmpDataDir({
+      'descriptions.json': [desc('5c1a1c9e-2a6b-4d0f-9b3e-0c3f0a1b2c3d')],
+      'repositories.json': [makeRepo({ id: 'e2c2f4a0-1111-4222-8333-444455556666' })],
+    });
+    const errors = validateInputs(manifest, dataDir).filter((e) => /key 'id'/.test(e));
+    expect(errors).toEqual([]);
+  });
+
+  it('still accepts an integer id', () => {
+    const dataDir = makeTmpDataDir({
+      'descriptions.json': [desc(42)],
+      'repositories.json': [makeRepo()],
+    });
+    const errors = validateInputs(manifest, dataDir).filter((e) => /key 'id'/.test(e));
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects a boolean id with the expected-type message', () => {
+    const dataDir = makeTmpDataDir({
+      'descriptions.json': [desc(true)],
+      'repositories.json': [makeRepo()],
+    });
+    const errors = validateInputs(manifest, dataDir);
+    expect(errors.join(' ')).toMatch(/wrong type for key 'id' at record 0: expected number\|string, got boolean/);
+  });
+});
+
+describe('validateInputs — older spellings of the corporate entity type', () => {
+  const manifest = { modules: { entities: true } };
+
+  function run(entities) {
+    const dataDir = makeTmpDataDir({
+      'descriptions.json': [makeDesc()],
+      'repositories.json': [makeRepo()],
+      'entities.json': entities,
+      'entity_links.json': [makeEntityLink()],
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const errors = validateInputs(manifest, dataDir);
+      return { errors, warnings: warn.mock.calls.map((c) => c.join(' ')) };
+    } finally {
+      warn.mockRestore();
+      log.mockRestore();
+    }
+  }
+
+  // The bundled vocabulary has no corporateBody, so that spelling also gets
+  // an undefined-code warning; these tests count the legacy-spelling lines.
+  const legacy = (warnings) => warnings.filter((w) => /should be 'corporate'/.test(w));
+
+  it('warns, without an error, for corporateBody and names corporate', () => {
+    const { errors, warnings: all } = run([makeEntity({ entity_code: 'ne-aaaaa', entity_type: 'corporateBody' })]);
+    const warnings = legacy(all);
+    expect(errors).toEqual([]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/status=warn/);
+    expect(warnings[0]).toMatch(/'corporateBody'/);
+    expect(warnings[0]).toMatch(/ne-aaaaa/);
+    expect(warnings[0]).toMatch(/should be 'corporate'/);
+  });
+
+  it('warns, without an error, for corporate_body', () => {
+    const { errors, warnings } = run([makeEntity({ entity_type: 'corporate_body' })]);
+    expect(errors).toEqual([]);
+    expect(legacy(warnings)).toHaveLength(1);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/'corporate_body'/);
+  });
+
+  it('does not warn for corporate, person or family', () => {
+    const { errors, warnings } = run([
+      makeEntity({ entity_code: 'ne-aaaaa', entity_type: 'corporate' }),
+      makeEntity({ entity_code: 'ne-bbbbb', entity_type: 'person' }),
+      makeEntity({ entity_code: 'ne-ccccc', entity_type: 'family' }),
+    ]);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Codes the vocabulary does not define
+// ---------------------------------------------------------------------------
+
+describe('validateInputs — codes the vocabulary does not define', () => {
+  const manifest = { modules: { entities: true, places: true } };
+  const DATA = {
+    'descriptions.json': [makeDesc()],
+    'repositories.json': [makeRepo()],
+    'entities.json': [
+      makeEntity({ entity_code: 'ne-aaaaa', entity_type: 'person' }),
+      makeEntity({ entity_code: 'ne-bbbbb', entity_type: 'Family' }),
+      makeEntity({ entity_code: 'ne-ccccc', entity_type: 'guild' }),
+      makeEntity({ entity_code: 'ne-ddddd', entity_type: 'Guild' }),
+    ],
+    'entity_links.json': [
+      makeEntityLink({ role: 'witness' }),
+      makeEntityLink({ role: 'Witness' }),
+      makeEntityLink({ role: 'ferryman' }),
+    ],
+    'places.json': [makePlace({ place_type: 'city' }), makePlace({ place_type: 'hamlet' })],
+    'place_links.json': [makePlaceLink({ role: 'origin' }), makePlaceLink({ role: '' })],
+  };
+  const VOCAB = {
+    entity_types: [{ code: 'PERSON', label: { es: 'Persona', en: 'Person' } }, { code: 'guild', label: { es: 'Gremio', en: 'Guild' } }],
+    place_types: [{ code: 'hamlet', label: { es: 'Caserío', en: 'Hamlet' } }],
+    entity_roles: [{ code: 'witness', label: { es: 'Testigo', en: 'Witness' } }],
+    place_roles: [{ code: 'origin', label: { es: 'Origen', en: 'Origin' } }],
+  };
+
+  function run(files) {
+    const dataDir = makeTmpDataDir(files);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const errors = validateInputs(manifest, dataDir);
+      return { errors, warnings: warn.mock.calls.map((c) => c.join(' ')) };
+    } finally {
+      warn.mockRestore();
+      log.mockRestore();
+    }
+  }
+
+  it('with vocabulary.json, warns once per distinct code the file lacks; roles ignore case, types do not', () => {
+    const { errors, warnings } = run({ ...DATA, 'vocabulary.json': VOCAB });
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([
+      "validate module=entities status=warn warning=\"entities.json entity_type 'person' (1 record) is not defined in vocabulary.json entity_types; shown with the engine's label\"",
+      "validate module=entities status=warn warning=\"entities.json entity_type 'Family' (1 record) is not defined in vocabulary.json entity_types; shown as the code\"",
+      "validate module=entities status=warn warning=\"entities.json entity_type 'Guild' (1 record) is not defined in vocabulary.json entity_types; shown as the code\"",
+      "validate module=places status=warn warning=\"places.json place_type 'city' (1 record) is not defined in vocabulary.json place_types; shown with the engine's label\"",
+      "validate module=entity_links status=warn warning=\"entity_links.json role 'ferryman' (1 record) is not defined in vocabulary.json entity_roles; shown as the code\"",
+    ]);
+  });
+
+  it('reports Family as undefined and shown as the code when the vocabulary defines family', () => {
+    const { errors, warnings } = run({
+      ...DATA,
+      'entities.json': [makeEntity({ entity_type: 'Family' })],
+      'vocabulary.json': { ...VOCAB, entity_types: [{ code: 'family', label: { es: 'Familia', en: 'Family' } }] },
+    });
+    expect(errors).toEqual([]);
+    expect(warnings.filter((w) => /entities\.json/.test(w))).toEqual([
+      "validate module=entities status=warn warning=\"entities.json entity_type 'Family' (1 record) is not defined in vocabulary.json entity_types; shown as the code\"",
+    ]);
+  });
+
+  it('compares codes untrimmed on both sides, as the pages do', () => {
+    const { errors, warnings } = run({
+      ...DATA,
+      'entities.json': [makeEntity({ entity_type: ' person ' }), makeEntity({ entity_type: 'family' })],
+      'entity_links.json': [makeEntityLink({ role: ' Witness' })],
+      'vocabulary.json': { ...VOCAB, entity_types: [{ code: ' family ', label: { en: 'Family' } }, { code: ' person ', label: { en: 'Person' } }] },
+    });
+    expect(errors).toEqual([]);
+    expect(warnings.filter((w) => /entit(ies|y_links)\.json/.test(w))).toEqual([
+      "validate module=entities status=warn warning=\"entities.json entity_type 'family' (1 record) is not defined in vocabulary.json entity_types; shown with the engine's label\"",
+      "validate module=entity_links status=warn warning=\"entity_links.json role ' Witness' (1 record) is not defined in vocabulary.json entity_roles; shown as the code\"",
+    ]);
+    const bundledOnly = run({ ...DATA, 'entities.json': [makeEntity({ entity_type: ' person ' })] });
+    expect(bundledOnly.warnings.filter((w) => /entities\.json/.test(w))).toEqual([
+      "validate module=entities status=warn warning=\"entities.json entity_type ' person ' (1 record) is not defined in the engine's bundled vocabulary; shown as the code\"",
+    ]);
+  });
+
+  it('without vocabulary.json, warns only for codes the bundled vocabulary lacks', () => {
+    const { errors, warnings } = run(DATA);
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([
+      "validate module=entities status=warn warning=\"entities.json entity_type 'Family' (1 record) is not defined in the engine's bundled vocabulary; shown as the code\"",
+      "validate module=entities status=warn warning=\"entities.json entity_type 'guild' (1 record) is not defined in the engine's bundled vocabulary; shown as the code\"",
+      "validate module=entities status=warn warning=\"entities.json entity_type 'Guild' (1 record) is not defined in the engine's bundled vocabulary; shown as the code\"",
+      "validate module=places status=warn warning=\"places.json place_type 'hamlet' (1 record) is not defined in the engine's bundled vocabulary; shown as the code\"",
+      "validate module=entity_links status=warn warning=\"entity_links.json role 'ferryman' (1 record) is not defined in the engine's bundled vocabulary; shown as the code\"",
+    ]);
+  });
+
+  it('checks only the files of enabled modules', () => {
+    const dataDir = makeTmpDataDir(DATA);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      validateInputs({ modules: {} }, dataDir);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      log.mockRestore();
+    }
+  });
+
+  it('never changes the result or the exit status', () => {
+    const exportsDir = makeTmpDataDir(DATA);
+    const instance = path.dirname(exportsDir);
+    fs.writeFileSync(
+      path.join(instance, 'zasqua.manifest.toml'),
+      '[ui]\nlanguage = "en-US"\n\n[modules]\nentities = true\nplaces = true\n',
+      'utf8'
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      expect(runValidate({ instanceRoot: instance })).toEqual([]);
+    } finally {
+      warn.mockRestore();
+      log.mockRestore();
+    }
+    const script = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'validator.js');
+    const cli = spawnSync('node', [script], {
+      env: { ...process.env, INSTANCE_ROOT: instance, DATA_DIR: '' },
+      encoding: 'utf8',
+    });
+    expect(cli.stderr).toContain("role 'ferryman' (1 record)");
+    expect(cli.stdout).toContain('[validate] All checks passed.');
+    expect(cli.status).toBe(0);
+  });
+});
+
+
+describe('validateInputs — former codes that are also live codes', () => {
+  const manifest = { modules: { entities: true, places: true } };
+  const BASE = {
+    'descriptions.json': [makeDesc()],
+    'repositories.json': [makeRepo()],
+    'entities.json': [makeEntity()],
+    'entity_links.json': [makeEntityLink()],
+    'places.json': [makePlace()],
+    'place_links.json': [makePlaceLink()],
+  };
+
+  function run(files, m = manifest) {
+    const dataDir = makeTmpDataDir({ ...BASE, ...files });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const errors = validateInputs(m, dataDir);
+      return { errors, warnings: warn.mock.calls.map((c) => c.join(' ')).filter((w) => /former/.test(w)) };
+    } finally {
+      warn.mockRestore();
+      log.mockRestore();
+    }
+  }
+
+  it('is silent when no former code is a live code', () => {
+    const { errors, warnings } = run({
+      'descriptions.json': [makeDesc({ former_reference_codes: ['co-ahrb-old'] })],
+      'entities.json': [makeEntity({ former_codes: ['ne-old01'] })],
+      'places.json': [makePlace({ former_codes: ['nl-old01'] })],
+    });
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([]);
+  });
+
+  it('warns once per clash in each file, and never adds an error', () => {
+    const { errors, warnings } = run({
+      'descriptions.json': [
+        makeDesc({ reference_code: 'co-ahrb-001', former_reference_codes: ['co-ahrb-002', 'co-ahrb-002'] }),
+        makeDesc({ id: 2, reference_code: 'co-ahrb-002' }),
+      ],
+      'entities.json': [
+        makeEntity({ entity_code: 'ne-aaaaa', former_codes: ['ne-aaaaa'] }),
+      ],
+      'places.json': [
+        makePlace({ place_code: 'nl-aaaaa', former_codes: ['nl-bbbbb', '', 7] }),
+        makePlace({ id: 2, place_code: 'nl-bbbbb' }),
+      ],
+    });
+    expect(errors).toEqual([]);
+    expect(warnings).toEqual([
+      "validate module=descriptions status=warn warning=\"descriptions.json former_reference_codes 'co-ahrb-002' of 'co-ahrb-001' is the reference_code of another record; that address shows the other record, not a redirect\"",
+      "validate module=entities status=warn warning=\"entities.json former_codes 'ne-aaaaa' of 'ne-aaaaa' is its own entity_code\"",
+      "validate module=places status=warn warning=\"places.json former_codes 'nl-bbbbb' of 'nl-aaaaa' is the place_code of another record; that address shows the other record, not a redirect\"",
+    ]);
+  });
+
+  it('checks entities and places only when their modules are enabled', () => {
+    const { warnings } = run(
+      { 'entities.json': [makeEntity({ former_codes: ['ne-abc12'] })] },
+      { modules: {} }
+    );
+    expect(warnings).toEqual([]);
+  });
+});
+
+// Version: v1.6.0

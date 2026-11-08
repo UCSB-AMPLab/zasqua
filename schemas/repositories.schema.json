@@ -1,9 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.0/repositories.schema.json",
-  "x-contract-version": "1.0",
-  "title": "Zasqua repositories.json — Data Contract v1.0",
-  "description": "JSON Schema draft-07 for the repositories export file produced by the Zasqua data contract v1.0. Required keys + types are authoritative from docs/data-contract.md.",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.1/repositories.schema.json",
+  "x-contract-version": "1.1",
+  "title": "Zasqua repositories.json — Data Contract v1.1",
+  "description": "JSON Schema draft-07 for the repositories export file. Only id, code and name are required; every other field is optional, and text fields may be null. Field meanings are in docs/data-contract.md.",
+  "definitions": {
+    "bilingual": {
+      "type": "object",
+      "description": "Text in each language, keyed by language code (es, en). A member may be null; the field counts as empty when every member is.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
   "type": "array",
   "items": {
     "type": "object",
@@ -13,16 +25,283 @@
       "name"
     ],
     "properties": {
-      "id": { "type": "integer" },
-      "code": { "type": "string" },
-      "name": { "type": "string" },
-      "short_name": { "type": "string" },
-      "country": { "type": "string" },
-      "city": { "type": "string" },
-      "description_count": { "type": "integer" },
-      "image_reproduction_text": { "type": "string" },
-      "root_descriptions": { "type": "array" },
-      "modified_at": { "type": "string" }
+      "id": {
+        "type": [
+          "integer",
+          "string"
+        ]
+      },
+      "code": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "short_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "display_title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "subtitle": {
+        "anyOf": [
+          { "$ref": "#/definitions/bilingual" },
+          { "type": "string" }
+        ]
+      },
+      "hero_image_url": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "other_names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "institution_type": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "logo_url": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "contact": {
+        "type": "object",
+        "properties": {
+          "street_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "region": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "postal_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "telephone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "website": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "country": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "country_code": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "city": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "address": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "website": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "holdings": {
+        "$ref": "#/definitions/bilingual"
+      },
+      "history": {
+        "$ref": "#/definitions/bilingual"
+      },
+      "access": {
+        "type": "object",
+        "properties": {
+          "opening_times": {
+            "$ref": "#/definitions/bilingual"
+          },
+          "conditions": {
+            "$ref": "#/definitions/bilingual"
+          },
+          "accessibility": {
+            "$ref": "#/definitions/bilingual"
+          }
+        }
+      },
+      "reproduction_services": {
+        "$ref": "#/definitions/bilingual"
+      },
+      "image_licence": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "$ref": "#/definitions/bilingual"
+          }
+        }
+      },
+      "catalogue_licence": {
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "label": {
+            "$ref": "#/definitions/bilingual"
+          }
+        }
+      },
+      "funders": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "programme": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "project_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "attribution": {
+        "$ref": "#/definitions/bilingual"
+      },
+      "description_language": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "home_order": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "created_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "updated_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "description_count": {
+        "type": "integer"
+      },
+      "image_reproduction_text": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "root_descriptions": {
+        "type": "array"
+      },
+      "modified_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "descriptive_standard": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
     }
   }
 }

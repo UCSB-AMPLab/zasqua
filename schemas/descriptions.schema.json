@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.0/descriptions.schema.json",
-  "x-contract-version": "1.0",
-  "title": "Zasqua descriptions.json — Data Contract v1.0",
-  "description": "JSON Schema draft-07 for the descriptions export file produced by the Zasqua data contract v1.0. Required keys + types are authoritative from docs/data-contract.md.",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.1/descriptions.schema.json",
+  "x-contract-version": "1.1",
+  "title": "Zasqua descriptions.json — Data Contract v1.1",
+  "description": "JSON Schema draft-07 for the descriptions export file produced by the Zasqua data contract v1.1. Required keys + types are authoritative from docs/data-contract.md.",
   "type": "array",
   "items": {
     "type": "object",
@@ -16,7 +16,7 @@
       "repository_code"
     ],
     "properties": {
-      "id": { "type": "integer" },
+      "id": { "type": ["integer", "string"] },
       "reference_code": { "type": "string" },
       "title": { "type": "string" },
       "description_level": { "type": "string" },
@@ -35,18 +35,20 @@
       "language": { "type": "string" },
       "location_of_originals": { "type": "string" },
       "location_of_copies": { "type": "string" },
-      "related_materials": { "type": "string" },
+      "related_materials": { "type": ["string", "null"] },
       "finding_aids": { "type": "string" },
       "notes": { "type": "string" },
       "iiif_manifest_url": { "type": "string" },
-      "mets_url": { "type": "string" },
+      "mets_url": { "type": ["string", "null"] },
       "ocr_text": { "type": "string" },
-      "local_identifier": { "type": "string" },
+      "local_identifier": { "type": ["string", "null"] },
+      "children_level": { "type": ["string", "null"] },
       "archivist_note": { "type": "string" },
       "rules_conventions": { "type": "string" },
       "date_of_description": { "type": "string" },
       "modified_at": { "type": "string" },
-      "parent_id": { "type": ["integer", "null"] }
+      "former_reference_codes": { "type": "array", "items": { "type": "string" } },
+      "parent_id": { "type": ["integer", "string", "null"] }
     }
   }
 }
