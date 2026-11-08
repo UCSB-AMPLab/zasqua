@@ -6,7 +6,7 @@
  * writing to a temp PLACES_DIR), to cover what the pure-function unit tests
  * cannot: the file I/O path, one file per place named by place_code plus the
  * corpus index.json (only the features that carry a when), the attested years taken from the linked descriptions,
- * determinism across runs, and a record that fails to build, or whose
+ * determinism across runs, the type terms read from vocabulary.json, and a record that fails to build, or whose
  * filename is already taken, being skipped with a warning rather than
  * stopping the run or overwriting the earlier file.
  *
@@ -16,7 +16,7 @@
  * links to), two place links to the existing smoke descriptions, the site
  * title "Smoke Test Archive" and no places_* params.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -224,6 +224,33 @@ describe('zasqua places — command smoke test', () => {
     }
   });
 
+  it('takes the type term from vocabulary.json and leaves the other places as without it', () => {
+    const instance = copyFixture();
+    const outDir = fs.mkdtempSync(join(os.tmpdir(), 'zasqua-places-vocab-'));
+    try {
+      fs.writeFileSync(join(instance, 'exports', 'vocabulary.json'), JSON.stringify({
+        place_types: [
+          { code: 'CITY', label: { es: 'Ciudad', en: 'City' },
+            external: { scheme: 'aat', uri: 'https://example.org/concept/1', label: null } },
+          { code: 'river', label: { es: 'Río', en: 'River' } },
+        ],
+      }), 'utf8');
+      const run = runPlaces(outDir, instance);
+      expect(run.status).toBe(0);
+      expect(run.stdout).toContain('[generate-places] vocabulary.json: 1 place type term');
+      const p1 = JSON.parse(fs.readFileSync(join(outDir, 'nl-smoke-p1.json'), 'utf8')).features[0];
+      // The fixture's [ui] language is en-US, so the English label is used.
+      expect(p1.types).toEqual([{ identifier: 'https://example.org/concept/1', label: 'City' }]);
+      expect({ ...p1, types: undefined }).toEqual({ ...feature('nl-smoke-p1'), types: undefined });
+      for (const f of ['nl-smoke-r1.json', 'nl-smoke-o1.json']) {
+        expect(fs.readFileSync(join(outDir, f), 'utf8')).toBe(read(f));
+      }
+    } finally {
+      fs.rmSync(instance, { recursive: true, force: true });
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+
   it('warns when places_base_url is absolute but PLACES_DIR is under public/', () => {
     const instance = copyFixture();
     try {
@@ -240,4 +267,83 @@ describe('zasqua places — command smoke test', () => {
   });
 });
 
-// Version: v1.5.0
+describe('zasqua places — stale output on rerun', () => {
+  // A copy of the fixture whose exports can be changed between runs.
+  function setup() {
+    const instance = fs.mkdtempSync(join(os.tmpdir(), 'zasqua-places-stale-instance-'));
+    const outDir = fs.mkdtempSync(join(os.tmpdir(), 'zasqua-places-stale-out-'));
+    fs.cpSync(FIXTURE, instance, { recursive: true });
+    return { instance, outDir };
+  }
+  function run(instance, outDir) {
+    return spawnSync('node', [SCRIPT], {
+      env: { ...process.env, INSTANCE_ROOT: instance, PLACES_DIR: outDir, DATA_DIR: '' },
+      encoding: 'utf8',
+    });
+  }
+  function cleanup(...dirs) {
+    for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
+  }
+
+  it('leaves no file for a record removed from the input, and logs how many files it removed', () => {
+    const { instance, outDir } = setup();
+    try {
+      expect(run(instance, outDir).status).toBe(0);
+      expect(fs.existsSync(join(outDir, 'nl-smoke-o1.json'))).toBe(true);
+      const inputPath = join(instance, 'exports', 'places.json');
+      const records = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+      const kept = records.filter((r) => r.place_code !== 'nl-smoke-o1');
+      expect(kept).toHaveLength(records.length - 1);
+      fs.writeFileSync(inputPath, JSON.stringify(kept, null, 2), 'utf8');
+      const second = run(instance, outDir);
+      expect(second.status).toBe(0);
+      expect(fs.existsSync(join(outDir, 'nl-smoke-o1.json'))).toBe(false);
+      expect(fs.readdirSync(outDir).sort()).toEqual(['index.json', 'nl-smoke-p1.json', 'nl-smoke-r1.json']);
+      expect(second.stdout).toMatch(/Removed \d+ json files? from/);
+    } finally {
+      cleanup(instance, outDir);
+    }
+  });
+
+  it('keeps a file with another extension and anything in a subdirectory', () => {
+    const { instance, outDir } = setup();
+    try {
+      fs.writeFileSync(join(outDir, 'notes.xml'), 'keep', 'utf8');
+      fs.mkdirSync(join(outDir, 'sub'));
+      fs.writeFileSync(join(outDir, 'sub', 'inner.json'), 'keep', 'utf8');
+      expect(run(instance, outDir).status).toBe(0);
+      expect(fs.readFileSync(join(outDir, 'notes.xml'), 'utf8')).toBe('keep');
+      expect(fs.readFileSync(join(outDir, 'sub', 'inner.json'), 'utf8')).toBe('keep');
+    } finally {
+      cleanup(instance, outDir);
+    }
+  });
+
+  it('removes a stale json file that no input record produces', () => {
+    const { instance, outDir } = setup();
+    try {
+      fs.writeFileSync(join(outDir, 'gone-record.json'), 'stale', 'utf8');
+      expect(run(instance, outDir).status).toBe(0);
+      expect(fs.existsSync(join(outDir, 'gone-record.json'))).toBe(false);
+    } finally {
+      cleanup(instance, outDir);
+    }
+  });
+
+  it('leaves the previous output in place when the run fails before writing', () => {
+    const { instance, outDir } = setup();
+    try {
+      expect(run(instance, outDir).status).toBe(0);
+      const before = fs.readdirSync(outDir).sort();
+      expect(before.length).toBeGreaterThan(0);
+      fs.writeFileSync(join(instance, 'exports', 'places.json'), '{ not json', 'utf8');
+      const failed = run(instance, outDir);
+      expect(failed.status).not.toBe(0);
+      expect(fs.readdirSync(outDir).sort()).toEqual(before);
+    } finally {
+      cleanup(instance, outDir);
+    }
+  });
+});
+
+// Version: v1.6.0

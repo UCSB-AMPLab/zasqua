@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mets xmlns="http://www.loc.gov/METS/" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" OBJID="co-smoke-f002" LABEL="Segundo Fondo de Humo" TYPE="fonds" PROFILE="http://www.loc.gov/standards/mets/profiles/">
+  <metsHdr>
+    <agent ROLE="CREATOR" TYPE="ORGANIZATION">
+      <name>Smoke Test Archive</name>
+    </agent>
+    <agent ROLE="CUSTODIAN" TYPE="ORGANIZATION">
+      <name>Archivo de Humo</name>
+    </agent>
+  </metsHdr>
+  <dmdSec ID="dmd-001">
+    <mdWrap MDTYPE="DC">
+      <xmlData>
+        <dc:title>Segundo Fondo de Humo</dc:title>
+        <dc:identifier>co-smoke-f002</dc:identifier>
+        <dc:date>1901 .. 1950</dc:date>
+        <dc:description>Documentos del período republicano tardío.</dc:description>
+        <dc:language>español</dc:language>
+        <dc:format>2 cajas</dc:format>
+        <dc:type>Collection</dc:type>
+        <dc:source>Archivo de Humo, Bogotá</dc:source>
+      </xmlData>
+    </mdWrap>
+  </dmdSec>
+  <structMap TYPE="logical">
+    <div TYPE="fonds" LABEL="Segundo Fondo de Humo" DMDID="dmd-001"/>
+  </structMap>
+</mets>

@@ -21,21 +21,24 @@
  *   6. IIIF passthrough — fileSec/fptr iff iiif_manifest_url.
  *   7. XML escaping.
  *   8. metsSlug.
+ *  10. institution records — attribution, catalogue licence, publisher creator,
+ *      and the byte-identical 1.0 output
  *   9. readMetsConfig — reads the [params] METS config from hugo.toml, with
  *      fallbacks, and degrades gracefully when hugo.toml is absent.
  *
- * @version v1.3.0
+ * @version v1.6.0
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createRequire } from 'module';
+import { execFileSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import fs from 'fs';
 import os from 'os';
 
 const require = createRequire(import.meta.url);
-const { buildMets, computeRights, metsSlug, readMetsConfig, DC_TYPE_MAP } = require('../scripts/generate-mets.js');
+const { buildMets, computeRights, catalogueLicenceText, metsSlug, readMetsConfig, DC_TYPE_MAP } = require('../scripts/generate-mets.js');
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -317,14 +320,14 @@ describe('readMetsConfig', () => {
   it('reads the explicit mets_* params', () => {
     withHugoToml(
       'title = "Site Name"\n[params]\n' +
-      '  mets_creator_name = "Fundación Histórica Neogranadina"\n' +
-      '  mets_creator_url = "https://neogranadina.org"\n' +
+      '  mets_creator_name = "Fundación Archivo de Ejemplo"\n' +
+      '  mets_creator_url = "https://example.org"\n' +
       '  mets_default_rights = "Libre acceso."\n' +
       '  mets_base_url = "https://manifests.example.org/mets"\n',
       (dir) => {
         const c = readMetsConfig(dir);
-        expect(c.creatorName).toBe('Fundación Histórica Neogranadina');
-        expect(c.creatorNote).toBe('https://neogranadina.org');
+        expect(c.creatorName).toBe('Fundación Archivo de Ejemplo');
+        expect(c.creatorNote).toBe('https://example.org');
         expect(c.defaultRights).toBe('Libre acceso.');
         expect(c.metsBaseUrl).toBe('https://manifests.example.org/mets');
       }
@@ -360,4 +363,160 @@ describe('readMetsConfig', () => {
       expect(c.creatorName).not.toMatch(/Neogranadina/i);
     });
   });
+})
+
+// ---------------------------------------------------------------------------
+// 10. Institution records: attribution, catalogue licence, publisher
+// ---------------------------------------------------------------------------
+
+describe('institution records in METS', () => {
+  const FIXTURES = join(__dirname, 'fixtures', 'fisqua-institutions');
+  const SCRIPT = join(__dirname, '..', 'scripts', 'generate-mets.js');
+  const GOLDEN = join(__dirname, 'fixtures', 'engine-smoke-golden', 'mets');
+  const SMOKE = join(__dirname, 'fixtures', 'engine-smoke');
+  const dirs = [];
+  const tmp = () => {
+    const d = fs.mkdtempSync(join(os.tmpdir(), 'zasqua-mets-inst-'));
+    dirs.push(d);
+    return d;
+  };
+  afterEach(() => {
+    while (dirs.length) fs.rmSync(dirs.pop(), { recursive: true, force: true });
+  });
+
+  const fixtureRepos = () => JSON.parse(fs.readFileSync(join(FIXTURES, 'repositories.json'), 'utf8'));
+  const fixturePublisher = () => JSON.parse(fs.readFileSync(join(FIXTURES, 'publisher.json'), 'utf8'));
+  const repo = () => ({ ...fixtureRepos().find((r) => r.code === 'co-aeh') });
+  const rights = (xml) => (xml.match(/<dc:rights>(.*)<\/dc:rights>/) || [])[1];
+
+  it('digitised record: attribution in the site language', () => {
+    const r = repo();
+    const desc = makeDesc({ has_digital: true });
+    expect(computeRights(desc, r, { ...OPTS, language: 'es' })).toBe(r.attribution.es);
+    expect(computeRights(desc, r, { ...OPTS, language: 'en' })).toBe(r.attribution.en);
+  });
+
+  it('digitised record: the other language when the chosen member is empty', () => {
+    const r = { ...repo(), attribution: { es: null, en: 'English credit.' } };
+    expect(computeRights(makeDesc({ has_digital: true }), r, { ...OPTS, language: 'es' })).toBe('English credit.');
+  });
+
+  it('digitised record: image_reproduction_text when there is no attribution', () => {
+    const r = { ...repo(), attribution: { es: null, en: null }, image_reproduction_text: 'Old text.' };
+    expect(computeRights(makeDesc({ has_digital: true }), r, { ...OPTS, language: 'es' })).toBe('Old text.');
+  });
+
+  it('digitised record with neither: the record conditions, then the default', () => {
+    const r = { ...repo(), attribution: null };
+    expect(computeRights(makeDesc({ has_digital: true, access_conditions: 'Libre' }), r, OPTS)).toBe('Libre');
+    expect(computeRights(makeDesc({ has_digital: true }), r, { ...OPTS, defaultRights: 'House.' })).toBe('House.');
+  });
+
+  it('other records: catalogue licence as "label (uri)" in the METS language', () => {
+    const r = { ...repo(), catalogue_licence: {
+      uri: 'https://creativecommons.org/licenses/by/4.0/',
+      label: { es: 'CC BY 4.0 (es)', en: 'CC BY 4.0 (en)' },
+    } };
+    const desc = makeDesc();
+    expect(computeRights(desc, r, { ...OPTS, language: 'es' }))
+      .toBe('CC BY 4.0 (es) (https://creativecommons.org/licenses/by/4.0/)');
+    expect(computeRights(desc, r, { ...OPTS, language: 'en' }))
+      .toBe('CC BY 4.0 (en) (https://creativecommons.org/licenses/by/4.0/)');
+    expect(rights(buildMets(desc, r, { ...OPTS, language: 'en' })))
+      .toBe('CC BY 4.0 (en) (https://creativecommons.org/licenses/by/4.0/)');
+  });
+
+  it('other records: the uri alone when there is no label', () => {
+    const r = { ...repo(), catalogue_licence: { uri: 'https://example.org/l', label: { es: null, en: null } } };
+    expect(catalogueLicenceText(r, 'es')).toBe('https://example.org/l');
+    expect(computeRights(makeDesc(), r, OPTS)).toBe('https://example.org/l');
+  });
+
+  it('other records: the licence wins over mets_default_rights; without it the default stands', () => {
+    const withLicence = { ...repo(), catalogue_licence: { uri: 'https://example.org/l', label: null } };
+    expect(computeRights(makeDesc(), withLicence, { ...OPTS, defaultRights: 'House.' })).toBe('https://example.org/l');
+    expect(computeRights(makeDesc(), repo(), { ...OPTS, defaultRights: 'House.' })).toBe('House.');
+    expect(computeRights(makeDesc(), repo(), OPTS)).toBe('');
+  });
+
+  it('a digitised record without a credit takes the catalogue licence in place of the house default', () => {
+    const r = { ...repo(), attribution: null, image_reproduction_text: null, catalogue_licence: { uri: 'https://example.org/l' } };
+    expect(computeRights(makeDesc({ has_digital: true }), r, OPTS)).toBe('https://example.org/l');
+  });
+
+  it("a record's own conditions come before the catalogue licence", () => {
+    const r = { ...repo(), catalogue_licence: { uri: 'https://example.org/l' } };
+    expect(computeRights(makeDesc({ has_digital: false, reproduction_conditions: 'Libre' }), r, OPTS)).toBe('Libre');
+  });
+
+  // End to end on a temporary copy of the fixture, with values filled in
+  // where the fixture holds nulls.
+  function instance({ withPublisher, publisherPatch = {}, toml = 'title = "Site"\n', manifest }) {
+    const root = tmp();
+    fs.mkdirSync(join(root, 'exports'));
+    const repos = fixtureRepos().map((r) => (r.code === 'co-aeh'
+      ? { ...r, catalogue_licence: { uri: 'https://example.org/l', label: { es: 'Licencia', en: 'Licence' } } }
+      : r));
+    fs.writeFileSync(join(root, 'exports', 'repositories.json'), JSON.stringify(repos));
+    fs.writeFileSync(join(root, 'exports', 'descriptions.json'), JSON.stringify([
+      makeDesc({ reference_code: 'd-1', repository_code: 'co-aeh', has_digital: true }),
+      makeDesc({ reference_code: 'd-2', repository_code: 'co-aeh', has_digital: false }),
+    ]));
+    if (withPublisher) {
+      fs.writeFileSync(join(root, 'exports', 'publisher.json'),
+        JSON.stringify({ ...fixturePublisher(), ...publisherPatch }));
+    }
+    fs.writeFileSync(join(root, 'hugo.toml'), toml);
+    if (manifest) fs.writeFileSync(join(root, 'zasqua.manifest.toml'), manifest);
+    const out = join(root, 'out');
+    execFileSync('node', [SCRIPT], { env: { ...process.env, INSTANCE_ROOT: root, METS_DIR: out }, encoding: 'utf8' });
+    return { d1: fs.readFileSync(join(out, 'd-1.xml'), 'utf8'), d2: fs.readFileSync(join(out, 'd-2.xml'), 'utf8') };
+  }
+
+  it('reads publisher.json for the creator: legal name, tax id, location, website', () => {
+    const { d1 } = instance({ withPublisher: true, toml: 'title = "Site"\n[params]\n  mets_creator_name = "Setting"\n  mets_creator_url = "https://setting.example"\n' });
+    expect(d1).toContain('<name>Fundación Archivo de Ejemplo (NIT 000.000.000-0), Bogotá, Colombia</name>');
+    expect(d1).toContain('<note>https://example.org</note>');
+    expect(d1).not.toContain('Setting');
+  });
+
+  it('drops empty creator parts without empty parentheses or a dangling comma', () => {
+    const noTax = instance({ withPublisher: true, publisherPatch: { tax_id: null } }).d1;
+    expect(noTax).toContain('<name>Fundación Archivo de Ejemplo, Bogotá, Colombia</name>');
+    const noLoc = instance({ withPublisher: true, publisherPatch: { location: '' } }).d1;
+    expect(noLoc).toContain('<name>Fundación Archivo de Ejemplo (NIT 000.000.000-0)</name>');
+    const nameOnly = instance({ withPublisher: true, publisherPatch: { tax_id: null, location: null, website: null } }).d1;
+    expect(nameOnly).toContain('<name>Fundación Archivo de Ejemplo</name>');
+    expect(nameOnly).not.toContain('<note>');
+  });
+
+  it('without a legal_name the mets_* settings stand', () => {
+    const { d1 } = instance({
+      withPublisher: true, publisherPatch: { legal_name: null },
+      toml: 'title = "Site"\n[params]\n  mets_creator_name = "Setting"\n  mets_creator_url = "https://setting.example"\n',
+    });
+    expect(d1).toContain('<name>Setting</name>');
+    expect(d1).toContain('<note>https://setting.example</note>');
+  });
+
+  it('end to end: rights follow the record kind and the manifest language', () => {
+    const es = instance({ withPublisher: true });
+    expect(rights(es.d1)).toContain('Digitalizado en el marco del Programa de Archivos en Riesgo');
+    expect(rights(es.d2)).toBe('Licencia (https://example.org/l)');
+    const en = instance({ withPublisher: true, manifest: '[ui]\nlanguage = "en-US"\n' });
+    expect(rights(en.d1)).toContain('Digitized under the Programa de Archivos en Riesgo');
+    expect(rights(en.d2)).toBe('Licence (https://example.org/l)');
+  });
+
+  it('a 1.0 export (no publisher.json, flat repositories) is byte-identical to the earlier output', () => {
+    const out = tmp();
+    execFileSync('node', [SCRIPT], { env: { ...process.env, INSTANCE_ROOT: SMOKE, METS_DIR: out }, encoding: 'utf8' });
+    const names = fs.readdirSync(GOLDEN).sort();
+    expect(fs.readdirSync(out).sort()).toEqual(names);
+    for (const n of names) {
+      expect(fs.readFileSync(join(out, n), 'utf8')).toBe(fs.readFileSync(join(GOLDEN, n), 'utf8'));
+    }
+  });
 });
+
+// Version: v1.6.0

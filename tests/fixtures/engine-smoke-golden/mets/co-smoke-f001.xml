@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mets xmlns="http://www.loc.gov/METS/" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" OBJID="co-smoke-f001" LABEL="Fondo de Humo" TYPE="fonds" PROFILE="http://www.loc.gov/standards/mets/profiles/">
+  <metsHdr>
+    <agent ROLE="CREATOR" TYPE="ORGANIZATION">
+      <name>Smoke Test Archive</name>
+    </agent>
+    <agent ROLE="CUSTODIAN" TYPE="ORGANIZATION">
+      <name>Archivo de Humo</name>
+    </agent>
+  </metsHdr>
+  <dmdSec ID="dmd-001">
+    <mdWrap MDTYPE="DC">
+      <xmlData>
+        <dc:title>Fondo de Humo</dc:title>
+        <dc:identifier>co-smoke-f001</dc:identifier>
+        <dc:date>1800 .. 1900</dc:date>
+        <dc:language>español</dc:language>
+        <dc:type>Collection</dc:type>
+        <dc:source>Archivo de Humo, Bogotá</dc:source>
+      </xmlData>
+    </mdWrap>
+  </dmdSec>
+  <structMap TYPE="logical">
+    <div TYPE="fonds" LABEL="Fondo de Humo" DMDID="dmd-001"/>
+  </structMap>
+</mets>
