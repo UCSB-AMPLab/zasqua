@@ -22,7 +22,7 @@
   terminology notes that apply when this adapter is used with
   Spanish-language descriptive data.
 
-  Version: v0.1.0
+  Version: v1.6.0
 -->
 
 # CollectiveAccess Import Adapter: DB-Mapping Contract
@@ -121,9 +121,9 @@ produces one record in `entities.json`. Deduplication is by `entity_id`.
 
 | CA Web-Services Field | Contract Field | Transformation |
 |---|---|---|
-| `"ne-" + entity_id` | `entity_code` | Prefix CA integer entity_id with `"ne-"` to produce a string code. In a production integration, use the existing authority record code if one exists. |
+| entity prefix + `entity_id` | `entity_code` | Prefix CA integer entity_id with the entity prefix (see Code Prefixes) to produce a string code. In a production integration, use the existing authority record code if one exists. |
 | `displayname` | `display_name` | Run through `sanitizeField`. |
-| `type` | `entity_type` | CA entity type code (`"ind"` → `"person"`, `"org"` → `"corporateBody"`, `"fam"` → `"family"`). See Entity Type Vocabulary below. |
+| `type` | `entity_type` | CA entity type code (`"ind"` → `"person"`, `"org"` → `"corporate"`, `"fam"` → `"family"`). See Entity Type Vocabulary below. |
 | `forename` or parsed from `displayname` | `given_name` | Optional. Run through `sanitizeField`. |
 | `surname` or parsed from `displayname` | `surname` | Optional. Run through `sanitizeField`. |
 
@@ -132,7 +132,7 @@ produces one record in `entities.json`. Deduplication is by `entity_id`.
 | CA `type` | Contract `entity_type` |
 |---|---|
 | `ind` | `person` |
-| `org` | `corporateBody` |
+| `org` | `corporate` |
 | `fam` | `family` |
 | _(other)_ | `person` (fallback) |
 
@@ -144,7 +144,7 @@ Maps `ca_objects_x_entities` relationship data to `entity_links.json`.
 
 | CA Web-Services Field | Contract Field | Transformation |
 |---|---|---|
-| `"ne-" + entity_id` | `entity_code` | Same code generation as Table 3. |
+| entity prefix + `entity_id` | `entity_code` | Same code generation as Table 3. |
 | parent object's `idno` | `reference_code` | The `idno` of the object that owns this relationship. |
 | `relationship_typename` | `role` | CA relationship type name used as-is. Run through `sanitizeField`. |
 
@@ -160,7 +160,7 @@ produces one record in `places.json`. Deduplication is by `place_id`.
 | CA Web-Services Field | Contract Field | Transformation |
 |---|---|---|
 | _(auto-generated)_ | `id` | Sequential integer (1-based). |
-| `"nl-" + place_id` | `place_code` | Prefix CA integer place_id with `"nl-"` to produce a string code. |
+| place prefix + `place_id` | `place_code` | Prefix CA integer place_id with the place prefix (see Code Prefixes) to produce a string code. |
 | `name` | `display_name` | Run through `sanitizeField`. |
 | `type` | `place_type` | CA place type name used as-is. |
 | `georeference` (split) | `latitude` | The `georeference` field carries a `"lat,lng"` string. Split on the first comma, parse as `Number`. Non-numeric values become `null`. |
@@ -182,7 +182,7 @@ Maps `ca_objects_x_places` relationship data to `place_links.json`.
 
 | CA Web-Services Field | Contract Field | Transformation |
 |---|---|---|
-| `"nl-" + place_id` | `place_code` | Same code generation as Table 5. |
+| place prefix + `place_id` | `place_code` | Same code generation as Table 5. |
 | parent object's `idno` | `reference_code` | The `idno` of the object that owns this relationship. |
 | `relationship_typename` | `role` | CA relationship type name used as-is. |
 
@@ -199,6 +199,26 @@ CA object-collection relationships map to `parent_reference_code`.
 The CA collection hierarchy is flattened into the descriptions list. Each
 object's `parent_reference_code` points to the collection or parent object
 that contains it.
+
+---
+
+## Code Prefixes
+
+Entity and place codes are the prefix followed by the CA id, for example
+`ne-17`. The prefix belongs to the site that publishes the codes, so the
+importer takes both as options:
+
+| Option | Command-line flag | Example |
+|---|---|---|
+| `entityPrefix` | `--entity-prefix <prefix>` | `--entity-prefix ne-` gives `ne-17` |
+| `placePrefix` | `--place-prefix <prefix>` | `--place-prefix nl-` gives `nl-42` |
+
+The value is used as written, so include any hyphen. The same prefix is used
+in `entities.json`, `entity_links.json`, `places.json` and `place_links.json`.
+
+Deprecated: when an option is absent the importer uses `ne-` for entities and
+`nl-` for places and prints one notice per run. Zasqua 2.0.0 will require both
+options.
 
 ---
 
@@ -251,4 +271,4 @@ are NOT sanitized — they are trusted identifiers, not user-authored text.
 
 ---
 
-<!-- Version: v0.1.0 -->
+<!-- Version: v1.6.0 -->

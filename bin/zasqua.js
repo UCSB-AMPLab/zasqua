@@ -26,6 +26,7 @@
  *   zasqua import   — convert a source dataset into the six-file contract
  *                     format; usage: zasqua import <format> <src>
  *                     [--out <dir>] [--standard <std>]
+ *                     [--entity-prefix <p>] [--place-prefix <p>]
  *
  * Flags:
  *   --skip-validate  bypass the build-time manifest + input validation step
@@ -36,6 +37,14 @@
  *                    (default: import-out/)
  *   --standard <std> for `import`: descriptive standard key passed to the
  *                    adapter (default: isadg)
+ *   --trusted        for `import`: skip HTML sanitisation (default for fisqua)
+ *   --sanitize       for `import`: strip HTML from text fields (default for
+ *                    every other format)
+ *   --entity-prefix <p>  for `import collectiveaccess`: prefix of entity codes
+ *                    (for example `ne-`); without it the importer uses `ne-`
+ *                    and prints a deprecation notice
+ *   --place-prefix <p>   for `import collectiveaccess`: prefix of place codes
+ *                    (for example `nl-`); same default and notice
  *
  * Env flags forwarded to build.sh:
  *   DEV_LIMIT      — integer cap on records in generate-content.js
@@ -52,7 +61,7 @@
  *   `lib/pipeline.js`, `lib/init.js`, `lib/validator.js`, and
  *   `lib/importers/dispatch.js`.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 'use strict';
@@ -105,7 +114,11 @@ function usage() {
     '  --force          For init: overwrite an existing manifest\n' +
     '  --strict         For validate: enable full JSON Schema validation\n' +
     '  --out <dir>      For import: staging directory (default: import-out/)\n' +
-    '  --standard <std> For import: descriptive standard key (default: isadg)\n'
+    '  --standard <std> For import: descriptive standard key (default: isadg)\n' +
+    '  --trusted        For import: skip HTML sanitisation (default for fisqua)\n' +
+    '  --sanitize       For import: strip HTML from text fields (default for other formats)\n' +
+    '  --entity-prefix <p>  For import collectiveaccess: entity code prefix (default: ne-, deprecated)\n' +
+    '  --place-prefix <p>   For import collectiveaccess: place code prefix (default: nl-, deprecated)\n'
   );
 }
 
@@ -160,10 +173,22 @@ async function main() {
       const stdIdx     = process.argv.indexOf('--standard');
       const stagingDir = outIdx !== -1 ? process.argv[outIdx + 1] : 'import-out';
       const standard   = stdIdx !== -1 ? process.argv[stdIdx + 1] : 'isadg';
+      const flagValue  = (name) => {
+        const i = process.argv.indexOf(name);
+        return i !== -1 ? process.argv[i + 1] : undefined;
+      };
       // runImport throws on unknown format or conformance failure.
       // Catch here to print a clean error message (no stack trace) and exit 1.
       try {
-        await runImport({ format, src, stagingDir, standard, instanceRoot: process.cwd() });
+        await runImport({
+          format, src, stagingDir, standard, instanceRoot: process.cwd(),
+          entityPrefix: flagValue('--entity-prefix'),
+          placePrefix:  flagValue('--place-prefix'),
+          // --trusted skips HTML sanitisation, --sanitize applies it; without
+          // either, the format decides (fisqua unsanitised, all others sanitised).
+          trusted: process.argv.includes('--trusted') ? true
+                 : process.argv.includes('--sanitize') ? false : undefined,
+        });
       } catch (err) {
         process.stderr.write((err && err.message ? err.message : String(err)) + '\n');
         process.exit(1);
@@ -186,4 +211,4 @@ if (require.main === module) {
 
 module.exports = { main };
 
-// Version: v1.5.0
+// Version: v1.6.0
