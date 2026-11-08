@@ -26,7 +26,22 @@
   drop their icon at static/img/favicon.png. The engine ships no favicon
   asset (identity-neutral); the link is harmless if the file is absent.
 
-  Version: v2.3.0
+  The collection tree's strings are written into the page by the
+  tree-strings partial, called here so that a site layout replacing the
+  repository or description template does not have to pass them.
+
+  Web fonts: site.Params.font_stylesheets names the stylesheet URL or URLs
+  that load the site's fonts (a string or a list; an empty list loads
+  none). When the setting is absent, the shell links DM Sans, Crimson Text
+  and Cormorant Garamond from Google Fonts, as every engine release before
+  1.6.0 did. That default is deprecated: from 2.0.0 the engine loads no
+  brand fonts unless the site names them. The Material Symbols icon font
+  is linked on every page because the templates draw their icons with it.
+
+  theme-colors.js is loaded before the page scripts so the graph and map
+  scripts can read the theme's colour tokens.
+
+  Version: v1.6.0
 */}}
 <!DOCTYPE html>
 <html lang="{{ site.Language.LanguageCode }}">
@@ -41,7 +56,16 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  {{- if isset site.Params "font_stylesheets" }}
+    {{- range (cond (reflect.IsSlice site.Params.font_stylesheets) site.Params.font_stylesheets (slice site.Params.font_stylesheets)) }}
+      {{- with . }}
+  <link href="{{ . }}" rel="stylesheet" />
+      {{- end }}
+    {{- end }}
+  {{- else }}
+  {{/* Deprecated default, removed in 2.0.0: sites name their fonts in font_stylesheets. */}}
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&family=Crimson+Text:wght@400;700&family=Cormorant+Garamond:wght@300;600&display=swap" rel="stylesheet" />
+  {{- end }}
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
 
   <!-- Styles -->
@@ -60,6 +84,8 @@
 
   {{ partial "footer.html" . }}
 
+  {{ partial "tree-strings.html" . }}
+  <script src="/js/theme-colors.js"></script>
   <script src="/js/header.js"></script>
   {{ block "scripts" . }}{{ end }}
 
@@ -70,4 +96,4 @@
   {{ end }}
 </body>
 </html>
-{{/* Version: v2.1.0 */}}
+{{/* Version: v1.6.0 */}}

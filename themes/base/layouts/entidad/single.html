@@ -20,33 +20,34 @@
 
   The #entity-intro element carries data-entity-type-raw so
   infinite-bipartite-explorer.js and entity.js can recover the
-  underlying entity-type enum value (person / corporate_body / family)
+  underlying entity-type enum value (person / corporate / family)
   after rendering — the rendered type label is localised Spanish.
 
   #entity-intro also carries the render-time vocabulary the entity.js
   graph view consumes so it never hardcodes a label:
   data-entity-type-labels (vocab.entityTypes, keyed by entity_type code),
-  data-role-labels (vocab.roles, the 27-role display table), and
+  data-role-labels (vocab.roles, the role display table),
   data-role-group-labels (vocab.roleGroups, accordion headers keyed by the
-  English group IDs entity.js uses). Vocab source:
-  themes/base/data/vocab/{lang}.yaml, resolved by
-  site.Language.LanguageCode, falling back to vocab.es.
+  English group IDs entity.js uses), and data-role-groups
+  (vocab.roleGroupOrder, the ordered groups and their member roles).
+  Vocab source: _partials/vocab.html, which applies the export's
+  vocabulary.json to themes/base/data/vocab/{lang}.yaml. The JSON
+  attributes are single-quoted and their labels can come from the export,
+  so each escapes the apostrophe as \u0027 after jsonify.
   The data-i18n blob supplies every graph/timeline/tooltip string entity.js
   reads (graphEmpty, timelineFilteredEmpty, noDateLabel, shardError,
-  openInExplorer, dateConnector, plus the connectedOtherDocs /
-  sharedDocsSentence / connectedToZasqua {one,other} plural sub-tables) —
+  openInExplorer, dateConnector, plus the focalIntro / connectedOtherDocs /
+  sharedDocsSentence / connectedToSite {one,other} plural sub-tables) —
   blob-only, no Spanish fallback. Spanish lives only in es.toml;
   en.toml mirrors.
 
-  Version: v1.5.0
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ .Params.display_name }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
 
-{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
-{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
-{{ $vocab := index hugo.Data.vocab $langKey }}
-{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+{{/* Labels and role groups: bundled vocab with the export's vocabulary.json applied */}}
+{{ $vocab := partialCached "vocab.html" . site.Language.Lang }}
 
 {{ $typeLabel := index $vocab.entityTypes .Params.entity_type }}
 {{ if not $typeLabel }}{{ $typeLabel = .Params.entity_type }}{{ end }}
@@ -150,16 +151,12 @@
         {{ end }}
 
         {{/* Section: Identificadores externos */}}
-        {{ if or .Params.dbe_id .Params.viaf_id }}
+        {{/* dbe_id is not linked: the DBE numbers in the data are not yet
+             checked against the biographies they name. */}}
+        {{ if .Params.viaf_id }}
           <section id="autoridades" class="detail-section">
             <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.authorityLinks" }}</h3>
             <ul class="detail-list text-stone-700">
-              {{ with .Params.dbe_id }}
-                <li>
-                  <a href="https://dbe.rah.es/biografias/{{ . }}"
-                     target="_blank" rel="noopener">{{ i18n "entity.authorityLinks.dbe" }}</a>
-                </li>
-              {{ end }}
               {{ with .Params.viaf_id }}
                 <li>
                   <a href="https://viaf.org/viaf/{{ . }}"
@@ -177,16 +174,19 @@
             <span class="detail-label">{{ site.Params.entity_code_label | default (i18n "entity.fields.entityCode") }}</span>
             <span class="detail-value detail-value-mono">{{ .Params.entity_code }}</span>
           </div>
+          {{/* No modified_at leaves Lastmod zero, which would print as 0001-01-01. */}}
+          {{ if not .Lastmod.IsZero }}
           <div class="detail-field">
             <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
             <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" (.Lastmod.Format "2006-01-02") }}</span>
           </div>
+          {{ end }}
           <div class="detail-field">
             <a href="/entidades/?entidad={{ .Params.entity_code }}"
                class="inline-flex items-center gap-1.5 text-sm font-medium rounded-md transition-colors no-underline"
-               style="padding:0.5rem 1rem;background:var(--color-burgundy);color:#fff"
-               onmouseover="this.style.background='var(--color-burgundy-deep)'"
-               onmouseout="this.style.background='var(--color-burgundy)'">
+               style="padding:0.5rem 1rem;background:var(--color-primary);color:#fff"
+               onmouseover="this.style.background='var(--color-primary-deep)'"
+               onmouseout="this.style.background='var(--color-primary)'">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
                 <circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="16"/><circle cx="6" cy="19" r="3"/><circle cx="18" cy="19" r="3"/><line x1="12" y1="16" x2="6" y2="16"/><line x1="12" y1="16" x2="18" y2="16"/>
               </svg>
@@ -198,7 +198,7 @@
         {{/* Section: Reutilizacion */}}
         <div class="detail-section">
           <h3 class="font-semibold text-stone-400">{{ i18n "entity.sections.reuse" }}</h3>
-          <p class="reuse-blurb">{{ i18n "entity.reuseBlurb" | safeHTML }}</p>
+          <p class="reuse-blurb">{{ i18n "entity.reuseBlurb" (dict "Site" site.Title) | safeHTML }}</p>
           <div class="reuse-manifest">
             <strong class="reuse-manifest-label">EAC-CPF</strong>
             <div class="reuse-manifest-row">
@@ -233,20 +233,21 @@
              data-entity-type-raw="{{ .Params.entity_type }}"
              data-entity-code="{{ .Params.entity_code }}"
              data-count="{{ .Params._linked_count }}"
-             {{ printf `data-entity-type-labels='%s'` (jsonify $vocab.entityTypes) | safeHTMLAttr }}
-             {{ printf `data-role-labels='%s'` (jsonify $vocab.roles) | safeHTMLAttr }}
-             {{ printf `data-role-group-labels='%s'` (jsonify $vocab.roleGroups) | safeHTMLAttr }}
+             {{ printf `data-entity-type-labels='%s'` (replace (jsonify $vocab.entityTypes) "'" `\u0027`) | safeHTMLAttr }}
+             {{ printf `data-role-labels='%s'` (replace (jsonify $vocab.roles) "'" `\u0027`) | safeHTMLAttr }}
+             {{ printf `data-role-group-labels='%s'` (replace (jsonify $vocab.roleGroups) "'" `\u0027`) | safeHTMLAttr }}
+             {{ printf `data-role-groups='%s'` (replace (jsonify $vocab.roleGroupOrder) "'" `\u0027`) | safeHTMLAttr }}
              {{ printf `data-i18n='%s'` (jsonify (dict
-               "focalIntro"       (i18n "entity.focal.intro")
+               "focalIntro"       (dict "one" (i18n "entity.focal.intro" 1) "other" (i18n "entity.focal.intro" 2))
                "viewTimeline"     (i18n "entity.focal.viewTimeline")
                "viewGraph"        (i18n "entity.focal.viewGraph")
                "viewSearch"       (i18n "entity.focal.viewSearch")
                "sep"              (i18n "entity.focal.sep")
-               "tail"             (i18n "entity.focal.tail")
+               "tail"             (i18n "entity.focal.tail" (dict "Site" site.Title))
                "filterByRole"     (i18n "entity.filterByRole")
                "clearShort"       (i18n "ui.clearShort")
-               "connectedToZasqua" (dict "one" (i18n "graph.connectedToZasqua" 1) "other" (i18n "graph.connectedToZasqua" 2))
-               "connectedTo"      (dict "one" (i18n "graph.connectedToZasqua" 1) "other" (i18n "graph.connectedToZasqua" 2))
+               "connectedToSite"  (dict "one" (i18n "graph.connectedToSite" (dict "Count" 1 "Site" site.Title)) "other" (i18n "graph.connectedToSite" (dict "Count" 2 "Site" site.Title)))
+               "connectedTo"      (dict "one" (i18n "graph.connectedToSite" (dict "Count" 1 "Site" site.Title)) "other" (i18n "graph.connectedToSite" (dict "Count" 2 "Site" site.Title)))
                "expand"           (i18n "graph.expand")
                "loading"          (i18n "graph.loading")
                "graphEmpty"       (i18n "entity.graphEmpty")
@@ -256,7 +257,7 @@
                "openInExplorer"   (i18n "entity.openInExplorer")
                "dateConnector"    (i18n "ui.dateConnector")
                "sharedDocsSentence" (dict "one" (i18n "entity.sharedDocsSentence" 1) "other" (i18n "entity.sharedDocsSentence" 2))
-               "connectedOtherDocs" (dict "one" (i18n "entity.connectedOtherDocs" 1) "other" (i18n "entity.connectedOtherDocs" 2))
+               "connectedOtherDocs" (dict "one" (i18n "entity.connectedOtherDocs" (dict "Count" 1 "Site" site.Title)) "other" (i18n "entity.connectedOtherDocs" (dict "Count" 2 "Site" site.Title)))
              )) | safeHTMLAttr }}>
           </p>
 
@@ -306,4 +307,4 @@
   <script src="/js/copy-url.js"></script>
   <script src="/js/entity.js"></script>
 {{ end }}
-{{/* Version: v1.5.0 */}}
+{{/* Version: v1.6.0 */}}

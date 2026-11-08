@@ -54,12 +54,13 @@
  *
  * Every user-facing string is read from the data-i18n blob (single-
  * source, no Spanish fallback); role and role-group display labels
- * come from data-role-labels / data-role-group-labels injected from
- * ui.yaml, so the former triplicated 27-role table is gone.
+ * come from data-role-labels / data-role-group-labels, and role-group
+ * membership and order from data-role-groups, all injected by the
+ * template from data/vocab (with the export's vocabulary.json applied).
  * Entity-type labels come from data-entity-types keyed by entity_type
  * code (no branching on display text).
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 /**
@@ -115,11 +116,18 @@ function selectFacetCounts(result, facetKey, value, activeFilters) {
   if (sameFacetHasActive) {
     // Same-facet OR-group OR the active value itself — read totalFilters.
     const group = (result && result.totalFilters && result.totalFilters[facetKey]) || {};
-    return group[value] || 0;
+    return ownCount(group, value);
   }
   // Cross-facet display — read from filters (constrained counts).
   const group = (result && result.filters && result.filters[facetKey]) || {};
-  return group[value] || 0;
+  return ownCount(group, value);
+}
+
+// A facet value's count from a { value: count } map, read only from the
+// map's own properties, so a value such as "__proto__" or "constructor"
+// that the map lacks counts 0 instead of an inherited object.
+function ownCount(group, value) {
+  return Object.prototype.hasOwnProperty.call(group, value) ? (group[value] || 0) : 0;
 }
 
 // 4-key pivot set for /entidades/. Must stay byte-equivalent to
@@ -130,7 +138,109 @@ function selectFacetCounts(result, facetKey, value, activeFilters) {
 // when walking the triples sidecar for the two-active-dimension
 // branch. Mirrors PIVOT_KEYS in static/js/search.js with a different
 // binding (6 keys for /buscar/, 4 keys here).
+// Facet counts for the entities in the graph viewport, as
+// { entity_type, primary_function, year, century, decade } maps of
+// value → count. Every map has no prototype, so a value such as
+// "__proto__" is counted like any other. An entity's lifespan (under 200
+// years) adds it once to each year, century and decade it covers.
+function scopedFacetsFromEntities(visible) {
+  const scopedFacets = {
+    entity_type: Object.create(null),
+    primary_function: Object.create(null),
+    year: Object.create(null),
+    century: Object.create(null),
+    decade: Object.create(null),
+  };
+  for (const e of visible) {
+    if (e.entity_type) {
+      scopedFacets.entity_type[e.entity_type] = (scopedFacets.entity_type[e.entity_type] || 0) + 1;
+    }
+    if (e.primary_function) {
+      scopedFacets.primary_function[e.primary_function] = (scopedFacets.primary_function[e.primary_function] || 0) + 1;
+    }
+    const yEarly = parseInt(e.date_earliest, 10);
+    const yLate = parseInt(e.date_latest, 10);
+    if (!Number.isNaN(yEarly) && !Number.isNaN(yLate) && yEarly <= yLate && yLate - yEarly < 200) {
+      const seenCenturies = new Set();
+      const seenDecades = new Set();
+      for (let y = yEarly; y <= yLate; y++) {
+        const ys = String(y);
+        scopedFacets.year[ys] = (scopedFacets.year[ys] || 0) + 1;
+        const c = String(Math.floor((y - 1) / 100) + 1);
+        const d = String(Math.floor(y / 10) * 10);
+        if (!seenCenturies.has(c)) {
+          seenCenturies.add(c);
+          scopedFacets.century[c] = (scopedFacets.century[c] || 0) + 1;
+        }
+        if (!seenDecades.has(d)) {
+          seenDecades.add(d);
+          scopedFacets.decade[d] = (scopedFacets.decade[d] || 0) + 1;
+        }
+      }
+    }
+  }
+  return scopedFacets;
+}
+
+// Per-value facet counts for a Pagefind search result, as
+// { facetKey: { value: count } } with no prototypes, each count chosen by
+// selectFacetCounts against the active filters. Falls back to a copy of
+// globalFilters when the result carries no facet payloads.
+function scopedFacetCountsPure(searchResult, activeFilters, globalFilters) {
+  const out = Object.create(null);
+  if (searchResult) {
+    const facetKeys = new Set([
+      ...Object.keys((searchResult.filters) || {}),
+      ...Object.keys((searchResult.totalFilters) || {}),
+    ]);
+    for (const fk of facetKeys) {
+      out[fk] = Object.create(null);
+      const allValues = new Set([
+        ...Object.keys((searchResult.filters && searchResult.filters[fk]) || {}),
+        ...Object.keys((searchResult.totalFilters && searchResult.totalFilters[fk]) || {}),
+      ]);
+      for (const v of allValues) {
+        out[fk][v] = selectFacetCounts(searchResult, fk, v, activeFilters);
+      }
+    }
+  }
+  if (Object.keys(out).length === 0) {
+    Object.assign(out, globalFilters || {});
+  }
+  return out;
+}
+
 const PIVOT_KEYS = ['century', 'decade', 'entity_type', 'primary_function'];
+
+// Century labels and facet keys. The indexer keys the century facet by
+// the bare roman numeral ("XVII", from generate-pagefind-indices.js
+// romanCentury); the visible label comes from the i18n ui.centuryLabel
+// pattern ("{roman} century" in English, its translation in each other
+// bundle). The facet key is derived from a date filter's years, never
+// parsed out of the label, so it holds in every language. The numeral
+// list covers centuries I-XXII; any later century falls back to its
+// arabic number.
+const CENTURY_ROMANS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX',
+  'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX',
+  'XX', 'XXI', 'XXII'];
+
+function centuryRoman(num) {
+  return CENTURY_ROMANS[num] || String(num);
+}
+
+function centuryLabel(pattern, num) {
+  return String(pattern || '{roman}').replace('{roman}', centuryRoman(num));
+}
+
+// Years Y run in century floor((Y-1)/100)+1 (1601-1700 is XVII), the
+// same rule the indexer uses. A date-tree click passes only the years
+// with results; any one of them names the century.
+function centuryPivotValue(dateFilter) {
+  const years = dateFilter && dateFilter.years;
+  const first = years && years.length ? parseInt(years[0], 10) : NaN;
+  if (!Number.isFinite(first)) return null;
+  return centuryRoman(Math.floor((first - 1) / 100) + 1);
+}
 
 /**
  * Pure helper that computes a scoped filters object from the pivot /
@@ -270,24 +380,15 @@ function buildPivotScopedFiltersPure(args) {
 // triplication across entity.js / entity-explorer.js / infinite-
 // bipartite-explorer.js.
 
-// Entity colours shared with entity.js and infinite-bipartite-explorer.js
-var entityColors = {
-  person: '#8B2942',
-  corporate_body: '#6666BB',
-  corporate: '#6666BB',
-  family: '#6666BB'
-};
-
-// Documentary-role taxonomy.
-// Spanish primary, English secondary. Members are the canonical lowercase
-// enum values stored in DescriptionEntity.role. Some values (fiador,
-// apoderado, editor, photographer, artist) are not in the live data yet —
-// they will land with a future import. Groups with zero hits in the
-// focal entity's shard are hidden in the UI.
-// Display labels for each group are NOT stored here — they are single-
-// sourced from ui.yaml roleGroups and read via this._roleGroupLabels,
-// keyed by the group `id` below. Only the grouping LOGIC (which role
-// belongs to which family) lives in JS.
+// Documentary-role taxonomy: the role groups in display order, each with
+// the canonical lowercase role codes it holds. Groups with zero hits in the
+// focal entity's shard are hidden in the UI; roles in no group are shown
+// under a final 'otros' group. Display labels for each group come from
+// this._roleGroupLabels, keyed by the group `id`.
+// The constructor reads the groups from data-role-groups into
+// this._roleGroups. The array below is used only when the attribute is
+// absent, as under a template override that leaves it out, and must stay
+// equal to data/vocab/role-groups.yaml (tests/role-groups-parity.test.js).
 var roleGroups = [
   {
     id: 'production',
@@ -319,6 +420,48 @@ var roleGroups = [
   }
 ];
 
+// label-map:start
+// A code → label map read from a data-*-labels attribute. The map has no
+// prototype, so a code such as "constructor" or "toString" finds no
+// inherited value and `labels[code] || code` falls back to the code. Only
+// string values are kept; a missing or malformed attribute gives an empty
+// map.
+function parseLabelMap(raw) {
+  var map = Object.create(null);
+  if (!raw) return map;
+  var parsed;
+  try { parsed = JSON.parse(raw); } catch (e) { return map; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return map;
+  Object.keys(parsed).forEach(function (key) {
+    if (typeof parsed[key] === 'string') map[key] = parsed[key];
+  });
+  return map;
+}
+// label-map:end
+
+// role-counts:start
+// Role codes are compared in lowercase everywhere: in the counts, the
+// filters and the label lookups, as in the vocab partial, which lowercases
+// the export's role codes and group ids. roleCode gives that form ('' for
+// a link without a role).
+function roleCode(role) {
+  return role ? String(role).toLowerCase() : '';
+}
+
+// The number of links for each role code, lowercased; links without a
+// role are skipped. The map has no prototype, so a role code such as
+// "constructor" is counted like any other.
+function countRoles(links) {
+  var counts = Object.create(null);
+  for (var i = 0; i < links.length; i++) {
+    var r = roleCode(links[i].role);
+    if (!r) continue;
+    counts[r] = (counts[r] || 0) + 1;
+  }
+  return counts;
+}
+// role-counts:end
+
 class EntityExplorer {
   constructor(container) {
     this.container = container;
@@ -333,8 +476,8 @@ class EntityExplorer {
     this.triples = null;
     this.perPage = 20;
 
-    // Locale-aware formatters (read from <html lang>; fallback es-CO)
-    const _locale = document.documentElement.lang || 'es-CO';
+    // Locale-aware formatters (read from <html lang>; 'en' covers a page without one)
+    const _locale = document.documentElement.lang || 'en';
     this._locale = _locale;
     this._fmt  = new Intl.NumberFormat(_locale);
     this._coll = new Intl.Collator(_locale);
@@ -349,31 +492,26 @@ class EntityExplorer {
       console.warn('EntityExplorer: could not parse data-i18n');
     }
 
-    this.entityTypeLabels = {};
-    try {
-      this.entityTypeLabels = JSON.parse(container.dataset.entityTypes || '{}');
-    } catch (e) {
-      console.warn('EntityExplorer: could not parse data-entity-types');
-    }
+    this.entityTypeLabels = parseLabelMap(container.dataset.entityTypes);
 
-    // Role + role-group display labels, single-sourced from ui.yaml via
-    // data-role-labels / data-role-group-labels. Only the display
-    // strings live in the data — the role→group mapping logic stays in JS
-    // (the module-level roleGroups[].members arrays). _roleLabels is keyed
-    // by role code; _roleGroupLabels is keyed by the English group IDs the
-    // roleGroups taxonomy below already uses (production, correspondence, …).
-    this._roleLabels = {};
-    try {
-      this._roleLabels = JSON.parse(container.dataset.roleLabels || '{}');
-    } catch (e) {
-      console.warn('EntityExplorer: could not parse data-role-labels');
-    }
+    // Role and role-group display labels from data-role-labels /
+    // data-role-group-labels, and the groups themselves from
+    // data-role-groups. _roleLabels is keyed by role code; _roleGroupLabels
+    // by group id (production, correspondence, …); _roleGroups is the
+    // ordered list of {id, members}.
+    this._roleLabels = parseLabelMap(container.dataset.roleLabels);
+    this._roleGroupLabels = parseLabelMap(container.dataset.roleGroupLabels);
 
-    this._roleGroupLabels = {};
-    try {
-      this._roleGroupLabels = JSON.parse(container.dataset.roleGroupLabels || '{}');
-    } catch (e) {
-      console.warn('EntityExplorer: could not parse data-role-group-labels');
+    this._roleGroups = roleGroups;
+    if (container.dataset.roleGroups) {
+      try {
+        const groups = JSON.parse(container.dataset.roleGroups);
+        if (Array.isArray(groups)) {
+          this._roleGroups = groups.filter(g => g && typeof g.id === 'string' && Array.isArray(g.members));
+        }
+      } catch (e) {
+        console.warn('EntityExplorer: could not parse data-role-groups');
+      }
     }
 
     this.state = {
@@ -530,12 +668,12 @@ class EntityExplorer {
         this.state.dateFilter = { level: 'decade', label: `${fechaValor}s`, years };
       } else if (fechaNivel === 'century') {
         const num = parseInt(fechaValor, 10);
-        // Strict century span: siglo N covers years (N-1)*100+1 .. N*100
+        // Strict century span: century N covers years (N-1)*100+1 .. N*100
         // (e.g. XVIII = 1701..1800), matching the indexer/date-tree convention.
         const base = (num - 1) * 100 + 1;
         const years = [];
         for (let i = base; i < base + 100; i++) years.push(String(i));
-        this.state.dateFilter = { level: 'century', label: this._i18n.centuryLabel.replace('{roman}', this.romanCentury(num)), years };
+        this.state.dateFilter = { level: 'century', label: centuryLabel(this._i18n.centuryLabel, num), years };
       }
     }
   }
@@ -792,36 +930,7 @@ class EntityExplorer {
         // Compute scoped facet counts from the visible entities so the
         // left sidebar facets narrow to reflect what's actually in the
         // graph viewport (and empty facet groups disappear).
-        const scopedFacets = { entity_type: {}, primary_function: {}, year: {}, century: {}, decade: {} };
-        for (const e of visible) {
-          if (e.entity_type) {
-            scopedFacets.entity_type[e.entity_type] = (scopedFacets.entity_type[e.entity_type] || 0) + 1;
-          }
-          if (e.primary_function) {
-            scopedFacets.primary_function[e.primary_function] = (scopedFacets.primary_function[e.primary_function] || 0) + 1;
-          }
-          // Year coverage: contribute the entity once per year in its lifespan
-          const yEarly = parseInt(e.date_earliest, 10);
-          const yLate = parseInt(e.date_latest, 10);
-          if (!Number.isNaN(yEarly) && !Number.isNaN(yLate) && yEarly <= yLate && yLate - yEarly < 200) {
-            const seenCenturies = new Set();
-            const seenDecades = new Set();
-            for (let y = yEarly; y <= yLate; y++) {
-              const ys = String(y);
-              scopedFacets.year[ys] = (scopedFacets.year[ys] || 0) + 1;
-              const c = String(Math.floor((y - 1) / 100) + 1);
-              const d = String(Math.floor(y / 10) * 10);
-              if (!seenCenturies.has(c)) {
-                seenCenturies.add(c);
-                scopedFacets.century[c] = (scopedFacets.century[c] || 0) + 1;
-              }
-              if (!seenDecades.has(d)) {
-                seenDecades.add(d);
-                scopedFacets.decade[d] = (scopedFacets.decade[d] || 0) + 1;
-              }
-            }
-          }
-        }
+        const scopedFacets = scopedFacetsFromEntities(visible);
         search = { results: allResults, filters: scopedFacets };
       } else {
         search = await this.pagefind.search(this.state.q || null, {
@@ -1104,7 +1213,7 @@ class EntityExplorer {
 
   renderSearchInput() {
     // Use the same .refine-search styling as the descriptions explorer
-    // (rounded pill, stone-50 bg, burgundy focus border).
+    // (rounded pill, stone-50 bg, primary-colour focus border).
     const wrap = document.createElement('div');
     wrap.className = 'refine-search';
 
@@ -1317,29 +1426,22 @@ class EntityExplorer {
 
   // --- Focal-card role facet (documentary-role taxonomy) ---
   //
-  // Renders the 7-group documentary-role taxonomy scoped to the currently
+  // Renders the documentary-role groups (this._roleGroups) scoped to the currently
   // selected entity's shard. Groups (and their children) with zero hits
   // in the focal entity's documents are hidden. Ticking a checkbox
   // filters which docs hang off the focal entity in the graph — it does
   // NOT filter the entity results list (role is per-document, not
   // per-entity).
   //
-  // The 7-group rollup is computed client-side from a flat list of
-  // canonical role values. When a future import lands more roles
-  // (fiador, apoderado, etc.) they slot into the existing groups
-  // without restructuring the UI.
+  // The group rollup is computed client-side from a flat list of
+  // canonical role values. Roles in no group appear under 'otros'.
   renderFocalRoleFacet(shard) {
     // Count roles in the focal entity's shard
-    const counts = {};
-    for (const link of shard) {
-      const r = (link.role || '').toLowerCase();
-      if (!r) continue;
-      counts[r] = (counts[r] || 0) + 1;
-    }
+    const counts = countRoles(shard);
 
     // Compute per-group totals and surviving members
     const visibleGroups = [];
-    for (const group of roleGroups) {
+    for (const group of this._roleGroups) {
       const members = group.members
         .map(role => ({ role, count: counts[role] || 0 }))
         .filter(m => m.count > 0)
@@ -1347,6 +1449,20 @@ class EntityExplorer {
       if (members.length === 0) continue;
       const total = members.reduce((s, m) => s + m.count, 0);
       visibleGroups.push({ ...group, members, total });
+    }
+
+    // Roles in the shard that belong to no group (legacy or newly added
+    // values) go into a final 'otros' group, as on the entity detail page,
+    // so the filter never hides a role that is present in the data.
+    const grouped = new Set();
+    for (const group of this._roleGroups) group.members.forEach(r => grouped.add(r));
+    const otrosMembers = Object.keys(counts)
+      .filter(role => !grouped.has(role) && counts[role] > 0)
+      .map(role => ({ role, count: counts[role] }))
+      .sort((a, b) => b.count - a.count);
+    if (otrosMembers.length > 0) {
+      const otrosTotal = otrosMembers.reduce((s, m) => s + m.count, 0);
+      visibleGroups.push({ id: 'otros', members: otrosMembers, total: otrosTotal });
     }
 
     if (visibleGroups.length === 0) return null;
@@ -1516,8 +1632,8 @@ class EntityExplorer {
     if (this.state.dateFilter) {
       const df = this.state.dateFilter;
       if (df.level === 'century') {
-        // dateFilter.label is "Siglo XVII" — strip the prefix.
-        const roman = (df.label || '').replace(/^Siglo\s+/, '');
+        // The facet key comes from the years, not the label text.
+        const roman = centuryPivotValue(df);
         if (roman) activeByKey.century = [roman];
       } else if (df.level === 'decade') {
         // dateFilter.years is ['1850','1851',…'1859'] — the pivot key
@@ -1541,27 +1657,7 @@ class EntityExplorer {
   // Returns globalFilters as a defensive fallback when Pagefind has
   // not yet produced any facet payloads.
   _buildScopedFacetCounts(searchResult) {
-    const out = {};
-    if (searchResult) {
-      const facetKeys = new Set([
-        ...Object.keys((searchResult.filters) || {}),
-        ...Object.keys((searchResult.totalFilters) || {}),
-      ]);
-      for (const fk of facetKeys) {
-        out[fk] = {};
-        const allValues = new Set([
-          ...Object.keys((searchResult.filters && searchResult.filters[fk]) || {}),
-          ...Object.keys((searchResult.totalFilters && searchResult.totalFilters[fk]) || {}),
-        ]);
-        for (const v of allValues) {
-          out[fk][v] = selectFacetCounts(searchResult, fk, v, this.state);
-        }
-      }
-    }
-    if (Object.keys(out).length === 0) {
-      Object.assign(out, this.globalFilters || {});
-    }
-    return out;
+    return scopedFacetCountsPure(searchResult, this.state, this.globalFilters);
   }
 
   renderSidebarFacets(containerEl, filtersArg) {
@@ -1609,7 +1705,7 @@ class EntityExplorer {
   // --- Selected entity card (right column) ---
   // Renders into the #focal-entity-card host. Layout matches the
   // EntityExplorerRefinedPage Make spec: eyebrow + Cormorant name +
-  // periwinkle type pill + big burgundy doc count + "Ver página completa"
+  // accent type pill + big primary-colour doc count + "Ver página completa"
   // link, with an X button that restores the stub state.
 
   highlightEntity(entityCode, entityMeta, shard) {
@@ -2080,7 +2176,7 @@ class EntityExplorer {
       const year = parseInt(yearStr, 10);
       if (isNaN(year)) continue;
       if (count === 0) continue;
-      // Strict century convention (e.g. 1601-1700 = siglo XVII): must match
+      // Strict century convention (e.g. 1601-1700 = century XVII): must match
       // the indexer's romanCentury ((year-1)/100+1) so the century facet counts
       // looked up below align with how years are grouped here. Boundary year
       // 1700 groups under XVII, not XVIII. Same rule as search.js#renderDateTree.
@@ -2107,16 +2203,16 @@ class EntityExplorer {
     const sortedCenturies = Array.from(centuries.entries()).sort((a, b) => a[0] - b[0]);
 
     for (const [centuryNum, centuryData] of sortedCenturies) {
-      const centuryLabel = this._i18n.centuryLabel.replace('{roman}', this.romanCentury(centuryNum));
+      const centuryText = centuryLabel(this._i18n.centuryLabel, centuryNum);
 
-      if (df && df.level === 'century' && df.label !== centuryLabel) continue;
+      if (df && df.level === 'century' && df.label !== centuryText) continue;
       if (df && (df.level === 'decade' || df.level === 'year')) {
         const selectedYear = parseInt(df.years[0], 10);
         const selectedCentury = Math.floor((selectedYear - 1) / 100) + 1;
         if (selectedCentury !== centuryNum) continue;
       }
 
-      const isCenturyActive = df && df.level === 'century' && df.label === centuryLabel;
+      const isCenturyActive = df && df.level === 'century' && df.label === centuryText;
       const existingYears = centuryData.years;
 
       const li = document.createElement('li');
@@ -2135,13 +2231,13 @@ class EntityExplorer {
       checkbox.checked = isCenturyActive;
       checkbox.addEventListener('change', () => {
         this.handleDateSelect(checkbox.checked ? {
-          level: 'century', label: centuryLabel, years: existingYears
+          level: 'century', label: centuryText, years: existingYears
         } : null);
       });
 
       const label = document.createElement('span');
       label.className = 'date-tree-label';
-      label.textContent = centuryLabel;
+      label.textContent = centuryText;
 
       const countSpan = document.createElement('span');
       countSpan.className = 'date-tree-count';
@@ -2550,10 +2646,7 @@ class EntityExplorer {
   // --- Utilities ---
 
   romanCentury(num) {
-    const romans = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX',
-      'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX',
-      'XX', 'XXI', 'XXII'];
-    return romans[num] || String(num);
+    return centuryRoman(num);
   }
 
   escapeHtml(str) {
@@ -2583,7 +2676,7 @@ class EntityExplorer {
 // so the block is a no-op. Kept symmetric with the same footer in
 // `static/js/search.js` and `static/js/place-explorer.js`.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS };
+  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, centuryLabel, centuryPivotValue, scopedFacetsFromEntities, scopedFacetCountsPure };
 }
 
-// Version: v1.4.0
+// Version: v1.6.0

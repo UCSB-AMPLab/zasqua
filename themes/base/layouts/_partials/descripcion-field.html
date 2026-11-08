@@ -20,7 +20,7 @@
     pipelist — pipe-split list (scope_content, extent, notes)
     plain    — label + value span
 
-  Version: v1.0.0
+  Version: v1.6.0
 */}}
 {{ $f := .field }}
 {{ $value := .value }}
@@ -30,7 +30,7 @@
     {{ with $repo }}
       <div class="detail-field">
         <span class="detail-label font-semibold text-stone-900">{{ $f.label }}</span>
-        <span class="detail-value text-stone-700"><a href="/{{ .code }}/" class="text-burgundy hover:text-burgundy-light">{{ .name }}</a></span>
+        <span class="detail-value text-stone-700"><a href="/{{ .code }}/" class="text-primary hover:text-primary-light">{{ .name }}</a></span>
       </div>
     {{ end }}
   {{ end }}
@@ -57,4 +57,4 @@
     <span class="detail-value">{{ $value }}</span>
   </div>
 {{ end }}
-{{/* Version: v1.0.0 */}}
+{{/* Version: v1.6.0 */}}

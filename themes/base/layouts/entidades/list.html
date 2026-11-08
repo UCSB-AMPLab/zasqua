@@ -10,14 +10,16 @@
   Data attributes on the #entity-explorer host carry the render-time
   vocabulary so the client controller never hardcodes a label:
   data-entity-types (vocab.entityTypes, keyed by entity_type code),
-  data-role-labels (vocab.roles, the 27-role display table), and
+  data-role-labels (vocab.roles, the role display table),
   data-role-group-labels (vocab.roleGroups, the accordion headers keyed
-  by the English group IDs entity-explorer.js already uses). Each is
+  by the English group IDs entity-explorer.js uses), and data-role-groups
+  (vocab.roleGroupOrder, the ordered groups and their member roles). Each is
   emitted via printf + safeHTMLAttr to preserve raw double quotes.
 
-  Vocab source: themes/base/data/vocab/{lang}.yaml, resolved by
-  site.Language.LanguageCode ("es-CO" → "es", "en-US" → "en"), falling
-  back to vocab.es when the language key is absent.
+  Vocab source: _partials/vocab.html, which applies the export's
+  vocabulary.json to themes/base/data/vocab/{lang}.yaml. The JSON
+  attributes are single-quoted and their labels can come from the export,
+  so each escapes the apostrophe as \u0027 after jsonify.
 
   The sibling #graph-container host (read by
   infinite-bipartite-explorer.js) carries its own data-role-labels and
@@ -38,11 +40,14 @@
   The entity-count-live span starts at a baseline string; JS overrides
   this with the live Pagefind-indexed count once the index is ready.
 
-  Four example-entity buttons in the empty-state prose link to
-  canonical entity codes in the current corpus. Refresh these codes
-  whenever the underlying authority records change.
+  The empty state shows the site's logo (site.Params.logo) when one is
+  set, and a run of example entities from site.Params.entity_examples,
+  rendered by _partials/example-links.html. Both belong to the site: the
+  engine names no logo file and no entity code, so a fork shows neither
+  until it sets them, and the sentence introducing the examples is left
+  out with them.
 
-  Version: v1.4.0
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
 
@@ -51,10 +56,8 @@
 {{ end }}
 
 {{ define "main" }}
-{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
-{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
-{{ $vocab := index hugo.Data.vocab $langKey }}
-{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+{{/* Labels and role groups: bundled vocab with the export's vocabulary.json applied */}}
+{{ $vocab := partialCached "vocab.html" . site.Language.Lang }}
 {{ $i18n := partial "i18n-blob.html" . }}
 {{ $i18n = merge $i18n (dict
   "calculatingTotal"    (i18n "entity.calculatingTotal")
@@ -94,15 +97,15 @@
 
   <header class="explorer-page-header">
     <h1 class="explorer-page-title">{{ i18n "entity.explorerTitle" }}</h1>
-    <p class="explorer-page-intro">{{ replace (i18n "entity.explorerIntro") "{count}" `<strong id="entity-count-live">92.042</strong>` | safeHTML }}</p>
+    <p class="explorer-page-intro">{{ replace (i18n "entity.explorerIntro" (dict "Site" site.Title)) "{count}" `<strong id="entity-count-live">92.042</strong>` | safeHTML }}</p>
   </header>
 
   <div class="explorer-grid">
 
     <section class="explorer-graph-panel entity-graph-frame">
       <div id="graph-container" style="width:100%;height:100%"
-           {{ printf `data-role-labels='%s'` (jsonify $vocab.roles) | safeHTMLAttr }}
-           {{ printf `data-entity-type-labels='%s'` (jsonify $vocab.entityTypes) | safeHTMLAttr }}
+           {{ printf `data-role-labels='%s'` (replace (jsonify $vocab.roles) "'" `\u0027`) | safeHTMLAttr }}
+           {{ printf `data-entity-type-labels='%s'` (replace (jsonify $vocab.entityTypes) "'" `\u0027`) | safeHTMLAttr }}
            {{ printf `data-i18n='%s'` (jsonify (dict
              "connectedTo"          (dict "one" (i18n "graph.connectedTo" 1) "other" (i18n "graph.connectedTo" 2))
              "expand"               (i18n "graph.expand")
@@ -126,17 +129,16 @@
 
       <div id="graph-empty-state" class="graph-empty-state">
         <div class="graph-empty-state-inner">
-          <img src="/img/zasqua-3-burgundy-sm.svg"
-               alt="Zasqua"
-               class="graph-empty-state-logo">
+          {{ with site.Params.logo }}<img src="{{ . }}" alt="" class="graph-empty-state-logo">{{ end }}
           <p class="graph-empty-state-text">{{ i18n "entity.emptyState.prose1" }}</p>
+          {{ $examples := partial "example-links.html" (dict
+               "items" site.Params.entity_examples
+               "attr"  "data-entity"
+               "conj"  (i18n "entity.emptyState.examplesConj")
+               "conjBeforeO" (i18n "entity.emptyState.examplesConjBeforeO")) }}
           <p class="graph-empty-state-text">
             {{ i18n "entity.emptyState.prose2" }}
-            <button type="button" class="graph-empty-state-link" data-entity="ne-93s56">Real Audiencia de Quito</button>,
-            <button type="button" class="graph-empty-state-link" data-entity="ne-9t8ii">Cabildo de Rionegro</button>,
-            <button type="button" class="graph-empty-state-link" data-entity="ne-hnh98">José Gabriel Túpac Amaru</button>
-            o
-            <button type="button" class="graph-empty-state-link" data-entity="ne-ff33n">Simón Bolívar</button>.
+            {{ with $examples }}{{ i18n "entity.emptyState.examplesIntro" }} {{ . }}{{ end }}
           </p>
         </div>
       </div>
@@ -173,9 +175,10 @@
 
     <div class="explorer-results-col">
       <div id="entity-explorer"
-           {{ printf `data-entity-types='%s'` (jsonify $vocab.entityTypes) | safeHTMLAttr }}
-           {{ printf `data-role-labels='%s'` (jsonify $vocab.roles) | safeHTMLAttr }}
-           {{ printf `data-role-group-labels='%s'` (jsonify $vocab.roleGroups) | safeHTMLAttr }}
+           {{ printf `data-entity-types='%s'` (replace (jsonify $vocab.entityTypes) "'" `\u0027`) | safeHTMLAttr }}
+           {{ printf `data-role-labels='%s'` (replace (jsonify $vocab.roles) "'" `\u0027`) | safeHTMLAttr }}
+           {{ printf `data-role-group-labels='%s'` (replace (jsonify $vocab.roleGroups) "'" `\u0027`) | safeHTMLAttr }}
+           {{ printf `data-role-groups='%s'` (replace (jsonify $vocab.roleGroupOrder) "'" `\u0027`) | safeHTMLAttr }}
            {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}></div>
     </div>
 
@@ -189,4 +192,4 @@
   <script src="/js/entity-explorer.js"></script>
   <script src="/js/entidades-wiring.js"></script>
 {{ end }}
-{{/* Version: v1.4.0 */}}
+{{/* Version: v1.6.0 */}}

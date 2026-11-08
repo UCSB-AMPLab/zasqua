@@ -33,11 +33,13 @@
  * locale bundles and never in this file. The entity-type for the focal
  * graph node resolves from the stable data-entity-type-raw CODE rather
  * than mapping localized badge text, which keeps it locale-invariant.
- * Date ordering is locale-aware: US "Month D, YYYY" under en, "D de
- * Month de YYYY" under es. Grouping LOGIC (role→group membership) stays
- * in JS; only display strings move to data attributes.
+ * Numbers, plurals and dates follow the page's <html lang> through
+ * Intl: "March 15, 1723" under en-US, "15 de marzo de 1723" under
+ * es-CO. Role-group membership and order are read from
+ * data-role-groups, with the module's roleGroups array as the fallback
+ * when the attribute is absent.
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 // Render-time vocabulary read from data attributes on #entity-intro
@@ -47,14 +49,18 @@
 // helpers (renderTimeline / renderTimelineEntry / formatDate) and the
 // in-closure graph functions all read from a single source. Spanish is
 // never hardcoded in this file — display copy lives only in the locale bundles.
-var _entityRoleLabels = {};       // role code → display label (ui.roles)
-var _entityRoleGroupLabels = {};  // group id → display label (ui.roleGroups)
-var _entityTypeLabels = {};       // entity_type code → display label (ui.entity.types)
+var _entityRoleLabels = Object.create(null);       // role code → display label
+var _entityRoleGroupLabels = Object.create(null);  // group id → display label
+var _entityTypeLabels = Object.create(null);       // entity_type code → display label
 var _entityI18n = {};             // app-label blob
 
-// Role-group taxonomy — grouping LOGIC only (display labels come from
-// _entityRoleGroupLabels, keyed by these English group IDs). Members
-// list which role codes fall into each thematic family.
+// Role groups, in display order, with the role codes each holds (display
+// labels come from _entityRoleGroupLabels, keyed by these group IDs).
+// _initEntityVocab replaces this list with data-role-groups, which the
+// template builds from data/vocab/role-groups.yaml and the export's
+// vocabulary.json. The array below is used only when the attribute is
+// absent, as under a template override that leaves it out, and must stay
+// equal to data/vocab/role-groups.yaml (tests/role-groups-parity.test.js).
 var roleGroups = [
   { id: 'production', members: ['creator', 'author', 'editor', 'publisher', 'mentioned', 'subject', 'official'] },
   { id: 'correspondence', members: ['sender', 'recipient'] },
@@ -65,31 +71,102 @@ var roleGroups = [
   { id: 'visual', members: ['photographer', 'artist'] }
 ];
 
+// Colours come from the theme tokens through theme-colors.js, which the
+// layout shell loads first; the grey stands in if a layout omits it.
+var themeColor = window.zasquaThemeColor || function () { return '#888'; };
+var themeFont = window.zasquaThemeFont || function () { return 'sans-serif'; };
+
 // Entity colours by type (shared with graph)
 var entityColors = {
-  person: '#8B2942',
-  corporate_body: '#6666BB',
-  corporate: '#6666BB',
-  family: '#6666BB'
+  person: themeColor('graph-person'),
+  corporate_body: themeColor('graph-corporate'),
+  corporate: themeColor('graph-corporate'),
+  family: themeColor('graph-corporate')
+};
+var graphColors = {
+  document: themeColor('graph-document'),
+  documentHover: themeColor('graph-document-hover'),
+  documentDimmed: themeColor('graph-document-dimmed'),
+  entityDimmed: themeColor('graph-entity-dimmed'),
+  nodeFill: themeColor('graph-node-fill'),
+  link: themeColor('graph-link')
 };
 
-// All known grouped role values (for detecting ungrouped/legacy roles)
+// All grouped role values (for detecting roles in no group, which are
+// listed under 'otros'). Rebuilt whenever roleGroups is replaced.
 var groupedRoles = new Set();
-for (var _gi = 0; _gi < roleGroups.length; _gi++) {
-  for (var _mi = 0; _mi < roleGroups[_gi].members.length; _mi++) {
-    groupedRoles.add(roleGroups[_gi].members[_mi]);
+function _indexGroupedRoles() {
+  groupedRoles = new Set();
+  for (var _gi = 0; _gi < roleGroups.length; _gi++) {
+    for (var _mi = 0; _mi < roleGroups[_gi].members.length; _mi++) {
+      groupedRoles.add(roleGroups[_gi].members[_mi]);
+    }
   }
 }
+_indexGroupedRoles();
+
+// label-map:start
+// A code → label map read from a data-*-labels attribute. The map has no
+// prototype, so a code such as "constructor" or "toString" finds no
+// inherited value and `labels[code] || code` falls back to the code. Only
+// string values are kept; a missing or malformed attribute gives an empty
+// map.
+function parseLabelMap(raw) {
+  var map = Object.create(null);
+  if (!raw) return map;
+  var parsed;
+  try { parsed = JSON.parse(raw); } catch (e) { return map; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return map;
+  Object.keys(parsed).forEach(function (key) {
+    if (typeof parsed[key] === 'string') map[key] = parsed[key];
+  });
+  return map;
+}
+// label-map:end
+
+// role-counts:start
+// Role codes are compared in lowercase everywhere: in the counts, the
+// filters and the label lookups, as in the vocab partial, which lowercases
+// the export's role codes and group ids. roleCode gives that form ('' for
+// a link without a role).
+function roleCode(role) {
+  return role ? String(role).toLowerCase() : '';
+}
+
+// The number of links for each role code, lowercased; links without a
+// role are skipped. The map has no prototype, so a role code such as
+// "constructor" is counted like any other.
+function countRoles(links) {
+  var counts = Object.create(null);
+  for (var i = 0; i < links.length; i++) {
+    var r = roleCode(links[i].role);
+    if (!r) continue;
+    counts[r] = (counts[r] || 0) + 1;
+  }
+  return counts;
+}
+// role-counts:end
 
 // Read the render-time vocabulary + app-label blob off #entity-intro.
 // Called once on DOMContentLoaded before any render runs.
 function _initEntityVocab() {
   var introEl = document.getElementById('entity-intro');
   if (!introEl) return;
-  try { _entityRoleLabels = JSON.parse(introEl.dataset.roleLabels || '{}'); } catch (e) {}
-  try { _entityRoleGroupLabels = JSON.parse(introEl.dataset.roleGroupLabels || '{}'); } catch (e) {}
-  try { _entityTypeLabels = JSON.parse(introEl.dataset.entityTypeLabels || '{}'); } catch (e) {}
+  _entityRoleLabels = parseLabelMap(introEl.dataset.roleLabels);
+  _entityRoleGroupLabels = parseLabelMap(introEl.dataset.roleGroupLabels);
+  _entityTypeLabels = parseLabelMap(introEl.dataset.entityTypeLabels);
   try { _entityI18n = JSON.parse(introEl.dataset.i18n || '{}'); } catch (e) {}
+  if (introEl.dataset.roleGroups) {
+    try {
+      var groups = JSON.parse(introEl.dataset.roleGroups);
+      if (Array.isArray(groups)) {
+        roleGroups = groups.filter(function (g) {
+          return g && typeof g.id === 'string' && Array.isArray(g.members);
+        });
+        _indexGroupedRoles();
+      }
+    } catch (e) {}
+  }
 }
 
 // CLDR plural selection helper — chooses the one/other form from a
@@ -100,31 +177,22 @@ var _entityPr = null;
 function _entityPlural(dict, n) {
   if (!dict || typeof dict !== 'object') return '';
   if (!_entityPr) {
-    _entityPr = new Intl.PluralRules(((document.documentElement && document.documentElement.lang) || 'es-CO').split('-')[0]);
+    _entityPr = new Intl.PluralRules(_pageLocale());
   }
   var form = dict[_entityPr.select(n)] || dict.other || '';
   return form.replace('{count}', _getEntityFmt().format(n));
 }
 
-// Locale-aware formatters — initialised on DOMContentLoaded so document.documentElement
-// is available. Shared by all functions in this file via closure. Number and
-// month formatting follow the page locale read from <html lang> (es-CO default).
-var _entityLocale = 'es-CO';
+// Number formatter in the page's language — initialised on first use so
+// document.documentElement is available. Shared by all functions in this
+// file via closure.
 var _entityFmt = null;
-var _entityMonthFmt = null;
 
 function _getEntityFmt() {
   if (!_entityFmt) {
-    _entityLocale = (document.documentElement && document.documentElement.lang) || 'es-CO';
-    _entityFmt = new Intl.NumberFormat(_entityLocale);
-    _entityMonthFmt = new Intl.DateTimeFormat(_entityLocale, { month: 'long' });
+    _entityFmt = new Intl.NumberFormat(_pageLocale());
   }
   return _entityFmt;
-}
-
-function _getEntityMonthFmt() {
-  _getEntityFmt(); // ensure initialised
-  return _entityMonthFmt;
 }
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -197,12 +265,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     var code = introEl.dataset.entityCode;
     var count = allLinks.length;
 
-    // Build intro sentence: focalIntro template has {type} and {count} placeholders
-    var _fmtCount = _getEntityFmt().format(count);
-    var _introTpl = _entityI18n.focalIntro || '';
-    var text = _introTpl
-      .replace('{type}', escapeHtml(entityType))
-      .replace('{count}', _fmtCount);
+    // Build intro sentence: focalIntro is a {one, other} pair carrying
+    // {type} and {count}; the plural helper picks the form and fills the count
+    var text = _entityPlural(_entityI18n.focalIntro, count)
+      .replace('{type}', escapeHtml(entityType));
 
     introEl.innerHTML = text;
 
@@ -281,19 +347,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   }
 
-  // --- Role filters (collapsible 7-group accordion) ---
+  // --- Role filters (collapsible role-group accordion) ---
 
   function buildRoleFilters(allLinks) {
     var filtersEl = document.getElementById('entity-role-filters');
     if (!filtersEl) return;
 
     // Count roles from all links
-    var roleCounts = {};
-    for (var i = 0; i < allLinks.length; i++) {
-      var r = (allLinks[i].role || '').toLowerCase();
-      if (!r) continue;
-      roleCounts[r] = (roleCounts[r] || 0) + 1;
-    }
+    var roleCounts = countRoles(allLinks);
 
     // Build visible groups (only those with at least one role present in data)
     var visibleGroups = [];
@@ -560,7 +621,7 @@ document.addEventListener('DOMContentLoaded', async function() {
           date: link.date_expression || '',
           role: link.role || '',
           expandable: null,  // null = unchecked, true/false after lookup
-          color: '#A09888'
+          color: graphColors.document
         });
       }
       graphEdges.push({ source: entityCode, target: link.reference_code, role: link.role });
@@ -601,6 +662,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     var width = canvas.clientWidth || 600;
     var height = canvas.clientHeight || 480;
 
+    // Canvas labels use the font the page computes for the graph's
+    // container, since a canvas does not inherit CSS fonts.
+    var labelFont = themeFont(canvas);
+
     graphInstance = new ForceGraph(canvas)
       .width(width)
       .height(height)
@@ -636,12 +701,12 @@ document.addEventListener('DOMContentLoaded', async function() {
           ctx.beginPath();
           ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
           if (filled) {
-            ctx.fillStyle = dimmed ? '#E8E4E0' : hovered ? '#807060' : node.color;
+            ctx.fillStyle = dimmed ? graphColors.documentDimmed : hovered ? graphColors.documentHover : node.color;
             ctx.fill();
           } else {
-            ctx.fillStyle = '#FAFAF9';
+            ctx.fillStyle = graphColors.nodeFill;
             ctx.fill();
-            ctx.strokeStyle = dimmed ? '#E8E4E0' : hovered ? '#807060' : node.color;
+            ctx.strokeStyle = dimmed ? graphColors.documentDimmed : hovered ? graphColors.documentHover : node.color;
             ctx.lineWidth = 1.2 / globalScale;
             ctx.stroke();
           }
@@ -650,13 +715,13 @@ document.addEventListener('DOMContentLoaded', async function() {
           var dimmedE = highlightedNodes.size > 0 && !highlightedNodes.has(node.id);
           ctx.beginPath();
           ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
-          ctx.fillStyle = dimmedE ? '#DDD8E0' : node.color;
+          ctx.fillStyle = dimmedE ? graphColors.entityDimmed : node.color;
           ctx.fill();
 
           var show = globalScale > 1.2 || highlightedNodes.has(node.id);
           if (show) {
             var fontSize = 10 / globalScale;
-            ctx.font = 'bold ' + fontSize + 'px DM Sans, sans-serif';
+            ctx.font = 'bold ' + fontSize + 'px ' + labelFont;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
             ctx.fillStyle = highlightedNodes.has(node.id) ? '#333' : '#777';
@@ -667,7 +732,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       .linkColor(function(link) {
         if (highlightedLinks.has(link)) return '#888';
         if (highlightedNodes.size > 0) return 'rgba(0,0,0,0.03)';
-        return '#E0DDD8';
+        return graphColors.link;
       })
       .linkWidth(function(link) { return highlightedLinks.has(link) ? 2 : 0.8; })
       .enableNodeDrag(true)
@@ -810,7 +875,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       html += '<div class="graph-tooltip-date">' + formatDate(node.date) + '</div>';
     }
     if (node.role) {
-      html += '<div class="graph-tooltip-role">' + escapeHtml(_entityRoleLabels[node.role] || node.role) + '</div>';
+      html += '<div class="graph-tooltip-role">' + escapeHtml(_entityRoleLabels[roleCode(node.role)] || node.role) + '</div>';
     }
     html += '<div class="graph-tooltip-name"><a href="/' + escapeHtml(node.id) + '/">' + escapeHtml(node.label) + '</a></div>';
     html += '<div class="graph-tooltip-ref">' + escapeHtml(node.id) + '</div>';
@@ -827,8 +892,8 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (!count || activeTooltip !== tooltip) return;
       var actions = document.createElement('div');
       actions.className = 'graph-tooltip-actions';
-      // graph.connectedToZasqua {one,other} — {count} via PluralRules.
-      var text = _entityPlural(_entityI18n.connectedToZasqua, count) + ' ';
+      // graph.connectedToSite {one,other} — {count} via PluralRules.
+      var text = _entityPlural(_entityI18n.connectedToSite, count) + ' ';
       var span = document.createElement('span');
       span.textContent = text;
       var btn = document.createElement('button');
@@ -1004,7 +1069,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   function filterLinks(allLinks, active) {
     if (active.size === 0) return allLinks;
     return allLinks.filter(function(link) {
-      return active.has(link.role || 'unknown');
+      return active.has(roleCode(link.role) || 'unknown');
     });
   }
 
@@ -1014,7 +1079,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 function renderTimeline(container, links, activeRoles) {
   var filtered = activeRoles && activeRoles.size > 0
-    ? links.filter(function(l) { return activeRoles.has(l.role || 'unknown'); })
+    ? links.filter(function(l) { return activeRoles.has(roleCode(l.role) || 'unknown'); })
     : links;
 
   if (!filtered || filtered.length === 0) {
@@ -1078,7 +1143,7 @@ function renderTimelineEntry(link, isLast) {
     html += '<div class="timeline-date">' + escapeHtml(formatDate(link.date_expression)) + '</div>';
   }
   if (link.role) {
-    var roleLabel = _entityRoleLabels[link.role] || link.role;
+    var roleLabel = _entityRoleLabels[roleCode(link.role)] || link.role;
     html += '<span class="timeline-role-badge">' + escapeHtml(roleLabel) + '</span>';
   }
   html += '<a href="/' + slug + '/" class="timeline-title">' + escapeHtml(link.title) + '</a>';
@@ -1089,37 +1154,51 @@ function renderTimelineEntry(link, isLast) {
   return html;
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-
-  if (dateStr.indexOf(' .. ') !== -1) {
-    var parts = dateStr.split(' .. ');
-    return formatDate(parts[0]) + ' – ' + formatDate(parts[1]);
-  }
-
-  // Date ordering is locale-aware (approved 2026-06-02): under en use US
-  // order "Month D, YYYY"; under es keep "D de Month de YYYY" with the
-  // bundle's dateConnector. Branch on <html lang>.
-  var _isEn = (((document.documentElement && document.documentElement.lang) || 'es-CO').slice(0, 2) === 'en');
-  var _conn = _entityI18n.dateConnector || '';
-
-  var match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    var day = parseInt(match[3], 10);
-    var month = _getEntityMonthFmt().format(new Date(2000, parseInt(match[2], 10) - 1, 1));
-    if (_isEn) return month + ' ' + day + ', ' + match[1];
-    return day + _conn + month + _conn + match[1];
-  }
-
-  var ymMatch = dateStr.match(/^(\d{4})-(\d{2})$/);
-  if (ymMatch) {
-    var m = _getEntityMonthFmt().format(new Date(2000, parseInt(ymMatch[2], 10) - 1, 1));
-    if (_isEn) return m + ' ' + ymMatch[1];
-    return m + _conn + ymMatch[1];
-  }
-
-  return dateStr;
+// The page's language is the one in <html lang>, which Hugo writes from
+// the site's [ui] language setting.
+function _pageLocale() {
+  return (document.documentElement && document.documentElement.lang) || undefined;
 }
+
+function formatDate(dateStr) {
+  return narrativeDate(dateStr, _pageLocale());
+}
+
+// narrative-date:start
+// Formats an archival date string ("1723-03-15", "1723-03", or a range
+// joined by " .. ") as prose in `locale`, with the month names and word
+// order Intl takes from CLDR: "15 de marzo de 1723" in es-CO, "March 15,
+// 1723" in en-US. The year is copied from the input so that years before
+// 1000 keep four digits. Anything else passes through unchanged. This
+// block is identical in entity.js, infinite-bipartite-explorer.js and
+// place.js, and matches scripts/enrichment/date-format.js; tests check all four.
+var _narrativeDateFmts = {};
+function narrativeDate(dateStr, locale) {
+  if (!dateStr) return '';
+  if (dateStr.indexOf(' .. ') !== -1) {
+    var range = dateStr.split(' .. ');
+    return narrativeDate(range[0], locale) + ' – ' + narrativeDate(range[1], locale);
+  }
+  var m = dateStr.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+  if (!m) return dateStr;
+  var month = parseInt(m[2], 10);
+  var day = m[3] ? parseInt(m[3], 10) : 0;
+  if (month < 1 || month > 12) return dateStr;
+  // 2000 is a leap year, so 29 February is a valid stand-in date.
+  var date = new Date(Date.UTC(2000, month - 1, day || 1));
+  if (day && date.getUTCDate() !== day) return dateStr;
+  var key = (locale || '') + (day ? '|ymd' : '|ym');
+  if (!_narrativeDateFmts[key]) {
+    var opts = { timeZone: 'UTC', calendar: 'gregory', year: 'numeric', month: 'long' };
+    if (day) opts.day = 'numeric';
+    _narrativeDateFmts[key] = new Intl.DateTimeFormat(locale || undefined, opts);
+  }
+  var year = m[1];
+  return _narrativeDateFmts[key].formatToParts(date).map(function (p) {
+    return p.type === 'year' ? year : p.value;
+  }).join('');
+}
+// narrative-date:end
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -1129,4 +1208,4 @@ function escapeHtml(str) {
             .replace(/"/g, '&quot;');
 }
 
-// Version: v1.4.0
+// Version: v1.6.0

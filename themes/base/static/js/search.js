@@ -15,7 +15,7 @@
  * care on. Pagefind's WebAssembly runtime takes a noticeable moment
  * to load its filter chunks on first interaction; rendering the
  * sidebar off `pagefind.filters()` alone was a ~13-second stall on
- * deep links like `/buscar/?repository=Colombia`. The controller
+ * deep links like `/buscar/?country=Spain`. The controller
  * therefore fetches three JSON sidecars emitted by the indexer at
  * build time — `/buscar-facets.json` (landing counts),
  * `/buscar-pivots.json` (pair-wise intersection counts for one
@@ -46,7 +46,7 @@
  * empty-query landings, and tokenisation of `-term` tokens typed
  * directly into the search box all live in this file too.
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 /**
@@ -86,9 +86,9 @@
  *   AND that value is the one being queried), Pagefind's `totalFilters`
  *   entry collapses to 0 because there is no OR-sibling to restore
  *   against — the "restore count" is mathematically the cardinality of
- *   the empty sibling set. That renders as "Archivo Histórico de
- *   Rionegro (0)" in the sidebar when AHR is the sole active filter
- *   and 55,359 records match, which is worse than uninformative. For
+ *   the empty sibling set. That renders as "Example Archive (0)"
+ *   in the sidebar when that repository is the sole active filter and
+ *   thousands of records match, which is worse than uninformative. For
  *   this degenerate case we return `result.results.length` (the scoped
  *   total) so the active badge reflects the size of the current result
  *   set. Multi-value OR-group behaviour is preserved — only the exact
@@ -117,6 +117,57 @@
 // when walking the triples sidecar for the two-active-dimension branch.
 const PIVOT_KEYS = ['century', 'country', 'decade', 'digital_status', 'level', 'repository'];
 
+// Digital-status values before 1.6.0 used `zasqua` for "digitised and hosted
+// on this site". Filter URLs saved or shared with that value must still select
+// the same records, so the value is read as `hosted`.
+function normalizeDigitalStatus(value) {
+  return value === 'zasqua' ? 'hosted' : value;
+}
+
+// Comparator for [code, count] level entries. Levels in `order` come first, in
+// that order; any other level follows, the most frequent first.
+function makeLevelSort(order) {
+  const list = Array.isArray(order) ? order : [];
+  return (a, b) => {
+    const ai = list.indexOf(a[0]);
+    const bi = list.indexOf(b[0]);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return b[1] - a[1];
+  };
+}
+
+// Century labels and facet keys. The indexer keys the century facet by
+// the bare roman numeral ("XVII", from generate-pagefind-indices.js
+// romanCentury); the visible label comes from the i18n ui.centuryLabel
+// pattern ("{roman} century" in English, its translation in each other
+// bundle). The facet key is derived from a date filter's years, never
+// parsed out of the label, so it holds in every language. The numeral
+// list covers centuries I-XXII; any later century falls back to its
+// arabic number.
+const CENTURY_ROMANS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX',
+  'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX',
+  'XX', 'XXI', 'XXII'];
+
+function centuryRoman(num) {
+  return CENTURY_ROMANS[num] || String(num);
+}
+
+function centuryLabel(pattern, num) {
+  return String(pattern || '{roman}').replace('{roman}', centuryRoman(num));
+}
+
+// Years Y run in century floor((Y-1)/100)+1 (1601-1700 is XVII), the
+// same rule the indexer uses. A date-tree click passes only the years
+// with results; any one of them names the century.
+function centuryPivotValue(dateFilter) {
+  const years = dateFilter && dateFilter.years;
+  const first = years && years.length ? parseInt(years[0], 10) : NaN;
+  if (!Number.isFinite(first)) return null;
+  return centuryRoman(Math.floor((first - 1) / 100) + 1);
+}
+
 // Pagefind ranks a query's entire matching set before any result is
 // sliced off for display, and offers no cheaper/capped mode by design
 // (https://github.com/Pagefind/pagefind/discussions/726) — a short,
@@ -134,9 +185,9 @@ function isSearchableTerm(term) {
 
 // Splits raw query text into a positive query and NOT terms. Tokens
 // starting with '-' (length > 1) become NOT terms, so '-term' typed in
-// the header search box (e.g. '/buscar/?q=-tunja' or
-// '?q=cacique -tunja') engages Pagefind's native query-level negation
-// instead of being treated as a positive search for 'tunja'. Pure
+// the header search box (e.g. '/buscar/?q=-draft' or
+// '?q=letter -draft') engages Pagefind's native query-level negation
+// instead of being treated as a positive search for 'draft'. Pure
 // (module-level rather than a class method) so `parseQueryParams`
 // below and `tests/pagefind-facets.test.js` can both call it without a
 // SearchPage instance.
@@ -184,7 +235,7 @@ function parseQueryParams(search) {
  * @param {object} args
  * @param {object} args.activeByKey  Map of active pivot dim →
  *                                    non-empty array of active values
- *                                    (e.g. { repository: ['Popayán'],
+ *                                    (e.g. { repository: ['Example Archive'],
  *                                    level: ['Unidad documental'] }).
  *                                    Keys outside PIVOT_KEYS are
  *                                    ignored.
@@ -332,8 +383,8 @@ class SearchPage {
     this.pagefind = null;
     this.perPage = 20;
 
-    // Locale-aware formatters (read from <html lang>; fallback es-CO)
-    const _locale = document.documentElement.lang || 'es-CO';
+    // Locale-aware formatters (read from <html lang>; 'en' covers a page without one)
+    const _locale = document.documentElement.lang || 'en';
     this._locale = _locale;
     this._fmt  = new Intl.NumberFormat(_locale);
     this._coll = new Intl.Collator(_locale);
@@ -344,6 +395,15 @@ class SearchPage {
       this._i18n = JSON.parse(container.dataset.i18n || '{}');
     } catch (e) {
       console.warn('SearchPage: could not parse data-i18n');
+    }
+
+    // Level order comes from the standards profile (data-level-order, a list
+    // of level codes in hierarchy order).
+    this.levelOrder = [];
+    try {
+      this.levelOrder = JSON.parse(container.dataset.levelOrder || '[]');
+    } catch (e) {
+      console.warn('Could not parse level order');
     }
 
     this.levelLabels = {};
@@ -362,10 +422,10 @@ class SearchPage {
     this.state = {
       q: '',
       textFilters: [],
-      country: [],       // display names (e.g. "Colombia", "Perú")
+      country: [],       // display names (e.g. "Spain", "Peru")
       repository: [],   // display names (Pagefind filters use display text)
       level: [],         // canonical codes (e.g. "fonds", "series")
-      digital_status: [],  // 'zasqua', 'external' (future), 'none'
+      digital_status: [],  // 'hosted', 'external' (future), 'none'
       dateFilter: null,  // { level: 'century'|'decade'|'year', label, years: [...existing years only] }
       ancestor: [],
       sort: '',
@@ -489,7 +549,7 @@ class SearchPage {
     this.state.country = params.getAll('country');
     this.state.repository = params.getAll('repository');
     this.state.level = params.getAll('level');
-    this.state.digital_status = params.getAll('digital_status');
+    this.state.digital_status = params.getAll('digital_status').map(normalizeDigitalStatus);
     // Parse date filter from URL (only one active at a time): year=1750, decade=1550, century=16
     this.state.dateFilter = null;
     const urlYear = params.get('year');
@@ -504,12 +564,12 @@ class SearchPage {
       this.state.dateFilter = { level: 'decade', label: this._i18n.decadeLabel.replace('{decade}', urlDecade), years };
     } else if (urlCentury) {
       const num = parseInt(urlCentury, 10);
-      // Strict century span: siglo N covers years (N-1)*100+1 .. N*100
+      // Strict century span: century N covers years (N-1)*100+1 .. N*100
       // (e.g. XVIII = 1701..1800), matching the indexer/date-tree convention.
       const base = (num - 1) * 100 + 1;
       const years = [];
       for (let i = base; i < base + 100; i++) years.push(String(i));
-      this.state.dateFilter = { level: 'century', label: this._i18n.centuryLabel.replace('{roman}', this.romanCentury(num)), years };
+      this.state.dateFilter = { level: 'century', label: centuryLabel(this._i18n.centuryLabel, num), years };
     }
     this.state.ancestor = params.getAll('ancestor');
     this.state.entidad = params.getAll('entidad');
@@ -564,7 +624,7 @@ class SearchPage {
 
     // Build combined query from main query + AND text filters + NOT text filters.
     // NOT terms are re-attached as `-term` so Pagefind's
-    // native query-level exclusion engages (`cacique -tunja` → 84 vs 537).
+    // native query-level exclusion engages (`letter -draft` returns fewer results than `letter`).
     // Previously NOT was display-only, which made the reported count wrong.
     const andTerms = this.state.textFilters.filter(f => f.op === 'AND').map(f => f.term);
     const notTerms = this.state.textFilters.filter(f => f.op === 'NOT').map(f => f.term);
@@ -583,9 +643,9 @@ class SearchPage {
       notTerms.length > 0;
 
     // Bare-NOT guard: NOT terms supplied without any positive query or
-    // facet filter produces unreliable Pagefind output (bare '-tunja'
-    // returns a non-intuitive 7002 matches rather than "everything
-    // except Tunja"). Render an empty state with a UX hint.
+    // facet filter produces unreliable Pagefind output (bare '-draft'
+    // returns a non-intuitive match count rather than "everything
+    // except draft"). Render an empty state with a UX hint.
     const onlyNotTerms = notTerms.length > 0 && !positiveQuery &&
       !this.state.country.length && !this.state.repository.length &&
       !this.state.level.length && !this.state.digital_status.length &&
@@ -815,11 +875,14 @@ class SearchPage {
       const landing = document.createElement('div');
       landing.className = 'search-empty-query';
 
-      const logo = document.createElement('img');
-      logo.src = '/img/zasqua-3-burgundy-sm.svg';
-      logo.alt = 'Zasqua';
-      logo.className = 'search-landing-logo';
-      landing.appendChild(logo);
+      // The site's logo, when hugo.toml sets one; the engine names no file
+      if (this.container.dataset.logo) {
+        const logo = document.createElement('img');
+        logo.src = this.container.dataset.logo;
+        logo.alt = '';
+        logo.className = 'search-landing-logo';
+        landing.appendChild(logo);
+      }
 
       const hints = document.createElement('div');
       hints.className = 'search-landing-hints';
@@ -1215,11 +1278,11 @@ class SearchPage {
     // Digital status facet
     if (filters.digital_status) {
       const digitalLabels = {
-        'zasqua': this._i18n.digitalStatusInZasqua,
+        'hosted': this._i18n.digitalStatusHosted,
         'external': this._i18n.digitalStatusExternal,
         'none': this._i18n.digitalStatusNone
       };
-      const digitalOrder = ['zasqua', 'external', 'none'];
+      const digitalOrder = ['hosted', 'external', 'none'];
       const digitalSort = (a, b) => {
         const ai = digitalOrder.indexOf(a[0]);
         const bi = digitalOrder.indexOf(b[0]);
@@ -1241,16 +1304,7 @@ class SearchPage {
     // Level facet — keyed by canonical code, sorted by archival hierarchy.
     // Display labels resolve from this.levelLabels (data-level-labels blob, code→label).
     if (filters.level) {
-      const levelOrder = ['fonds', 'subfonds', 'collection', 'section', 'series', 'subseries', 'file', 'volume', 'item'];
-      const levelSort = (a, b) => {
-        const ai = levelOrder.indexOf(a[0]);
-        const bi = levelOrder.indexOf(b[0]);
-        // Known levels first in hierarchy order, unknown levels last by count
-        if (ai !== -1 && bi !== -1) return ai - bi;
-        if (ai !== -1) return -1;
-        if (bi !== -1) return 1;
-        return b[1] - a[1];
-      };
+      const levelSort = makeLevelSort(this.levelOrder);
       const levelLabels = this.levelLabels;
       sidebar.appendChild(this.renderFacetGroup(
         this._i18n.facetLevel,
@@ -1513,7 +1567,7 @@ class SearchPage {
       const year = parseInt(yearStr, 10);
       if (isNaN(year)) continue;
       if (count === 0) continue;  // Hide years with zero results
-      // Strict century convention (e.g. 1601-1700 = siglo XVII): must match
+      // Strict century convention (e.g. 1601-1700 = century XVII): must match
       // the indexer's romanCentury ((year-1)/100+1 in generate-pagefind-indices.js)
       // so the century facet counts looked up below align with how years are
       // grouped here. A boundary year like 1700 groups under XVII, not XVIII.
@@ -1540,10 +1594,10 @@ class SearchPage {
     const sortedCenturies = Array.from(centuries.entries()).sort((a, b) => a[0] - b[0]);
 
     for (const [centuryNum, centuryData] of sortedCenturies) {
-      const centuryLabel = this._i18n.centuryLabel.replace('{roman}', this.romanCentury(centuryNum));
+      const centuryText = centuryLabel(this._i18n.centuryLabel, centuryNum);
 
       // Drill-down: if a century is selected, only show that century
-      if (df && df.level === 'century' && df.label !== centuryLabel) continue;
+      if (df && df.level === 'century' && df.label !== centuryText) continue;
       if (df && (df.level === 'decade' || df.level === 'year')) {
         // Check if this century contains the selected decade/year
         const selectedYear = parseInt(df.years[0], 10);
@@ -1551,7 +1605,7 @@ class SearchPage {
         if (selectedCentury !== centuryNum) continue;
       }
 
-      const isCenturyActive = df && df.level === 'century' && df.label === centuryLabel;
+      const isCenturyActive = df && df.level === 'century' && df.label === centuryText;
       const existingYears = centuryData.years;
 
       const li = document.createElement('li');
@@ -1571,13 +1625,13 @@ class SearchPage {
       checkbox.checked = isCenturyActive;
       checkbox.addEventListener('change', () => {
         this.handleDateSelect(checkbox.checked ? {
-          level: 'century', label: centuryLabel, years: existingYears
+          level: 'century', label: centuryText, years: existingYears
         } : null);
       });
 
       const label = document.createElement('span');
       label.className = 'date-tree-label';
-      label.textContent = centuryLabel;
+      label.textContent = centuryText;
 
       const countSpan = document.createElement('span');
       countSpan.className = 'date-tree-count';
@@ -1736,10 +1790,7 @@ class SearchPage {
   }
 
   romanCentury(num) {
-    const romans = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX',
-      'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX',
-      'XX', 'XXI', 'XXII'];
-    return romans[num] || String(num);
+    return centuryRoman(num);
   }
 
   renderPills() {
@@ -1848,7 +1899,7 @@ class SearchPage {
 
     // Digital status pills
     const digitalPillLabels = {
-      'zasqua': this._i18n.digitalPillInZasqua,
+      'hosted': this._i18n.digitalPillHosted,
       'external': this._i18n.digitalPillExternal,
       'none': this._i18n.digitalPillNone
     };
@@ -2183,7 +2234,7 @@ class SearchPage {
    *   - 2 active → triple-wise pivot lookup in this.triples using
    *                canonical alphabetical key ordering, which resolves
    *                the two-dimension sidebar-vs-main self-contradiction
-   *                on deep links like Popayán + Unidad documental.
+   *                on deep links like a repository plus a level.
    *   - ≥3 active → null (fall back to global totals; quad-pivot
    *                 deferred to the wishlist).
    * Caller must fall back to this.globalFilters when null is
@@ -2208,8 +2259,8 @@ class SearchPage {
     if (this.state.dateFilter) {
       const df = this.state.dateFilter;
       if (df.level === 'century') {
-        // dateFilter.label is "Siglo XVII" — strip the prefix.
-        const roman = (df.label || '').replace(/^Siglo\s+/, '');
+        // The facet key comes from the years, not the label text.
+        const roman = centuryPivotValue(df);
         if (roman) activeByKey.century = [roman];
       } else if (df.level === 'decade') {
         // dateFilter.years is ['1600','1601',…'1609'] — the pivot key
@@ -2340,7 +2391,7 @@ if (typeof document !== 'undefined') {
 // this file as a classic <script>; `typeof module` is undefined there,
 // so the block is a no-op.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, isSearchableTerm, MIN_QUERY_TERM_LENGTH, tokenizeRawQuery, parseQueryParams };
+  module.exports = { normalizeDigitalStatus, makeLevelSort, selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, isSearchableTerm, MIN_QUERY_TERM_LENGTH, tokenizeRawQuery, parseQueryParams, centuryLabel, centuryPivotValue };
 }
 
-// Version: v1.4.1
+// Version: v1.6.0

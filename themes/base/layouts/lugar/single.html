@@ -21,42 +21,50 @@
   param places_base_url is set and the page has a place_code; a trailing
   slash on the param is trimmed. Otherwise it shows place.comingSoon.
 
-  ISO-3 country codes are mapped to display names via i18n lookups
-  (place.countries.*) covering every country the Zasqua corpus
-  currently references; unmapped codes fall back to the raw code.
+  ISO 3166-1 alpha-3 country codes are shown by name: a site's
+  place.countries.<CODE> i18n key takes precedence, then the name in the
+  site's language from data/countries.yaml (all assigned codes, English
+  and Spanish); a code with neither shows as written.
 
-  Vocab source: themes/base/data/vocab/{lang}.yaml, resolved by
-  site.Language.LanguageCode, falling back to vocab.es.
+  Vocab source: _partials/vocab.html, which applies the export's
+  vocabulary.json to themes/base/data/vocab/{lang}.yaml. The JSON
+  attributes are single-quoted and their labels can come from the export,
+  so each escapes the apostrophe as \u0027 after jsonify.
 
-  Version: v1.5.0
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ .Params.display_name }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
 
-{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
+{{/* Language key for the country names: "es-CO" → "es", "en-US" → "en" */}}
 {{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
-{{ $vocab := index hugo.Data.vocab $langKey }}
-{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+{{/* Labels: bundled vocab with the export's vocabulary.json applied */}}
+{{ $vocab := partialCached "vocab.html" . site.Language.Lang }}
 
 {{ $typeLabel := index $vocab.placeTypes .Params.place_type }}
 {{ if not $typeLabel }}{{ $typeLabel = .Params.place_type }}{{ end }}
 
-{{ $countries := dict
-  "COL" (i18n "place.countries.COL")
-  "PER" (i18n "place.countries.PER")
-  "BOL" (i18n "place.countries.BOL")
-  "ECU" (i18n "place.countries.ECU")
-  "VEN" (i18n "place.countries.VEN")
-  "ARG" (i18n "place.countries.ARG")
-  "BRA" (i18n "place.countries.BRA")
-  "CHL" (i18n "place.countries.CHL")
-  "MEX" (i18n "place.countries.MEX")
-  "USA" (i18n "place.countries.USA")
-  "ESP" (i18n "place.countries.ESP")
-  "FRA" (i18n "place.countries.FRA")
-  "GBR" (i18n "place.countries.GBR")
-  "PAN" (i18n "place.countries.PAN")
-}}
+{{/* Country name for .Params.country_code (ISO 3166-1 alpha-3): the
+     site's place.countries.<CODE> i18n key when it has one, else the name
+     in the site's language from data/countries.yaml, else the raw code.
+     A missing i18n key renders as "" or, with
+     enableMissingTranslationPlaceholders, as "[i18n] <key>"; both count
+     as absent. */}}
+{{ $countryName := "" }}
+{{ with .Params.country_code }}
+  {{ $key := printf "place.countries.%s" . }}
+  {{ $t := i18n $key }}
+  {{ if and $t (ne $t (printf "[i18n] %s" $key)) }}
+    {{ $countryName = $t }}
+  {{ else }}
+    {{ with hugo.Data.countries }}
+      {{ with index . $.Params.country_code }}
+        {{ $countryName = index . $langKey }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+  {{ $countryName = or $countryName . }}
+{{ end }}
 
 {{ $hasCoords := and .Params.latitude .Params.longitude }}
 {{ $hasAuthority := or .Params.wikidata_id .Params.whg_id .Params.tgn_id .Params.hgis_id }}
@@ -110,7 +118,7 @@
           {{ with .Params.country_code }}
             <div class="detail-field">
               <span class="detail-label">{{ i18n "place.fields.countryCode" }}</span>
-              <span class="detail-value">{{ or (index $countries .) . }}</span>
+              <span class="detail-value">{{ $countryName }}</span>
             </div>
           {{ end }}
         </div>
@@ -135,7 +143,7 @@
                 </a>
               {{ end }}
               {{ with .Params.whg_id }}
-                <a href="https://whgazetteer.org/places/{{ . }}/portal" target="_blank" rel="noopener" class="authority-row">
+                <a href="https://whgazetteer.org/places/{{ . }}/detail" target="_blank" rel="noopener" class="authority-row">
                   <span class="material-symbols-outlined authority-row-icon">open_in_new</span>
                   <span class="authority-row-label">WHG</span>
                   <span class="authority-row-code">{{ . }}</span>
@@ -157,12 +165,15 @@
           <h3 class="font-semibold text-stone-400">{{ i18n "place.sections.control" }}</h3>
           <div class="detail-field">
             <span class="detail-label">{{ site.Params.place_code_label | default (i18n "place.fields.placeCode") }}</span>
-            <span class="detail-value detail-value-mono">{{ or .Params.place_code (printf "nl-%d" (int .Params.id)) }}</span>
+            <span class="detail-value detail-value-mono">{{ .Params.place_code }}</span>
           </div>
+          {{/* No modified_at leaves Lastmod zero, which would print as 0001-01-01. */}}
+          {{ if not .Lastmod.IsZero }}
           <div class="detail-field">
             <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
             <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" (.Lastmod.Format "2006-01-02") }}</span>
           </div>
+          {{ end }}
           {{ if $hasCoords }}
             <div class="detail-field">
               <span class="detail-label">{{ i18n "place.fields.coordinates" }}</span>
@@ -173,9 +184,9 @@
           <div class="detail-field">
             <a href="/lugares/?q={{ .Params.display_name | urlquery }}"
                class="inline-flex items-center gap-1.5 text-sm font-medium rounded-md transition-colors no-underline"
-               style="padding:0.5rem 1rem;background:var(--color-burgundy);color:#fff"
-               onmouseover="this.style.background='var(--color-burgundy-deep)'"
-               onmouseout="this.style.background='var(--color-burgundy)'">
+               style="padding:0.5rem 1rem;background:var(--color-primary);color:#fff"
+               onmouseover="this.style.background='var(--color-primary-deep)'"
+               onmouseout="this.style.background='var(--color-primary)'">
               <span class="material-symbols-outlined" style="font-size:16px">location_on</span>
               {{- i18n "place.viewInExplorer" -}}
             </a>
@@ -186,7 +197,7 @@
         {{/* Section: Reutilizacion */}}
         <div class="detail-section">
           <h3 class="font-semibold text-stone-400">{{ i18n "place.sections.reuse" }}</h3>
-          <p class="reuse-blurb">{{ i18n "place.reuseBlurb" | safeHTML }}</p>
+          <p class="reuse-blurb">{{ i18n "place.reuseBlurb" (dict "Site" site.Title) | safeHTML }}</p>
           <div class="reuse-manifest">
             <strong class="reuse-manifest-label">Linked Places</strong>
             <div class="reuse-manifest-row">
@@ -258,7 +269,7 @@
             */}}
             <div id="place-timeline" data-place-id="{{ .Params.place_code }}"
                  data-no-date-label="{{ i18n "place.noDateLabel" }}"
-                 {{ printf `data-place-role-labels='%s'` (jsonify $vocab.placeRoles) | safeHTMLAttr }}
+                 {{ printf `data-place-role-labels='%s'` (replace (jsonify $vocab.placeRoles) "'" `\u0027`) | safeHTMLAttr }}
                  {{ printf `data-i18n='%s'` (jsonify (dict
                    "shardError"    (i18n "place.shardError")
                    "filteredEmpty" (i18n "place.filteredEmpty")
@@ -290,4 +301,4 @@
   <script src="/js/copy-url.js"></script>
   <script src="/js/place.js"></script>
 {{ end }}
-{{/* Version: v1.5.0 */}}
+{{/* Version: v1.6.0 */}}

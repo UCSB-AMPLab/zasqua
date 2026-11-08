@@ -1,0 +1,51 @@
+{{- /*
+  Example links — _partials/example-links.html
+
+  Renders a short run of clickable examples inside an explorer's intro
+  prose: "A, B, C or D." The entity explorer's empty state and the
+  places explorer's intro both use it, so a reader has somewhere to
+  start before searching.
+
+  The examples come from the site, not the engine: a deployer lists
+  them in hugo.toml as `entity_examples` and `place_examples`, each an
+  array of { code, label } tables, because only the site knows which
+  records its corpus holds. The caller passes:
+
+    - items — the list from site.Params
+    - attr  — the data attribute the explorer's script reads on click
+              ("data-entity" or "data-place"); the code goes in it
+    - conj  — the joining word before the last example, from i18n
+    - conjBeforeO — the joining word when the last label starts with an
+              /o/ sound, from i18n; Spanish writes "u" there ("Cartagena
+              u Ospina"), English keeps "or"
+
+  Items are joined with commas, the conjunction goes before the last
+  one, and a full stop closes the run. The last label counts as
+  starting with /o/ when, lowercased and with an accent on its first
+  vowel removed, it begins with "o" or "ho" but not "hue" or "hua",
+  which start with a /w/ sound and keep "o" (Huila, Huánuco). An item without a code or a
+  label is skipped, so a half-filled table never renders an empty
+  button. With no usable item the partial renders nothing; the caller
+  captures the output and leaves out the sentence that introduces the
+  examples when it is empty.
+
+  Version: v1.6.0
+*/ -}}
+{{- $items := slice -}}
+{{- range .items -}}
+  {{- if and .code .label -}}{{- $items = $items | append . -}}{{- end -}}
+{{- end -}}
+{{- $n := len $items -}}
+{{- $conj := .conj -}}
+{{- if and .conjBeforeO (gt $n 1) -}}
+  {{- $w := (index $items (sub $n 1)).label | lower | replaceRE `^(h?)[óò]` "${1}o" -}}
+  {{- if and (or (hasPrefix $w "o") (hasPrefix $w "ho")) (not (or (hasPrefix $w "hue") (hasPrefix $w "hua"))) -}}
+    {{- $conj = .conjBeforeO -}}
+  {{- end -}}
+{{- end -}}
+{{- range $i, $item := $items -}}
+  {{- if gt $i 0 -}}{{- if eq $i (sub $n 1) }} {{ $conj }} {{ else }}, {{ end -}}{{- end -}}
+  <button type="button" class="graph-empty-state-link" {{ printf `%s="%s"` $.attr (htmlEscape $item.code) | safeHTMLAttr }}>{{ $item.label }}</button>
+  {{- if eq $i (sub $n 1) -}}.{{- end -}}
+{{- end -}}
+{{- /* Version: v1.6.0 */ -}}

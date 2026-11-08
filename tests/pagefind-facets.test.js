@@ -24,7 +24,8 @@
  * sidecar lookups when 1–2 filter dimensions are active on cold
  * first-click), cross-explorer byte-equivalence of the three
  * copies, and a handful of structural pins around sort-UI parity
- * and the entity-graph focal sidecar fetch.
+ * and the entity-graph focal sidecar fetch, and `repoDisplayName`, which
+ * names the repository facet from the repository record.
  *
  * Uses mocked Pagefind response shapes — no live WASM instance, no
  * browser. The helpers are loaded via `createRequire` to bypass
@@ -35,7 +36,7 @@
  * `themes/base/static/js/` and `scripts/`. No build output or
  * Backblaze B2 data are required to run it.
  *
- * @version v2.1.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
@@ -253,7 +254,7 @@ describe('buildPivotScopedFiltersPure (N=2 triple-wise)', () => {
     century: { XVII: 300, XVIII: 500 },
     country: { Colombia: 700, 'Perú': 100 },
     decade: { '1700': 250, '1750': 300 },
-    digital_status: { none: 600, zasqua: 200 },
+    digital_status: { none: 600, hosted: 200 },
     level: { fonds: 50, item: 700 },
     repository: { AHR: 400, Popayán: 400 },
     year: { '1750': 80 },
@@ -1258,4 +1259,29 @@ describe('entity-explorer sort UI parity', () => {
   });
 });
 
-// Version: v2.2.0
+describe('repoDisplayName — the repository facet label from the record', () => {
+  const { repoDisplayName } = require('../scripts/generate-pagefind-indices.js');
+  const rec = (repository) => ({ reference_code: 'xx-test-0001', repository_code: 'xx-test', repository });
+
+  it('prefers display_title over short_name and name', () => {
+    const r = rec({ name: 'Example Institute, Example University', short_name: 'EXI', display_title: 'Example Archive' });
+    expect(repoDisplayName(r)).toBe('Example Archive');
+    expect(FIELD_MAP.descriptions.filters(r).repository).toEqual(['Example Archive']);
+    expect(FIELD_MAP.descriptions.meta(r).repository_name).toBe('Example Archive');
+  });
+  it('treats a display_title that is not a string as absent', () => {
+    expect(repoDisplayName(rec({ short_name: 'EXI', display_title: { es: 'Archivo', en: 'Archive' } }))).toBe('EXI');
+    expect(repoDisplayName(rec({ name: 'Example Institute', display_title: 42 }))).toBe('Example Institute');
+  });
+  it('uses short_name, then name, when the record has no display_title', () => {
+    expect(repoDisplayName(rec({ name: 'Example Institute', short_name: 'EXI', display_title: null }))).toBe('EXI');
+    expect(repoDisplayName(rec({ name: 'Example Institute', short_name: '' }))).toBe('Example Institute');
+    expect(repoDisplayName(rec({ name: 'Example Institute', display_title: '  ' }))).toBe('Example Institute');
+  });
+  it('uses the repository code when the description has no repository record', () => {
+    expect(repoDisplayName(rec(null))).toBe('xx-test');
+    expect(FIELD_MAP.descriptions.filters(rec(null)).repository).toEqual(['xx-test']);
+  });
+});
+
+// Version: v1.6.0
