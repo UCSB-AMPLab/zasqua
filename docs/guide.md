@@ -12,7 +12,7 @@
   The guide is linear. Follow the numbered legs in order; each step
   produces verified output that the next step consumes.
 
-  Version: v1.5.0
+  Version: v1.6.0
 -->
 
 # Run Your Own Instance
@@ -93,6 +93,21 @@ iiif = false
 ocr = false
 ```
 
+`language` is a BCP 47 tag (`en-US`, `es-CO`) and is the site's only
+language setting. The build passes it to Hugo, which picks the matching
+i18n bundle and writes it to `<html lang>`. The build also writes dates
+("March 15, 1723", "15 de marzo de 1723") and counts ("1,000", "1.000")
+in that language, and builds the search indexes with its base subtag
+(`en`, `es`), so search stems words by that language's rules. Browser
+scripts read the language from `<html lang>`. Leave the `languageCode`
+and `defaultContentLanguage` in `hugo.toml` alone; the build overrides
+them from the manifest. Without a `language`, the site is in `en-US`.
+
+The place page names a place's country from its ISO 3166-1 alpha-3
+code, using `themes/base/data/countries.yaml` (every assigned code, in
+English and Spanish). To change a name, add a `place.countries.<CODE>`
+key to your i18n bundle; it takes precedence over the data file.
+
 **Core** (descriptions + repositories) is always required and needs no
 manifest flag. Every optional module must be explicitly enabled:
 
@@ -147,8 +162,21 @@ Other importers available in the current release:
 |---------|---------------|
 | `zasqua import csv <dir>` | Model-CSV spreadsheets |
 | `zasqua import ead3 <file>` | EAD3 finding-aid XML |
-| `zasqua import ca <dir>` | CollectiveAccess JSON export |
+| `zasqua import collectiveaccess <file>` | CollectiveAccess web-services JSON file |
 | `zasqua import fisqua <dir>` | Fisqua cataloguing system passthrough |
+
+Every importer takes `--out <dir>` (staging directory, default
+`import-out/`) and `--standard <std>` (descriptive standard, default
+`isadg`). The CollectiveAccess importer also takes `--entity-prefix` and
+`--place-prefix` (see `docs/importers/collectiveaccess-mapping.md`).
+
+**HTML sanitisation.** The CSV, EAD3 and CollectiveAccess importers strip
+HTML from text fields; the Fisqua importer copies the files as they are.
+Two flags override the default for any format: `--trusted` skips
+sanitisation, and `--sanitize` applies it (programmatically, the `trusted`
+option). Use `--sanitize` on a Fisqua export that did not come from a
+source you control, and `--trusted` on a spreadsheet whose markup you want
+kept.
 
 The `zasqua-template` repository ships a small bilingual sample dataset
 in `exports/` to demonstrate a working Core + Hierarchy + Entities +
@@ -437,19 +465,86 @@ and entity/place explorer labels:
 
 ```toml
 [params]
-logo            = "My Archive"          # site name shown in the header
+logo            = "/img/logo.svg"       # image in the header, homepage and explorers; omit for a text-only header
 about_url       = "https://example.org/about"
 catalog_url     = "https://catalog.example.org"
 footer_copyright = "© 2026 My Institution"
 footer_credits  = "Powered by Zasqua"
+footer_tagline  = "A sentence about the site, shown first in the footer"
 source_url      = "https://github.com/my-org/my-archive"
 entity_code_label = "Person / Organisation"
 place_code_label  = "Place"
 ```
 
+`footer_tagline` is a sentence about the site, shown first in the footer;
+without it the footer has no tagline. When the export includes a
+`publisher.json` with a `legal_name`, the copyright line names it and
+`footer_copyright` is not read.
+
+`footer_logo` sets the mark at the left of the footer, and `footer_seals`
+the logos at its right, after the engine's credit. Each entry takes `src`
+and `alt`, and `href` to make it a link; the engine draws them white.
+
+```toml
+footer_logo  = { src = "/img/my-seal.svg", alt = "My Institution", href = "https://example.org" }
+footer_seals = [ { src = "/img/partner.png", alt = "Partner" } ]
+```
+
+Without `footer_logo`, the footer takes the publisher's `logo_url` from
+`publisher.json`; without `footer_seals`, the logos of its credits. With
+`footer_seals = []`, no seals are shown.
+
 `entity_code_label` and `place_code_label` control the labels shown on
 authority record explorer pages; set them to the terminology your
 institution uses (`Agent`, `Creator`, `Locality`, or similar).
+
+### Home page cards
+
+The home page shows one card per repository, built from its record in
+`repositories.json`: the title, subtitle, image, and a category line with
+the city and region. Cards are ordered by `home_order`, then by name, and
+each links to the repository's page. To send a card elsewhere or give it
+another category line, add a table for its code under `[params]`:
+
+```toml
+[params.home_cards.my-archive]
+link     = "/my-archive-collection/"
+category = "Featured collection"
+```
+
+Either key may be left out. The title, subtitle and image still come from
+the record.
+
+### Examples in the explorers
+
+The entity explorer and the places explorer can offer a few records as
+starting points. List them in `[params]`; each needs the record's code
+and the name shown on its button. The last two names are joined with the
+language's word for "or"; in Spanish it becomes "u" before a name that
+starts with an /o/ sound ("Cartagena u Ospina"). Without these settings
+the pages show no examples.
+
+```toml
+entity_examples = [
+  { code = "ENTITY-CODE", label = "Name on the button" },
+]
+place_examples = [
+  { code = "PLACE-CODE", label = "Name on the button" },
+]
+```
+
+### Initial map view of the places explorer
+
+By default the places explorer opens on a view that fits all of the
+site's places that have coordinates (at most zoom 8), and on a world
+view when there are none. A site with a few distant outliers can set the
+opening view in `[params]` as `[[west, south], [east, north]]`, in
+degrees. When the setting is present it is used instead of the fit; a
+value that is not a valid box is ignored.
+
+```toml
+place_explorer_bounds = [[-83.0, -5.0], [-60.0, 15.0]]
+```
 
 ### Colour and font palette (tokens.css)
 
@@ -464,36 +559,109 @@ theme = ["my-theme", "base"]
 
 Then create the overlay directory and add a `tokens.css` file at
 `themes/my-theme/assets/css/tokens.css`. This is where you redefine the
-engine's design tokens — colours, font stacks, and spacing variables —
-using a Tailwind v4 `@theme` block:
+engine's design tokens — colours and font stacks — using a Tailwind v4
+`@theme` block:
 
 ```css
 @theme {
-  --color-burgundy:       #8B2942;
-  --color-burgundy-deep:  #6B1F33;
-  --color-burgundy-light: #B14D66;
-  --color-burgundy-dark:  #4A1522;
-  --color-pale-rose:      #F5E6EA;
-  --color-ochre:          #C5965F;
-  --color-sage:           #8A9B8E;
-  --color-periwinkle:     #C9D5FF;
-  --color-bg:             #FAFAF9;
+  --color-primary:       #1F4E79;
+  --color-primary-deep:  #173B5C;
+  --color-primary-light: #4F7FAF;
+  --color-primary-dark:  #0F2740;
+  --color-primary-pale:  #E6EEF6;
+  --color-secondary:     #B5893C;
+  --color-tertiary:      #7C8C7A;
+  --color-accent:        #CFE0F5;
+  --color-bg:            #FAFAF9;
 
-  --font-sans:    "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif:   "Crimson Text", ui-serif, Georgia, serif;
-  --font-display: "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-sans:    "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-serif:   "Source Serif 4", ui-serif, Georgia, serif;
+  --font-display: "Source Serif 4", ui-serif, Georgia, serif;
 }
 ```
 
-The block above is the Neogranadina palette from the reference deployment;
-replace each value with your own brand colours and fonts. The engine base
-theme defines placeholder tokens with the same names; Tailwind v4 merges
-`@theme` blocks and the last-declared value wins, so your overlay takes
-precedence automatically.
+Replace each value with your own colours and fonts. The tokens are named
+by the role they play:
+
+| Token | Used for |
+|---|---|
+| `primary` | links, buttons, focus borders, person nodes in the entity graphs, map markers |
+| `primary-deep` | buttons and active states |
+| `primary-light` | link hover, person badges |
+| `primary-dark` | footer and hero background |
+| `primary-pale` | a pale tint of the primary colour, for overlay templates |
+| `secondary`, `tertiary` | spare colours for overlay templates; the base theme does not use them |
+| `accent` | underlines, highlights, type pills, footer link hover |
+| `bg` | page background, and the inside of hollow graph nodes |
+
+The engine base theme defines the same tokens in neutral greys; Tailwind
+v4 merges `@theme` blocks and the last-declared value wins, so your
+overlay takes precedence automatically. The matching utility classes
+(`bg-primary-dark`, `hover:text-accent`, ...) are available to your
+overlay templates.
+
+**Older token names (deprecated).** Before 1.6.0 the tokens carried the
+palette names of the reference deployment: `burgundy`, `burgundy-deep`,
+`burgundy-light`, `burgundy-dark`, `pale-rose`, `ochre`, `sage` and
+`periwinkle`, in that order matching `primary`, `primary-deep`,
+`primary-light`, `primary-dark`, `primary-pale`, `secondary`, `tertiary`
+and `accent`. A `tokens.css` that sets the old names still colours the
+whole site, and templates that use the old utility classes
+(`bg-burgundy-dark`, `hover:text-periwinkle`, ...) still get the right
+colours whichever set of names you set. The old names will be removed in
+2.0.0; rename them in your `tokens.css` and templates before then. Do not
+set an old name to `var()` of its new name: the two would refer to each
+other and both would end up unset.
+
+**Graph and map colours.** The entity graphs, the place maps and their
+legends draw with a further set of colours. They are plain CSS custom
+properties, not `@theme` tokens, so set them in a `:root` rule in
+`tokens.css` (outside the `@theme` block):
+
+```css
+:root {
+  --graph-person: #1F4E79;          /* person nodes; defaults to primary */
+  --graph-corporate: #6A5ACD;       /* corporate bodies and families */
+  --graph-document: #9A9A9A;        /* document nodes */
+  --graph-document-hover: #6E6E6E;
+  --graph-document-dimmed: #E6E6E6;
+  --graph-entity-dimmed: #DDDDDD;
+  --graph-node-fill: #FFFFFF;       /* inside of hollow nodes; defaults to bg */
+  --graph-link: #E0E0E0;            /* edges on the entity page */
+  --graph-link-faint: rgba(150, 150, 150, 0.3); /* edges in the entity explorer */
+  --map-marker: #1F4E79;            /* defaults to primary */
+}
+```
+
+Use hex, `rgb()` or `hsl()` values here: the map library does not read
+every CSS colour syntax. Unless you set them, `--graph-person` and
+`--map-marker` follow `primary` and `--graph-node-fill` follows `bg`; the
+others default to the colours the graphs have always used (a blue-violet
+for corporate bodies and families, warm greys for documents and edges).
+In 2.0.0 those defaults become neutral greys, so set them if you want to
+keep them.
+
+**Fonts.** The font stacks above name the families; the stylesheets that
+load them are a setting in `hugo.toml`:
+
+```toml
+[params]
+font_stylesheets = [
+  "https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@400;700&display=swap",
+]
+```
+
+`font_stylesheets` takes one URL or a list, linked in order in every
+page's head; a path on your own site (`"/fonts/fonts.css"`) works too.
+Set it to `[]` to load no web fonts. Without the setting the engine links
+DM Sans, Crimson Text and Cormorant Garamond from Google Fonts, as it did
+before 1.6.0; that default is deprecated, and from 2.0.0 the engine loads
+no brand fonts unless you name them. The Material Symbols icon font is
+always loaded, because the templates draw their icons with it.
 
 For a hero image, add a `static/img/hero.jpg` file to your theme
 directory. If no hero image is present, the base theme renders the hero
-area in the `--color-burgundy-dark` tone.
+area in the `--color-primary-dark` tone.
 
 ### Colophon
 
@@ -513,6 +681,18 @@ the terms under which it is made available.
 
 The base theme renders this page from the `colofon/list.html` template
 (see Overridable templates below).
+
+When the export includes a `publisher.json`, the engine adds sections
+after your text, each only when its fields have values: Publisher,
+Credits, Represented archives (from `repositories.json`), How to cite (the
+publisher's site citation template), License (the publisher's terms of use
+and each repository's catalogue licence), Privacy and data, Takedown
+policy, and Contact. Leave those subjects out of your Markdown so the page
+does not repeat them.
+
+Every colophon, with or without a `publisher.json`, ends with a section on
+the engine: its mark, version and licence, in the site's language. The
+engine draws no mark above your text; to show one, put it in your Markdown.
 
 ### Overridable base templates
 
