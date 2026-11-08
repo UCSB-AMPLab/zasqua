@@ -1,6 +1,6 @@
 {
   "name": "@ucsb-ampl/zasqua",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Zasqua: open-source archival platform for hosting and discovering digitized historical documents.",
   "bin": {
     "zasqua": "./bin/zasqua.js"
@@ -51,13 +51,13 @@
     "graphology": "^0.26.0",
     "graphology-layout-forceatlas2": "^0.10.1",
     "hugo-extended": "0.160.1",
+    "js-yaml": "4.2.0",
     "pagefind": "^1.5.2",
     "sanitize-html": "2.17.4",
     "smol-toml": "1.6.1",
     "tailwindcss": "^4.2.2"
   },
   "devDependencies": {
-    "js-yaml": "4.2.0",
     "vitest": "^2.1.9"
   }
 }
