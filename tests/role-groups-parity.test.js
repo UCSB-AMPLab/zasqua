@@ -1,9 +1,14 @@
 /**
  * roleGroups Cross-File Parity Unit Test
  *
- * The role→group taxonomy (which of the ~27 documentary roles belongs to
- * which of 7 thematic groups) is duplicated verbatim as a `roleGroups`
- * array literal in `static/js/entity.js` and `static/js/entity-explorer.js`.
+ * The role→group taxonomy (which documentary role belongs to which
+ * thematic group, and the order of the groups) is bundled in
+ * `data/vocab/role-groups.yaml`, which the templates pass to the browser,
+ * with the export's vocabulary.json applied, as data-role-groups. The
+ * same grouping is kept as a fallback `roleGroups` array literal in
+ * `static/js/entity.js` and `static/js/entity-explorer.js`, used when a
+ * template override leaves the attribute out. This test pins the three
+ * copies to each other.
  * Both files are loaded as classic `<script>` tags (no ES module imports,
  * no CommonJS export of `roleGroups`), so the arrays cannot be shared via
  * import and cannot be pulled in through the `createRequire` bridge the
@@ -21,25 +26,26 @@
  * evaluating the extracted literal itself sidesteps that by comparing the
  * resulting data structures, not the source text.
  *
- * This test has no opinion on which copy is "correct" — it only pins that
- * the two stay structurally identical. A future role added to one array
- * and not the other, or reordered so group iteration order diverges, fails
- * this test rather than silently misclassifying a role on one surface but
- * not the other.
+ * The YAML file is the source the templates use; the test pins that both
+ * arrays stay structurally identical to it. A role added to one copy and
+ * not the others, or a group order that diverges, fails this test rather
+ * than misclassifying a role on one surface but not the other.
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import yaml from 'js-yaml';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ENGINE_ROOT = path.join(__dirname, '..');
 
 const ENTITY_JS_PATH = path.join(ENGINE_ROOT, 'themes/base/static/js/entity.js');
 const ENTITY_EXPLORER_JS_PATH = path.join(ENGINE_ROOT, 'themes/base/static/js/entity-explorer.js');
+const ROLE_GROUPS_YAML_PATH = path.join(ENGINE_ROOT, 'themes/base/data/vocab/role-groups.yaml');
 
 // Extracts the `roleGroups` array literal from a browser JS source file by
 // bracket-matching from `var roleGroups = [` to its balanced closing `]`,
@@ -95,4 +101,31 @@ describe('roleGroups cross-file parity (entity.js vs entity-explorer.js)', () =>
   it('keeps the two roleGroups tables deep-equal, including group order', () => {
     expect(entityExplorerRoleGroups).toEqual(entityRoleGroups);
   });
+
+  it('keeps both tables deep-equal to data/vocab/role-groups.yaml', () => {
+    const yamlGroups = yaml.load(fs.readFileSync(ROLE_GROUPS_YAML_PATH, 'utf8')).groups;
+    expect(yamlGroups.length).toBeGreaterThan(0);
+    expect(entityRoleGroups).toEqual(yamlGroups);
+    expect(entityExplorerRoleGroups).toEqual(yamlGroups);
+  });
+
+  it('places every Fisqua entity role in exactly one group', () => {
+    // Fixture copied from Fisqua's entity-role enum (not read at test time).
+    const fisquaEntityRoles = [
+      'creator', 'author', 'editor', 'publisher', 'sender', 'recipient',
+      'mentioned', 'subject', 'scribe', 'witness', 'notary', 'photographer',
+      'artist', 'plaintiff', 'defendant', 'petitioner', 'judge', 'appellant',
+      'apoderado', 'official', 'heir', 'albacea', 'spouse', 'victim',
+      'grantor', 'donor', 'seller', 'buyer', 'mortgagor', 'mortgagee',
+      'creditor', 'debtor', 'fiador',
+    ];
+    const yamlGroups = yaml.load(fs.readFileSync(ROLE_GROUPS_YAML_PATH, 'utf8')).groups;
+    for (const groups of [yamlGroups, entityRoleGroups, entityExplorerRoleGroups]) {
+      const all = groups.flatMap((g) => g.members);
+      expect(new Set(all).size).toBe(all.length);
+      expect([...all].sort()).toEqual([...fisquaEntityRoles].sort());
+    }
+  });
 });
+
+// Version: v1.6.0

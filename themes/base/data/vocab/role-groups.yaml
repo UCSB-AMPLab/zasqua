@@ -1,0 +1,39 @@
+# Role-group membership — language-neutral
+#
+# This file lists the thematic groups that the entity role filters show,
+# in the order they are shown, and the entity roles each group holds. It
+# carries codes only: the group headings come from roleGroups and the
+# role names from roles in data/vocab/{lang}.yaml.
+#
+# _partials/vocab.html reads this list and applies the export's
+# vocabulary.json to it (role_groups[].order, entity_roles[].group), and
+# the entity page and the entity explorer receive the result as
+# data-role-groups. A role that sits in no group is listed under the
+# final "otros" group, which is not declared here.
+#
+# Each role belongs to at most one group. The fallback roleGroups arrays
+# in static/js/entity.js and static/js/entity-explorer.js must stay equal
+# to this list (tests/role-groups-parity.test.js checks it); they are used
+# only when a template override leaves data-role-groups out.
+#
+# To change the grouping for a deployment, set group and order in the
+# export's vocabulary.json, or copy this file to
+# themes/{name}/data/vocab/role-groups.yaml and edit it.
+
+groups:
+  - id: production
+    members: [creator, author, editor, publisher, mentioned, subject, official]
+  - id: correspondence
+    members: [sender, recipient]
+  - id: notarial
+    members: [scribe, witness, notary]
+  - id: legal
+    members: [plaintiff, defendant, petitioner, judge, appellant, fiador, apoderado, victim]
+  - id: family
+    members: [heir, albacea, spouse]
+  - id: transactions
+    members: [grantor, donor, seller, buyer, mortgagor, mortgagee, creditor, debtor]
+  - id: visual
+    members: [photographer, artist]
+
+# Version: v1.6.0

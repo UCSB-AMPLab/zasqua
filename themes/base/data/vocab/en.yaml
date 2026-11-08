@@ -23,7 +23,7 @@
 # full file — Hugo replaces the whole top-level key, so a partial override
 # would silently drop the sibling sections.
 
-# Entity roles — complete 29-role vocabulary (US English)
+# Entity roles — complete 42-role vocabulary (US English)
 roles:
   creator:    "Creator"
   contributor: "Contributor"
@@ -54,6 +54,19 @@ roles:
   lessor:     "Lessor"
   debtor:     "Debtor"
   creditor:   "Creditor"
+  fiador:     "Surety"
+  apoderado:  "Attorney-in-fact"
+  albacea:    "Executor of the estate"
+  heir:       "Heir"
+  donor:      "Donor"
+  spouse:     "Spouse"
+  grantor:    "Grantor"
+  victim:     "Victim"
+  mortgagee:  "Mortgagee"
+  mortgagor:  "Mortgagor"
+  editor:     "Editor"
+  photographer: "Photographer"
+  artist:     "Artist"
 
 # Role-group taxonomy labels — entity explorer accordion filter
 roleGroups:
@@ -75,6 +88,10 @@ placeRoles:
   origin:       "Origin"
   destination:  "Destination"
   jurisdiction: "Jurisdiction"
+  sent_from:    "Place of dispatch"
+  sent_to:      "Place of delivery"
+  created:      "Place of creation"
+  published:    "Place of publication"
   unknown:      "No role"
 
 # Entity type labels — ISAAR(CPF)
@@ -98,4 +115,4 @@ placeTypes:
   river:                   "Body of water"
   other:                   "Geographical feature"
 
-# Version: v1.0.0
+# Version: v1.6.0
