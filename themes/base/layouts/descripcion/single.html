@@ -10,7 +10,8 @@
   - Two-column layout:
     - Left: sections driven by the active standard profile (resolve-profile.html)
       — Description, Bibliographic, Entities, Places, Access conditions,
-      Related materials, Notes, Control, Reuse (with copy-to-clipboard
+      Related materials, Notes, Control, How to cite (the publisher's
+      record citation template, filled with this record's fields), Reuse (with copy-to-clipboard
       buttons for METS and IIIF URLs)
     - Right aside: IIIF viewer (TIFY) when iiif_manifest_url is set,
       otherwise a not-digitised notice pointing at the custodial
@@ -34,7 +35,12 @@
   no Spanish fallback. Spanish lives only in es.toml; en.toml
   mirrors it.
 
-  Version: v1.5.0
+  The catalogue-licence line, the Images credit and the citation read the
+  record's repository (catalogue_licence, attribution, image_reproduction_text)
+  and the publisher record; each falls back or is omitted when its field is
+  empty, so a 1.0 export without them builds as before.
+
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
@@ -191,7 +197,27 @@
             <div class="detail-value">
               <div class="repro-subsection">
                 <strong class="repro-subheading">{{ i18n "description.catalogSubheading" }}</strong>
-                <span>{{ i18n "description.catalogFreeAccess" }}</span>
+                {{/* Catalogue licence of the record's repository (uri required);   */}}
+                {{/* the label links to the uri. Built as escaped markup because   */}}
+                {{/* the i18n template receives it as .License.                    */}}
+                {{ $catLicence := dict }}
+                {{ with $repo }}{{ if reflect.IsMap . }}{{ with index . "catalogue_licence" }}{{ if reflect.IsMap . }}{{ $catLicence = . }}{{ end }}{{ end }}{{ end }}{{ end }}
+                {{ $catUri := strings.TrimSpace (printf "%v" (or (index $catLicence "uri") "")) }}
+                {{ if $catUri }}
+                  {{ $catLabel := partial "lang-field.html" (index $catLicence "label") }}
+                  {{ $catText := $catLabel.text | default $catUri }}
+                  {{/* Only an http(s) address becomes a link; only a language tag   */}}
+                  {{/* becomes a lang attribute (export values, marked safe below). */}}
+                  {{ $catHref := partial "web-url.html" $catUri }}
+                  {{ $catLink := $catText | htmlEscape }}
+                  {{ with $catHref }}{{ $catLink = printf `<a href="%s">%s</a>` (. | htmlEscape) $catLink }}{{ end }}
+                  {{ if and $catLabel.text $catLabel.lang (findRE `^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$` $catLabel.lang) }}
+                    {{ $catLink = printf `<span lang="%s">%s</span>` ($catLabel.lang | htmlEscape) $catLink }}
+                  {{ end }}
+                  <span>{{ i18n "description.catalogLicense" (dict "Site" (site.Title | htmlEscape) "License" ($catLink | safeHTML)) | safeHTML }}</span>
+                {{ else }}
+                  <span>{{ i18n "description.catalogFreeAccess" (dict "Site" site.Title) }}</span>
+                {{ end }}
               </div>
               {{ with .Params.reproduction_conditions }}
                 <div class="repro-subsection">
@@ -199,11 +225,19 @@
                   <span>{{ . }}</span>
                 </div>
               {{ end }}
+              {{/* Images credit: the repository's attribution, then its          */}}
+              {{/* image_reproduction_text; omitted when both are empty.          */}}
               {{ if and .Params.iiif_manifest_url $repo }}
+                {{ $imgCredit := partial "lang-field.html" (index $repo "attribution") }}
+                {{ if not $imgCredit.text }}
+                  {{ $imgCredit = partial "lang-field.html" (index $repo "image_reproduction_text") }}
+                {{ end }}
+                {{ with $imgCredit.text }}
                 <div class="repro-subsection">
                   <strong class="repro-subheading">{{ i18n "description.imagesSubheading" }}</strong>
-                  <span>{{ $repo.image_reproduction_text }}</span>
+                  {{ if $imgCredit.lang }}<span lang="{{ $imgCredit.lang }}">{{ . }}</span>{{ else }}<span>{{ . }}</span>{{ end }}
                 </div>
+                {{ end }}
               {{ end }}
             </div>
           </div>
@@ -261,6 +295,9 @@
             <span class="detail-value">{{ . }}</span>
           </div>
           {{ end }}
+          {{/* Without date_of_description or modified_at there is no date to show:
+               a zero Lastmod would print as 0001-01-01. */}}
+          {{ if or .Params.date_of_description (not .Lastmod.IsZero) }}
           <div class="detail-field">
             <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
             {{ with .Params.date_of_description }}
@@ -269,15 +306,59 @@
             <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" (.Lastmod.Format "2006-01-02") }}</span>
             {{ end }}
           </div>
+          {{ end }}
         </div>
+
+        {{/* Section: Cómo citar — publisher citation_template.record, a      */}}
+        {{/* Markdown template filled with this record's fields by            */}}
+        {{/* citation.html, which renders first and fills values after, so a  */}}
+        {{/* value is never read as Markdown. Rendered only when the template */}}
+        {{/* resolves to text.                                                */}}
+        {{ $citeTpl := dict "text" "" "lang" "" }}
+        {{ with partialCached "publisher.html" . }}
+          {{ with index . "citation_template" }}
+            {{ if reflect.IsMap . }}{{ $citeTpl = partial "lang-field.html" (index . "record") }}{{ end }}
+          {{ end }}
+        {{ end }}
+        {{ if $citeTpl.text }}
+          {{ $citeRepo := "" }}
+          {{ with $repo }}{{ if reflect.IsMap . }}{{ $citeRepo = (or (index . "display_title") (index . "name") "") }}{{ end }}{{ end }}
+          {{ $citeDate := .Params.date_formatted | default .Params.date_expression | default "" }}
+          {{ $cite := partial "citation.html" (dict "text" $citeTpl.text "vals" (dict
+            "title" .Title
+            "date" $citeDate
+            "reference_code" (.Params.reference_code | default "")
+            "repository" $citeRepo
+            "url" .Permalink
+            "site" site.Title
+            "version" (printf "%v" (site.Params.version | default ""))
+            "year" (printf "%d" now.Year))) }}
+        <div class="detail-section">
+          {{/* safeHTMLAttr: html/template reads "data-copy-url" as a URL      */}}
+          {{/* attribute and would replace text with spaces by #ZgotmplZ.     */}}
+          <h3>{{ i18n "description.citeHeader" }}</h3>
+          <div class="reuse-manifest-row">
+            {{/* A div when the template has block elements: a p cannot hold another p. */}}
+            {{ if $cite.block }}
+            <div class="citation-text"{{ with $citeTpl.lang }} lang="{{ . }}"{{ end }}>{{ $cite.html | safeHTML }}</div>
+            {{ else }}
+            <p class="citation-text"{{ with $citeTpl.lang }} lang="{{ . }}"{{ end }}>{{ $cite.html | safeHTML }}</p>
+            {{ end }}
+            <button class="reuse-copy-btn" {{ printf `data-copy-url="%s"` ($cite.plain | htmlEscape) | safeHTMLAttr }} data-i18n-copied="{{ i18n "description.copied" }}">
+              <span class="material-symbols-outlined">content_copy</span>
+              {{- i18n "description.copyButton" -}}
+            </button>
+          </div>
+        </div>
+        {{ end }}
 
         {{/* Section: Reutilizacion */}}
         <div class="detail-section">
           <h3>{{ index $profile.sections "reuse" }}</h3>
           {{ if .Params.iiif_manifest_url }}
-            <p class="reuse-blurb">{{ i18n "description.reuseBlurbIiif" | safeHTML }}</p>
+            <p class="reuse-blurb">{{ i18n "description.reuseBlurbIiif" (dict "Site" site.Title) | safeHTML }}</p>
           {{ else }}
-            <p class="reuse-blurb">{{ i18n "description.reuseBlurb" | safeHTML }}</p>
+            <p class="reuse-blurb">{{ i18n "description.reuseBlurb" (dict "Site" site.Title) | safeHTML }}</p>
           {{ end }}
           {{ with .Params.mets_url }}
             <div class="reuse-manifest">
@@ -372,4 +453,4 @@
     <script src="/js/tree.js"></script>
   {{ end }}
 {{ end }}
-{{/* Version: v1.5.0 */}}
+{{/* Version: v1.6.0 */}}

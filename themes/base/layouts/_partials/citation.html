@@ -1,0 +1,100 @@
+{{/*
+  Zasqua record citation renderer
+
+  Renders the publisher's record citation template (citation_template.record)
+  for one description. The template is Markdown; the values that fill its
+  placeholders are record data and are never read as Markdown or HTML.
+
+  Input: a dict with
+    text — the template string (not empty)
+    vals — a dict of placeholder name to value; the names are title, date,
+           reference_code, repository, url, site, version and year
+
+  Output (via `return`): a dict with
+    html  — the template rendered as inline Markdown, values filled in and
+            HTML-escaped, ready for safeHTML
+    plain — the filled citation as text with the Markdown markup removed;
+            not escaped, so the caller escapes it for its context
+    block — true when the rendering has block elements (several paragraphs,
+            a list, a quote). The caller then wraps html in a div; a single
+            paragraph or a line of inline text goes inside a p, because
+            markdownify leaves one paragraph unwrapped and a p cannot hold
+            another p.
+
+  Order of work:
+    1. The characters U+E000 to U+E0FF are removed from the template and
+       from every value, and numeric character references to them are
+       removed from the template. Each placeholder whose name is a key of vals then
+       becomes a sentinel of private-use characters (U+E000, a letter,
+       U+E001; the letter follows a nonce made once per call from the clock),
+       which Markdown leaves alone. A template or value cannot know the
+       nonce, so it cannot forge a sentinel, even through nested character
+       references; the stripping is a second defence. Other placeholders, such as {foo}
+       or a name missing from vals, stay as written.
+    2. The sentinel text is rendered: every "<" becomes "&lt;" before
+       markdownify, so no tag or comment starts. A "<" inside a code span
+       shows as "&lt;", as in markdown-prose.html. Entities such as &copy;
+       in the template render as the character they name.
+    3. Each sentinel is replaced by its value, HTML-escaped for html and
+       raw for plain. In a link destination goldmark has percent-encoded
+       the sentinel; that form is replaced by the escaped value too. A value that contains "{url}" is not filled again,
+       because the values go in after every placeholder is gone.
+    4. Links are filtered last, so a placeholder in a link target is
+       covered: an href or src whose value does not start (after leading
+       whitespace, in any case) with http:, https:, mailto:, "/" or "#"
+       becomes "#".
+
+  The plain text is made from the rendered HTML before the values go in:
+  closing block tags are replaced by spaces, the remaining tags are
+  removed, entities are unescaped once, and each run of whitespace is
+  reduced to one space.
+
+  Version: v1.6.0
+*/}}
+{{ $names := slice "title" "date" "reference_code" "repository" "url" "site" "version" "year" }}
+{{ $vals := .vals }}
+{{/* Not called through partialCached, so the nonce differs per call. */}}
+{{ $nonce := printf "%d" now.UnixNano }}
+{{ $strip := `[\x{E000}-\x{E0FF}]` }}
+{{ $src := replaceRE $strip "" .text }}
+{{/* Numeric character references to U+E000-U+E0FF would become sentinels
+     when the plain text is unescaped; they are removed before rendering. */}}
+{{ $src = replaceRE `(?i)&#0*x0*E0[0-9A-F]{2};` "" $src }}
+{{ $src = replaceRE `&#0*(5734[4-9]|573[5-9][0-9]|57[45][0-9][0-9]);` "" $src }}
+{{ range $i, $n := $names }}
+  {{ if isset $vals $n }}
+    {{ $src = replace $src (printf "{%s}" $n) (printf "\ue000%s%s\ue001" $nonce (substr "abcdefgh" $i 1)) }}
+  {{ end }}
+{{ end }}
+{{ $html := replace $src "<" "&lt;" | markdownify | string }}
+{{ $html = strings.TrimSpace $html }}
+{{ $block := gt (len (findRE `(?i)<(p|div|ul|ol|li|blockquote|h[1-6]|pre|hr|table)[\s>]` $html)) 0 }}
+{{ $plain := replaceRE `(?i)</(p|div|li|blockquote|h[1-6]|pre|tr|td|th)>` " " $html }}
+{{ $plain = replaceRE `<[^>]*>` "" $plain | htmlUnescape | replaceRE `\s+` " " | strings.TrimSpace }}
+{{/* goldmark percent-encodes a sentinel inside a link destination. That
+     pass runs first, over html only, and the raw pass second, so a value
+     inserted by one pass is never scanned by the other; the nonce keeps a
+     value from containing a sentinel in either form. */}}
+{{ range $i, $n := $names }}
+  {{ if isset $vals $n }}
+    {{ $v := replaceRE $strip "" (printf "%v" (index $vals $n)) }}
+    {{ $enc := printf "(?i)%%EE%%80%%80%s%s%%EE%%80%%81" $nonce (substr "abcdefgh" $i 1) }}
+    {{ $html = replaceRE $enc (replace ($v | htmlEscape) "$" "$$") $html }}
+  {{ end }}
+{{ end }}
+{{ range $i, $n := $names }}
+  {{ if isset $vals $n }}
+    {{ $v := replaceRE $strip "" (printf "%v" (index $vals $n)) }}
+    {{ $html = replace $html (printf "\ue000%s%s\ue001" $nonce (substr "abcdefgh" $i 1)) ($v | htmlEscape) }}
+    {{ $plain = replace $plain (printf "\ue000%s%s\ue001" $nonce (substr "abcdefgh" $i 1)) $v }}
+  {{ end }}
+{{ end }}
+{{/* Link allowlist, after the values are in: a target that does not start
+     with http:, https:, mailto:, "/" or "#" becomes "#". Allowed targets get
+     a marker (U+E002, which no template or value can contain) so that the
+     second pass can match the rest without a negative look-ahead. */}}
+{{ $html = replaceRE `(?i)\b(href|src)(\s*=\s*")\s*(http:|https:|mailto:|/|#)` "$1$2\ue002$3" $html }}
+{{ $html = replaceRE `(?i)\b(href|src)\s*=\s*"[^\x{E002}"][^"]*"` `$1="#"` $html }}
+{{ $html = replace $html "\ue002" "" }}
+{{ return (dict "html" $html "plain" $plain "block" $block) }}
+{{/* Version: v1.6.0 */}}

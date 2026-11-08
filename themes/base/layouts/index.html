@@ -10,12 +10,19 @@
   intro is authored, so a base-only deployment without a blurb renders
   no empty <section>.
 
-  Repository cards read their title, subtitle, image, category, and
-  link from the repo record's own fields (repo.name, repo.subtitle,
-  repo.image, repo.category, repo.hero_link) with empty-safe fallbacks.
-  The instance theme override supplies per-repo editorial overrides
-  specific to the deploying institution; this base renders purely from
-  the data layer with no hardcoded repo codes.
+  Repository cards read their title (display_title, else name), subtitle
+  (a { es, en } object or, from a 1.0 export, a plain string, resolved by
+  the lang-field partial), image (hero_image_url) and category line
+  ("{city}, {region}" from contact, else the flat city; an empty part
+  drops with its comma) from the repository record. Every card links to
+  /{code}/. A [params.home_cards.<code>] table in hugo.toml may set `link`
+  and `category` for that card, replacing the address and the category
+  line; the title, subtitle and image still come from the record. A card without an image takes the colour of the repository
+  page header. Records with an integer home_order come first, ascending;
+  the rest follow, sorted by name. The template names no repository
+  codes; a site's per-card choices go in home_cards.
+
+  The section heading is the i18n key repository.exploreCollections.
 
   Repository data is loaded from assets/hugo-data/repositories.json.
   Number formatting: lang.FormatNumber 0 N uses the site locale, which
@@ -24,7 +31,7 @@
   No `{{ define "title" }}` block — the fallback in baseof.html
   produces `<title>{site.Title}</title>` for the home page.
 
-  Version: v2.1.0
+  Version: v1.6.0
 */}}
 {{ define "main" }}
 {{ $repos := slice }}
@@ -55,18 +62,38 @@
 {{ end }}
 
 <section class="section repo-section">
-  <h2 class="section-title font-display">{{ hugo.Data.ui.repository.exploreCollections | default "Explore collections" }}</h2>
+  <h2 class="section-title font-display">{{ i18n "repository.exploreCollections" }}</h2>
 
   <div class="repo-grid">
-    {{ range $repo := $repos }}
-      {{ $repoImage := $repo.image | default "" }}
-      {{ $repoTitle := $repo.name }}
-      {{ $repoSubtitle := $repo.subtitle | default "" }}
-      {{ $repoCategory := $repo.category | default "" }}
-      {{ $repoLink := $repo.hero_link | default (printf "/%s/" $repo.code) }}
+    {{ $ordered := slice }}
+    {{ $unordered := slice }}
+    {{ range $r := $repos }}
+      {{ if and (isset $r "home_order") (ne $r.home_order nil) }}
+        {{ $ordered = $ordered | append $r }}
+      {{ else }}
+        {{ $unordered = $unordered | append $r }}
+      {{ end }}
+    {{ end }}
+    {{ $cards := (sort $ordered "home_order") | append (sort $unordered "name") }}
+
+    {{ range $repo := $cards }}
+      {{ $repoImage := $repo.hero_image_url | default "" }}
+      {{ $repoTitle := $repo.display_title | default $repo.name }}
+      {{ $repoSubtitle := partial "lang-field.html" $repo.subtitle }}
+      {{ $contact := $repo.contact | default dict }}
+      {{ $placeParts := slice }}
+      {{ with $contact.city | default $repo.city }}{{ $placeParts = $placeParts | append . }}{{ end }}
+      {{ with $contact.region }}{{ $placeParts = $placeParts | append . }}{{ end }}
+      {{ $repoCategory := delimit $placeParts ", " }}
+      {{ $repoLink := printf "/%s/" $repo.code }}
+      {{/* params.home_cards.<code> may give a card another link or category. */}}
+      {{ with index (site.Params.home_cards | default dict) $repo.code }}
+        {{ with .link }}{{ $repoLink = . }}{{ end }}
+        {{ with .category }}{{ $repoCategory = . }}{{ end }}
+      {{ end }}
 
       <div class="repo-item">
-        <a href="{{ $repoLink }}" class="repo-link">
+        <a href="{{ $repoLink }}" class="repo-link{{ if not $repoImage }} repo-link-plain{{ end }}">
           {{ with $repoImage }}<img src="{{ . }}" alt="{{ $repoTitle }}" class="repo-image">{{ end }}
           <div class="repo-caption">
             <h3 class="repo-caption-title">{{ $repoTitle }}</h3>
@@ -75,7 +102,7 @@
           <div class="repo-overlay">
             <div class="repo-info">
               <h3 class="repo-title">{{ $repoTitle }}</h3>
-              {{ with $repoSubtitle }}<p class="repo-subtitle">{{ . }}</p>{{ end }}
+              {{ with $repoSubtitle.text }}<p class="repo-subtitle">{{ if $repoSubtitle.lang }}<span lang="{{ $repoSubtitle.lang }}">{{ . }}</span>{{ else }}{{ . }}{{ end }}</p>{{ end }}
               <p class="repo-subtitle">{{ lang.FormatNumber 0 (default 0 $repo.description_count) }} {{ i18n "repository.itemsCount" }}</p>
             </div>
           </div>
@@ -85,4 +112,4 @@
   </div>
 </section>
 {{ end }}
-{{/* Version: v2.1.0 */}}
+{{/* Version: v1.6.0 */}}

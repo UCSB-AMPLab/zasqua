@@ -3,16 +3,29 @@
 
   Renders one repository page per entry in assets/hugo-data/
   repositories.json (routed via the content adapter at content/
-  repository/_content.gotmpl). Title, subtitle, and image are read
-  from the repository record's own params fields; no per-code overrides
-  live in this base file. Identity-specific editorial overrides are
-  supplied by the instance theme.
+  repository/_content.gotmpl). Everything is read from the repository
+  record's own params; no per-code overrides live in this base file.
+  Fields of contract 1.1 are read first; the flat city, country,
+  image_reproduction_text and modified_at of 1.0 exports are the
+  fallbacks.
 
   Visual structure:
-  - Breadcrumb: Inicio > {repoTitle}
-  - Hero section with background-image from .Params.image (empty-safe)
-  - Search-collection link to /buscar/?ancestor={code}
-  - Miller columns tree container OR a 'no collections' fallback
+  - Breadcrumb: Inicio > display_title (name)
+  - Header: hero_image_url as background (the primary dark colour when
+    absent), title, subtitle, place and document count
+  - Contact strip (website, email, telephone), omitted when all are empty
+  - A closed-by-default details bar "Sobre el repositorio" holding the
+    institution record: Identification, Description, Access, Services,
+    Reuse, Funders, Control on the left and the address block on the
+    right. A field renders only when it has content; a section only when
+    one of its rows does.
+  - "Fondos y colecciones": search link and the Miller columns tree, or a
+    'no collections' fallback
+
+  Bilingual fields go through lang-field.html (the site-language member,
+  or the other one in an element carrying its lang attribute). Prose
+  fields are Markdown, rendered by markdown-prose.html, which never
+  renders raw HTML.
 
   data-level-labels: injected from the default ISAD(G) profile via
   resolve-profile.html. Uses levelsPlural (plural forms)
@@ -21,66 +34,307 @@
 
   <title> falls back to site.Title because no "title" block is defined.
 
-  Version: v2.2.0
+  Version: v1.6.0
 */}}
 {{ define "main" }}
 
 {{/* Resolve the profile for level labels. Pass the real page
      context (as descripcion/single.html does): a repository page has no
      .Params.repository.descriptive_standard, so resolve-profile.html falls
-     through to the isadg baseline. The previous synthetic empty-dict context
-     resolved levelsPlural to null (data-level-labels=null); the real context
-     resolves the populated isadg profile correctly. */}}
+     through to the isadg baseline. */}}
 {{ $defaultProfile := partial "resolve-profile.html" . }}
 
-{{ $repoTitle := .Params.name }}
-{{ $repoSubtitle := .Params.subtitle | default "" }}
-{{ $repoImage := .Params.image | default "" }}
+{{/* Title */}}
+{{ $repoTitle := .Params.display_title | default .Params.name }}
+
+{{/* Contact: contact.* first, the flat city and country of 1.0 exports
+     when contact is absent. */}}
+{{ $contact := .Params.contact | default dict }}
+{{ $city := $contact.city | default .Params.city }}
+{{ $region := $contact.region }}
+{{ $country := $contact.country | default .Params.country }}
+{{ $website := $contact.website }}
+{{ $email := $contact.email }}
+{{ $telephone := $contact.telephone }}
+{{ $street := $contact.street_address }}
+{{ $postal := $contact.postal_code }}
+
+{{ $placeParts := slice }}
+{{ range slice $city $region $country }}{{ with . }}{{ $placeParts = $placeParts | append (strings.TrimSpace .) }}{{ end }}{{ end }}
+{{ $place := delimit $placeParts ", " }}
+
+{{/* Bilingual fields */}}
+{{ $subtitle := partial "lang-field.html" .Params.subtitle }}
+{{ $access := .Params.access | default dict }}
+{{ $holdings := partial "lang-field.html" .Params.holdings }}
+{{ $history := partial "lang-field.html" .Params.history }}
+{{ $openingTimes := partial "lang-field.html" $access.opening_times }}
+{{ $accessConditions := partial "lang-field.html" $access.conditions }}
+{{ $accessibility := partial "lang-field.html" $access.accessibility }}
+{{ $reproduction := partial "lang-field.html" .Params.reproduction_services }}
+{{ $licence := .Params.image_licence | default dict }}
+{{ $licenceLabel := partial "lang-field.html" $licence.label }}
+{{ $licenceUri := strings.TrimSpace (printf "%v" ($licence.uri | default "")) }}
+{{ $attribution := partial "lang-field.html" .Params.attribution }}
+{{ if not $attribution.text }}
+  {{ $attribution = partial "lang-field.html" .Params.image_reproduction_text }}
+{{ end }}
+
+{{/* Identification */}}
+{{ $otherNames := slice }}
+{{ range .Params.other_names }}{{ with strings.TrimSpace (printf "%v" .) }}{{ $otherNames = $otherNames | append . }}{{ end }}{{ end }}
+{{ $institutionType := strings.TrimSpace (printf "%v" (.Params.institution_type | default "")) }}
+{{ $logo := strings.TrimSpace (printf "%v" (.Params.logo_url | default "")) }}
+
+{{/* Funders: name — programme (project_id), linked to url */}}
+{{ $funders := slice }}
+{{ range .Params.funders }}
+  {{ $name := strings.TrimSpace (printf "%v" (.name | default "")) }}
+  {{ $programme := strings.TrimSpace (printf "%v" (.programme | default "")) }}
+  {{ $projectId := strings.TrimSpace (printf "%v" (.project_id | default "")) }}
+  {{ $text := $name }}
+  {{ if $programme }}{{ $text = printf "%s%s%s" $text (cond (ne $text "") " — " "") $programme }}{{ end }}
+  {{ if $projectId }}{{ $text = printf "%s%s(%s)" $text (cond (ne $text "") " " "") $projectId }}{{ end }}
+  {{ if $text }}
+    {{ $funders = $funders | append (dict "text" $text "url" (strings.TrimSpace (printf "%v" (.url | default "")))) }}
+  {{ end }}
+{{ end }}
+
+{{/* Control: language name from data/languages.yaml (site language, then
+     English, then the code itself); date from updated_at, then modified_at. */}}
+{{ $langName := "" }}
+{{ with strings.TrimSpace (printf "%v" (.Params.description_language | default "")) }}
+  {{ $langName = . }}
+  {{ with index site.Data.languages (lower .) }}
+    {{ $langName = (index . site.Language.Lang) | default .en | default $langName }}
+  {{ end }}
+{{ end }}
+{{ $recordDate := strings.TrimSpace (printf "%v" (.Params.updated_at | default (.Params.modified_at | default ""))) }}
+{{ if gt (len $recordDate) 10 }}{{ $recordDate = substr $recordDate 0 10 }}{{ end }}
+
+{{/* Section visibility */}}
+{{ $showDescription := or $holdings.text $history.text }}
+{{ $showAccess := or $openingTimes.text $accessConditions.text $accessibility.text }}
+{{ $showReuse := or $licenceLabel.text $licenceUri $attribution.text }}
+{{ $showControl := or $langName $recordDate }}
+{{ $addressLine := delimit $placeParts ", " }}
+{{ if and $addressLine $postal }}{{ $addressLine = printf "%s %s" $addressLine $postal }}{{ end }}
+{{ $showContact := or $street $addressLine }}
 
 <nav class="breadcrumb" aria-label="Breadcrumb">
   <div class="container">
-    <a href="/" class="text-sm text-stone-400 hover:text-burgundy-light">{{ i18n "nav.home" }}</a>
+    <a href="/" class="text-sm text-stone-400 hover:text-primary-light">{{ i18n "nav.home" }}</a>
     <span class="breadcrumb-separator text-stone-400">›</span>
     <span class="text-sm text-stone-500">{{ $repoTitle }}</span>
   </div>
 </nav>
 
-<section class="repo-header"{{ with $repoImage }} style="background-image: url('{{ . }}')"{{ end }}>
+<section class="repo-header"{{ with .Params.hero_image_url }} style="background-image: url('{{ . }}')"{{ end }}>
   <div class="repo-header-overlay">
     <div class="container">
       <h1 class="repo-header-title font-sans text-white">{{ $repoTitle }}</h1>
-      {{ with $repoSubtitle }}
-        <p class="repo-header-subtitle text-white">{{ . }}</p>
+      {{ with $subtitle.text }}
+        <p class="repo-header-subtitle text-white">{{ if $subtitle.lang }}<span lang="{{ $subtitle.lang }}">{{ . }}</span>{{ else }}{{ . }}{{ end }}</p>
       {{ end }}
-      <p class="repo-header-stats text-stone-300">{{ lang.FormatNumber 0 (default 0 .Params.description_count) }} {{ i18n "repository.itemsCount" }}</p>
+      <p class="repo-header-stats text-stone-300">{{ with $place }}{{ . }} · {{ end }}{{ lang.FormatNumber 0 (default 0 .Params.description_count) }} {{ i18n "repository.itemsCount" }}</p>
     </div>
   </div>
 </section>
 
 <section class="section">
   <div class="container">
-    <div class="tree-header">
-      <a href="/buscar/?ancestor={{ .Params.code }}" class="search-collection-link">
-        <span class="material-symbols-outlined">search</span>
-        {{- i18n "repository.searchCollection" -}}
-      </a>
-    </div>
 
-    {{ if and .Params.root_descriptions (gt (len .Params.root_descriptions) 0) }}
-      <div id="collection-tree"
-           data-repo-code="{{ .Params.code }}"
-           {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levelsPlural) | safeHTMLAttr }}>
+    {{ if or $website $email $telephone }}
+      <div class="repo-keyinfo">
+        {{ with $website }}
+          {{ $href := . }}
+          {{ if not (or (hasPrefix (lower $href) "http://") (hasPrefix (lower $href) "https://")) }}{{ $href = printf "https://%s" $href }}{{ end }}
+          {{ $host := (urls.Parse $href).Host | default . }}
+          <span class="repo-keyinfo-item"><span class="material-symbols-outlined" aria-hidden="true">language</span><a href="{{ $href }}">{{ $host }}</a></span>
+        {{ end }}
+        {{ with $email }}
+          <span class="repo-keyinfo-item"><span class="material-symbols-outlined" aria-hidden="true">mail</span><a href="mailto:{{ . }}">{{ . }}</a></span>
+        {{ end }}
+        {{ with $telephone }}
+          <span class="repo-keyinfo-item"><span class="material-symbols-outlined" aria-hidden="true">call</span><a href="tel:{{ replaceRE `[^0-9+]` `` . }}">{{ . }}</a></span>
+        {{ end }}
+      </div>
+    {{ end }}
+
+    <details class="repo-record">
+      <summary class="repo-record-summary"><span class="material-symbols-outlined repo-record-chevron" aria-hidden="true">expand_more</span>{{ i18n "repository.aboutToggle" }}</summary>
+      <div class="desc-layout">
+        <div class="desc-metadata">
+
+          <div class="detail-section">
+            <h3>{{ i18n "repository.sections.identity" }}</h3>
+            {{ with $logo }}<img class="repo-logo" src="{{ . }}" alt="" loading="lazy">{{ end }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "repository.fields.authorizedName" }}</span>
+              <span class="detail-value">{{ .Params.name }}</span>
+            </div>
+            {{ if $otherNames }}
+              <div class="detail-field">
+                <span class="detail-label">{{ i18n "repository.fields.otherNames" }}</span>
+                <span class="detail-value">{{ delimit $otherNames ", " }}</span>
+              </div>
+            {{ end }}
+            {{ with $institutionType }}
+              <div class="detail-field">
+                <span class="detail-label">{{ i18n "repository.fields.institutionType" }}</span>
+                <span class="detail-value">{{ . }}</span>
+              </div>
+            {{ end }}
+            <div class="detail-field">
+              <span class="detail-label">{{ i18n "repository.fields.code" }}</span>
+              <span class="detail-value detail-value-mono">{{ .Params.code }}</span>
+            </div>
+          </div>
+
+          {{ if $showDescription }}
+            <div class="detail-section">
+              <h3>{{ i18n "repository.sections.description" }}</h3>
+              {{ if $holdings.text }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.holdings" }}</span>
+                  <div class="detail-value">{{ partial "markdown-prose.html" $holdings }}</div>
+                </div>
+              {{ end }}
+              {{ if $history.text }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.history" }}</span>
+                  <div class="detail-value">{{ partial "markdown-prose.html" $history }}</div>
+                </div>
+              {{ end }}
+            </div>
+          {{ end }}
+
+          {{ if $showAccess }}
+            <div class="detail-section">
+              <h3>{{ i18n "repository.sections.access" }}</h3>
+              {{ if $openingTimes.text }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.openingTimes" }}</span>
+                  <div class="detail-value">{{ partial "markdown-prose.html" $openingTimes }}</div>
+                </div>
+              {{ end }}
+              {{ if $accessConditions.text }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.accessConditions" }}</span>
+                  <div class="detail-value">{{ partial "markdown-prose.html" $accessConditions }}</div>
+                </div>
+              {{ end }}
+              {{ if $accessibility.text }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.accessibility" }}</span>
+                  <div class="detail-value">{{ partial "markdown-prose.html" $accessibility }}</div>
+                </div>
+              {{ end }}
+            </div>
+          {{ end }}
+
+          {{ if $reproduction.text }}
+            <div class="detail-section">
+              <h3>{{ i18n "repository.sections.services" }}</h3>
+              <div class="detail-field">
+                <span class="detail-label">{{ i18n "repository.fields.reproductionServices" }}</span>
+                <div class="detail-value">{{ partial "markdown-prose.html" $reproduction }}</div>
+              </div>
+            </div>
+          {{ end }}
+
+          {{ if $showReuse }}
+            <div class="detail-section">
+              <h3>{{ i18n "repository.sections.reuse" }}</h3>
+              {{ if or $licenceLabel.text $licenceUri }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.imageLicense" }}</span>
+                  <span class="detail-value">
+                    {{- $label := $licenceLabel.text | default $licenceUri -}}
+                    {{- if $licenceLabel.lang }}<span lang="{{ $licenceLabel.lang }}">{{ end -}}
+                    {{- if $licenceUri }}<a href="{{ $licenceUri }}">{{ $label }}</a>{{ else }}{{ $label }}{{ end -}}
+                    {{- if $licenceLabel.lang }}</span>{{ end -}}
+                  </span>
+                </div>
+              {{ end }}
+              {{ if $attribution.text }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.attribution" }}</span>
+                  <span class="detail-value">{{ if $attribution.lang }}<span lang="{{ $attribution.lang }}">{{ $attribution.text }}</span>{{ else }}{{ $attribution.text }}{{ end }}</span>
+                </div>
+              {{ end }}
+            </div>
+          {{ end }}
+
+          {{ if $funders }}
+            <div class="detail-section">
+              <h3>{{ i18n "repository.sections.funders" }}</h3>
+              <ul class="detail-list text-stone-700">
+                {{ range $funders }}
+                  <li>{{ if .url }}<a href="{{ .url }}">{{ .text }}</a>{{ else }}{{ .text }}{{ end }}</li>
+                {{ end }}
+              </ul>
+            </div>
+          {{ end }}
+
+          {{ if $showControl }}
+            <div class="detail-section">
+              <h3>{{ i18n "repository.sections.control" }}</h3>
+              {{ with $langName }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "repository.fields.descriptionLanguage" }}</span>
+                  <span class="detail-value">{{ . }}</span>
+                </div>
+              {{ end }}
+              {{ with $recordDate }}
+                <div class="detail-field">
+                  <span class="detail-label">{{ i18n "recordMeta.descriptionDateLabel" }}</span>
+                  <span class="detail-value">{{ replace (i18n "recordMeta.descriptionDateValue") "{date}" . }}</span>
+                </div>
+              {{ end }}
+            </div>
+          {{ end }}
+
+        </div>
+
+        {{ if $showContact }}
+          <div class="desc-aside">
+            <div class="desc-notice repo-contact">
+              <span class="material-symbols-outlined desc-notice-icon" aria-hidden="true">location_on</span>
+              <div class="desc-notice-title">{{ i18n "repository.sections.contact" }}</div>
+              {{ with $street }}<p class="desc-notice-text">{{ . }}</p>{{ end }}
+              {{ with $addressLine }}<p class="desc-notice-text">{{ . }}</p>{{ end }}
+            </div>
+          </div>
+        {{ end }}
+      </div>
+    </details>
+
+    <div class="detail-section">
+      <h3>{{ i18n "repository.collections" }}</h3>
+      <div class="tree-header">
+        <a href="/buscar/?ancestor={{ .Params.code }}" class="search-collection-link">
+          <span class="material-symbols-outlined">search</span>
+          {{- i18n "repository.searchCollection" -}}
+        </a>
       </div>
 
-      <script type="application/json" id="root-descriptions-data">
-        {{ jsonify .Params.root_descriptions | safeJS }}
-      </script>
-    {{ else }}
-      <p class="text-muted text-center">{{ i18n "repository.noCollections" }}</p>
-    {{ end }}
+      {{ if and .Params.root_descriptions (gt (len .Params.root_descriptions) 0) }}
+        <div id="collection-tree"
+             data-repo-code="{{ .Params.code }}"
+             {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levelsPlural) | safeHTMLAttr }}>
+        </div>
+
+        <script type="application/json" id="root-descriptions-data">
+          {{ jsonify .Params.root_descriptions | safeJS }}
+        </script>
+      {{ else }}
+        <p class="text-muted text-center">{{ i18n "repository.noCollections" }}</p>
+      {{ end }}
+    </div>
   </div>
 </section>
 
 <script src="/js/tree.js"></script>
 {{ end }}
-{{/* Version: v2.3.0 */}}
+{{/* Version: v1.6.0 */}}

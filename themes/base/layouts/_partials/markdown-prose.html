@@ -1,0 +1,34 @@
+{{/*
+  Zasqua Markdown prose renderer
+
+  Renders a prose field of an export record (holdings, history, access
+  conditions, reproduction services) as HTML. The export carries these
+  fields as Markdown; raw HTML in them is never rendered.
+
+  Input: the dict that lang-field.html returns for the field, {text, lang}.
+  Nothing is printed when text is empty. When lang is not empty the output
+  is wrapped in a div carrying that language code, so a screen reader
+  switches voice for text in the other language.
+
+  Two measures keep markup out, whatever markup.goldmark.renderer.unsafe
+  says (the instance sets it to true, which lets goldmark pass raw HTML
+  through):
+    1. Every "<" in the source becomes "&lt;" before markdownify, so no
+       tag, comment or HTML block can start. Markdown block quotes (">")
+       and links keep working; angle-bracket autolinks do not, and "<" in
+       a code span shows as "&lt;" there.
+    2. Links whose target begins with javascript:, data: or vbscript: are
+       rewritten to "#" after rendering; goldmark passes those through
+       when unsafe is true.
+
+  Version: v1.6.0
+*/}}
+{{ with .text }}
+  {{ $html := replace . "<" "&lt;" | markdownify | string }}
+  {{ $html = replaceRE `(?i)(href|src)\s*=\s*"\s*(javascript|data|vbscript):[^"]*"` `$1="#"` $html }}
+  {{/* markdownify leaves a single paragraph unwrapped; wrap it so prose
+       styles that target p apply to one-line fields too. */}}
+  {{ if not (hasPrefix (strings.TrimSpace $html) "<") }}{{ $html = printf "<p>%s</p>" $html }}{{ end }}
+  {{ if $.lang }}<div lang="{{ $.lang }}">{{ $html | safeHTML }}</div>{{ else }}{{ $html | safeHTML }}{{ end }}
+{{ end }}
+{{/* Version: v1.6.0 */}}

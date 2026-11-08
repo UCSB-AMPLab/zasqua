@@ -1,22 +1,41 @@
 {{/*
   Site footer partial (neutral base)
 
-  Renders the site footer: an optional credits paragraph, a copyright
-  line, a link to /colofon/, an optional source-code link, and the
-  hardcoded framework-credit line (framework-credit.html). Seals
-  and institutional prose are provided by the instance's theme override
-  rather than this base partial.
+  Renders the site footer in two groups. The left group is the site's
+  mark followed by the text block: an optional tagline, an optional
+  credits paragraph, a copyright line, a link to /colofon/ and an
+  optional source-code link. The right group is the engine credit
+  (framework-credit.html), a rule, and the site's seals. The rule and
+  the seals block are drawn only when there is at least one seal. The
+  second and later seals are wrapped in .footer-seals-more so that, on
+  phones, the first seal can sit beside the mark and the others stay
+  together in a row.
 
-  Deployer identity comes through site.Params, never a data-file
-  override: Hugo replaces whole top-level data maps across the theme
-  chain, so overriding footer.* in an instance data file would silently
-  drop the sibling colofon_link_text. Params merge cleanly instead.
+  Deployer identity comes through site.Params and publisher.json, never a
+  data-file override: Hugo replaces whole top-level data maps across the
+  theme chain, so overriding footer.* in an instance data file would
+  silently drop the sibling colofon_link_text. Params merge cleanly
+  instead.
 
+  site.Params.footer_tagline — optional sentence about the site; the
+    paragraph is omitted when unset.
+  publisher.json (partial publisher.html) — when it has a legal_name, the
+    copyright line is the i18n key "footer.copyrightHolder" with {year}
+    and {holder} (the legal name). Otherwise:
   site.Params.footer_copyright — optional copyright line; falls back to
     the i18n bundle's "footer.copyright" value ("© {year}") when unset.
     The {year} token is replaced at build time with `now.Format "2006"`
     — a single four-digit year, stable for ~12 months, so it does not
     churn per-page ETags materially on a given deploy.
+  site.Params.footer_logo — optional { src, alt, href } for the site's
+    mark. When unset or without a src, the publisher's logo_url (alt display_name or
+    legal_name, linked to website) is used; with neither, no mark is
+    drawn. An empty href gives a plain image.
+  site.Params.footer_seals — optional list of { src, alt, href } (href
+    optional). When the key is present it is used as given, and an empty
+    list means no seals and no rule. Only an absent key falls back to
+    the publisher's credits[] entries that have a logo_url (alt name,
+    linked to url).
   site.Params.footer_credits — optional HTML prose rendered above the
     copyright line. When absent, no credits paragraph is rendered.
   site.Params.source_url — optional URL for the source-code link.
@@ -25,16 +44,62 @@
   Chrome strings (colophon link text, source link text) resolve from
   the i18n bundle selected by the manifest [ui].language setting.
 
-  Version: v2.3.0
+  Version: v1.6.0
 */}}
-<footer class="site-footer bg-burgundy-dark text-white">
+{{- $pub := partialCached "publisher.html" . -}}
+{{- $copyright := site.Params.footer_copyright | default (i18n "footer.copyright") -}}
+{{- with $pub.legal_name -}}
+  {{- $copyright = replace (i18n "footer.copyrightHolder") "{holder}" . -}}
+{{- end -}}
+{{- $mark := dict -}}
+{{- $fl := site.Params.footer_logo | default dict -}}
+{{- if $fl.src -}}
+  {{- $mark = dict "src" $fl.src "alt" ($fl.alt | default "") "href" ($fl.href | default "") -}}
+{{- else -}}
+  {{- with $pub.logo_url -}}
+    {{- $mark = dict "src" . "alt" ($pub.display_name | default $pub.legal_name | default "") "href" ($pub.website | default "") -}}
+  {{- end -}}
+{{- end -}}
+{{- $seals := slice -}}
+{{- if isset site.Params "footer_seals" -}}
+  {{- range site.Params.footer_seals -}}
+    {{- if .src -}}
+      {{- $seals = $seals | append (dict "src" .src "alt" (.alt | default "") "href" (.href | default "")) -}}
+    {{- end -}}
+  {{- end -}}
+{{- else -}}
+  {{- range $pub.credits -}}
+    {{- if .logo_url -}}
+      {{- $seals = $seals | append (dict "src" .logo_url "alt" (.name | default "") "href" (.url | default "")) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+<footer class="site-footer bg-primary-dark text-white">
   <div class="container">
     <div class="footer-left text-sm">
-      {{ with site.Params.footer_credits }}<p>{{ . | safeHTML }}</p>{{ end }}
-      <p class="footer-copyright">{{ replace (site.Params.footer_copyright | default (i18n "footer.copyright")) "{year}" (now.Format "2006") }}.
-      <br><a href="/colofon/" class="text-white hover:text-periwinkle">{{ i18n "footer.colofon_link_text" }}</a>{{ with site.Params.source_url }} · <a href="{{ . }}" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">{{ i18n "footer.sourceLink" }}</a> (AGPL-3.0){{ end }}.</p>
+      {{ with $mark.src }}
+        {{- if $mark.href }}<a href="{{ $mark.href }}" target="_blank" rel="noopener"><img src="{{ $mark.src }}" alt="{{ $mark.alt }}" class="footer-mark"></a>{{ else }}<img src="{{ $mark.src }}" alt="{{ $mark.alt }}" class="footer-mark">{{ end }}
+      {{ end }}
+      <div class="footer-text">
+        {{ with site.Params.footer_tagline }}<p class="footer-tagline">{{ . | safeHTML }}</p>{{ end }}
+        {{ with site.Params.footer_credits }}<p>{{ . | safeHTML }}</p>{{ end }}
+        <p class="footer-copyright">{{ replace $copyright "{year}" (now.Format "2006") }}.
+        <br><a href="/colofon/" class="text-white hover:text-accent">{{ i18n "footer.colofon_link_text" }}</a>{{ with site.Params.source_url }} · <a href="{{ . }}" target="_blank" rel="noopener" class="text-white hover:text-accent">{{ i18n "footer.sourceLink" }}</a> (AGPL-3.0){{ end }}.</p>
+      </div>
+    </div>
+    <div class="footer-right">
       {{ partial "framework-credit.html" . }}
+      {{ with $seals }}
+      <span class="footer-rule" aria-hidden="true"></span>
+      <div class="footer-seals">
+        {{ range $i, $seal := . }}
+          {{- if eq $i 1 }}<div class="footer-seals-more">{{ end }}
+          {{- if $seal.href }}<a href="{{ $seal.href }}" target="_blank" rel="noopener"><img src="{{ $seal.src }}" alt="{{ $seal.alt }}" class="footer-seal"></a>{{ else }}<img src="{{ $seal.src }}" alt="{{ $seal.alt }}" class="footer-seal">{{ end }}
+        {{ end }}
+        {{ if gt (len .) 1 }}</div>{{ end }}
+      </div>
+      {{ end }}
     </div>
   </div>
 </footer>
-{{/* Version: v2.3.0 */}}
+{{/* Version: v1.6.0 */}}

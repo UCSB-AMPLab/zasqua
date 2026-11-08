@@ -10,6 +10,9 @@
  * counts), and writes three denormalised JSON files to `assets/hugo-
  * data/` — one for descriptions, one for entities, one for places.
  *
+ * Dates and counts are formatted in the site's interface language, the
+ * manifest's `[ui] language` read through `lib/site-language.js`.
+ *
  * Why pre-enrich: Hugo's Go template language is capable but slow at
  * repeated lookups over large arrays; doing the work once here in Node
  * (where all the existing logic already lives) saves minutes per build
@@ -72,6 +75,10 @@
  * Exits 0 on success, 1 on any IO error, 2 on an ancestor-chain cycle
  * (a backend data bug — fail loudly so it gets fixed upstream).
  *
+ * Optional exports: publisher.json and vocabulary.json (single JSON objects)
+ * are copied to assets/hugo-data/ when present in the data directory; when
+ * absent, a copy left there by an earlier build is deleted.
+ *
  * Repository pass-through: writes repositories.json to assets/hugo-data/ so
  * the Hugo home-page template and the repository content adapter can load it
  * via `resources.Get`. Every original field is preserved (description counts,
@@ -97,7 +104,7 @@
  * the script throws an actionable Error naming the module and the missing
  * path rather than letting a raw ENOENT stack escape.
  *
- * @version v1.3.0
+ * @version v1.6.0
  */
 
 'use strict';
@@ -105,11 +112,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const { formatDateNarrative, SPANISH_MONTHS } = require('./enrichment/date-format.js');
+const { formatDateNarrative } = require('./enrichment/date-format.js');
 const { numberFormat } = require('./enrichment/number-format.js');
 const { buildAncestorChain } = require('./enrichment/ancestor-chain.js');
 const { enrichEntityLinks, enrichPlaceLinks } = require('./enrichment/link-enrichment.js');
 const { loadManifest } = require('../lib/manifest.js');
+const { siteLanguage } = require('../lib/site-language.js');
 const { readMetsConfig } = require('./generate-mets.js');
 
 const INSTANCE_ROOT = process.env.INSTANCE_ROOT || process.cwd();
@@ -120,6 +128,27 @@ const DEV_LIMIT = process.env.DEV_LIMIT ? Number(process.env.DEV_LIMIT) : null;
 function readJSON(relPath) {
   const full = path.join(DATA_DIR, relPath);
   return JSON.parse(fs.readFileSync(full, 'utf8'));
+}
+
+/**
+ * Copy an optional single-object export (publisher.json, vocabulary.json)
+ * to the Hugo data directory. When the export is absent, any copy left in
+ * the output directory by an earlier build is deleted, so a file removed
+ * from the export does not survive in the site. Returns true when copied.
+ */
+function copyOptionalObject(name) {
+  const src = path.join(DATA_DIR, name);
+  const dest = path.join(OUT_DIR, name);
+  if (!fs.existsSync(src)) {
+    fs.rmSync(dest, { force: true });
+    return false;
+  }
+  const parsed = JSON.parse(fs.readFileSync(src, 'utf8'));
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`${src} must be a single JSON object`);
+  }
+  fs.writeFileSync(dest, JSON.stringify(parsed, null, 2));
+  return true;
 }
 
 function writeJSON(name, data) {
@@ -173,6 +202,8 @@ function loadLinkedCounts(indexFile, keyField) {
  *                  mets_url (consistency + future records get a uniform URL).
  *   - base UNSET → respect an inbound `mets_url` when present, else derive the
  *                  default `/mets/{slug}.xml` (served with the site).
+ * A `mets_url` written as null or '' counts as absent: `zasqua mets` writes a
+ * file for every description, so such a value never hides the link.
  * slug = reference_code with ? and # stripped — matches the permalink and the
  * filename generate-mets.js writes. The base and the file generator read the
  * same config, so links and files agree regardless of which runs first.
@@ -189,12 +220,12 @@ function deriveMetsUrl(desc, metsBaseUrl) {
   return desc.mets_url || (slug ? `/mets/${slug}.xml` : '');
 }
 
-function enrichDescriptions(descriptions, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap, metsBaseUrl) {
+function enrichDescriptions(descriptions, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap, metsBaseUrl, locale) {
   return descriptions.map(desc => ({
     ...desc,
     ancestor_chain: buildAncestorChain(desc, byRefCode),
     repository: reposByCode.get(desc.repository_code) || null,
-    date_formatted: formatDateNarrative(desc.date_expression),
+    date_formatted: formatDateNarrative(desc.date_expression, locale),
     entity_links: enrichEntityLinks(desc.reference_code, descEntityLookup, rolesMap),
     place_links: enrichPlaceLinks(desc.reference_code, descPlaceLookup),
     mets_url: deriveMetsUrl(desc, metsBaseUrl),
@@ -208,7 +239,9 @@ function enrichDescriptions(descriptions, byRefCode, reposByCode, descEntityLook
  * as the first Miller column. A "root" is a description with no parent —
  * neither parent_id nor parent_reference_code. For each repository this
  * collects its roots as small stubs {id, reference_code, title,
- * description_level, child_count}. child_count is the number of direct
+ * description_level, child_count}, plus children_level and local_identifier
+ * when the record carries them (the tree reads both; an absent
+ * local_identifier tells it the export predates the field). child_count is the number of direct
  * children, computed from the same parent relationships derive-children.js
  * keys on (including the parent_reference_code fallback), so a root's expand
  * affordance in the first column agrees with the children shards.
@@ -254,13 +287,17 @@ function deriveRootDescriptions(descriptions) {
     if (hasParent) continue;
     const repoCode = d.repository_code;
     if (!byRepo.has(repoCode)) byRepo.set(repoCode, []);
-    byRepo.get(repoCode).push({
+    const stub = {
       id: d.id,
       reference_code: d.reference_code,
       title: d.title,
       description_level: d.description_level,
       child_count: directChildren.get(d.reference_code) || 0,
-    });
+    };
+    for (const key of ['children_level', 'local_identifier']) {
+      if (Object.prototype.hasOwnProperty.call(d, key)) stub[key] = d[key];
+    }
+    byRepo.get(repoCode).push(stub);
   }
 
   // Stable shelf order within each repository's first column.
@@ -270,11 +307,11 @@ function deriveRootDescriptions(descriptions) {
   return byRepo;
 }
 
-function enrichEntities(entities, countByCode) {
+function enrichEntities(entities, countByCode, locale) {
   return entities.map(entity => ({
     ...entity,
     display_name: entityDisplayName(entity),
-    date_formatted: formatDateNarrative(entity.dates_of_existence) || entity.dates_of_existence || '',
+    date_formatted: formatDateNarrative(entity.dates_of_existence, locale) || entity.dates_of_existence || '',
     _linked_count: countByCode.get(entity.entity_code) || 0,
   }));
 }
@@ -295,6 +332,9 @@ async function main() {
   if (DEV_LIMIT) console.log(`[generate-content] DEV_LIMIT=${DEV_LIMIT}`);
 
   const manifest = loadManifest(INSTANCE_ROOT);
+  // Dates and counts are written in the site's interface language.
+  const { locale } = siteLanguage(manifest);
+  const fmt = n => numberFormat(n, locale);
   // METS link base — shared with generate-mets.js so the HTML link and the
   // generated file agree. null when [params].mets_base_url is unset (the
   // three-state derivation in deriveMetsUrl then respects inbound / defaults).
@@ -360,14 +400,20 @@ async function main() {
   const derivedRepoCount = enrichedRepositories.filter(
     r => (rootsByRepo.get(r.code) || []).length > 0
   ).length;
-  console.log(`[generate-content] repositories.json: ${numberFormat(enrichedRepositories.length)} records (root_descriptions auto-derived for ${numberFormat(derivedRepoCount)})`);
+  console.log(`[generate-content] repositories.json: ${fmt(enrichedRepositories.length)} records (root_descriptions auto-derived for ${fmt(derivedRepoCount)})`);
+
+  // Optional exports: single JSON objects read by the footer, the colophon
+  // and the repository and description pages.
+  for (const name of ['publisher.json', 'vocabulary.json']) {
+    console.log(`[generate-content] ${name}: ${copyOptionalObject(name) ? 'copied' : 'absent'}`);
+  }
 
   const descSlice = DEV_LIMIT ? descriptions.slice(0, DEV_LIMIT) : descriptions;
   const entitySlice = DEV_LIMIT ? entities.slice(0, DEV_LIMIT) : entities;
   const placeSlice = DEV_LIMIT ? places.slice(0, DEV_LIMIT) : places;
 
   const descStart = Date.now();
-  const enrichedDescs = enrichDescriptions(descSlice, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap, metsBaseUrl);
+  const enrichedDescs = enrichDescriptions(descSlice, byRefCode, reposByCode, descEntityLookup, descPlaceLookup, rolesMap, metsBaseUrl, locale);
   // Shard by a fixed record count. One unified descriptions.json at the
   // full scale would weigh ~610 MB — over V8's 512 MiB max-string limit,
   // which means no Node consumer could JSON.parse it. Sharding by
@@ -404,34 +450,36 @@ async function main() {
     const shardName = `${String(i).padStart(padWidth, '0')}.json`;
     writeJSON(path.join('descriptions', shardName), chunk);
     for (const d of chunk) descIndex[d.reference_code] = shardName;
-    shardSizes.push(`${shardName}=${numberFormat(chunk.length)}`);
+    shardSizes.push(`${shardName}=${fmt(chunk.length)}`);
   }
   writeJSON('descriptions-index.json', descIndex);
-  console.log(`[generate-content] descriptions: ${numberFormat(enrichedDescs.length)} enriched in ${((Date.now() - descStart) / 1000).toFixed(1)}s (${shardCount} shard${shardCount === 1 ? '' : 's'} × ${numberFormat(SHARD_SIZE)}/shard: ${shardSizes.join(', ')})`);
+  console.log(`[generate-content] descriptions: ${fmt(enrichedDescs.length)} enriched in ${((Date.now() - descStart) / 1000).toFixed(1)}s (${shardCount} shard${shardCount === 1 ? '' : 's'} × ${fmt(SHARD_SIZE)}/shard: ${shardSizes.join(', ')})`);
 
   const entStart = Date.now();
   const entityCounts = loadLinkedCounts('entity-index.json', 'entity_code');
-  const enrichedEntities = enrichEntities(entitySlice, entityCounts);
+  const enrichedEntities = enrichEntities(entitySlice, entityCounts, locale);
   writeJSON('entities.json', enrichedEntities);
-  console.log(`[generate-content] entities: ${numberFormat(enrichedEntities.length)} enriched in ${((Date.now() - entStart) / 1000).toFixed(1)}s`);
+  console.log(`[generate-content] entities: ${fmt(enrichedEntities.length)} enriched in ${((Date.now() - entStart) / 1000).toFixed(1)}s`);
 
   const placeStart = Date.now();
   const placeCounts = loadLinkedCounts('place-index.json', 'id');
   const enrichedPlaces = enrichPlaces(placeSlice, placeCounts);
   writeJSON('places.json', enrichedPlaces);
-  console.log(`[generate-content] places: ${numberFormat(enrichedPlaces.length)} enriched in ${((Date.now() - placeStart) / 1000).toFixed(1)}s`);
+  console.log(`[generate-content] places: ${fmt(enrichedPlaces.length)} enriched in ${((Date.now() - placeStart) / 1000).toFixed(1)}s`);
 
   console.log(`[generate-content] total: ${((Date.now() - started) / 1000).toFixed(1)}s`);
 }
 
 module.exports = {
   formatDateNarrative,
-  SPANISH_MONTHS,
   numberFormat,
   buildAncestorChain,
   enrichEntityLinks,
   enrichPlaceLinks,
   entityDisplayName,
+  deriveRootDescriptions,
+  deriveMetsUrl,
+  copyOptionalObject,
 };
 
 if (require.main === module) {
@@ -442,4 +490,4 @@ if (require.main === module) {
   });
 }
 
-// Version: v1.3.0
+// Version: v1.6.0

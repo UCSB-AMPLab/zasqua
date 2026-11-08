@@ -10,17 +10,7 @@
  * then the block keeps its "coming soon" placeholder.
  *
  * These tests render the real templates through Hugo rather than inspecting
- * template source. Each build:
- *
- *   - copies tests/fixtures/engine-smoke into a temp directory and turns on
- *     entities and places in its manifest;
- *   - copies the engine's themes/base into the instance (as `zasqua build`
- *     does) and symlinks the engine's node_modules into it, so Hugo's
- *     css.TailwindCSS can resolve `@import "tailwindcss"` and the
- *     `tailwindcss` binary;
- *   - runs the real build.sh with the real `hugo` from node_modules/.bin
- *     (Stage 6, `hugo --minify`), with zero-op stubs for npm, pagefind, b2
- *     and pip on PATH.
+ * template source, with the smoke-instance build in tests/helpers/smoke-build.js.
  *
  * The instance also carries one hand-written entity page and one place page
  * without a code (the content adapter never produces such pages) so the
@@ -41,61 +31,24 @@
  *   4. The shared copy handler is loaded on the entity, place and
  *      description pages.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
-import { execFileSync } from 'child_process';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ENGINE_ROOT = path.resolve(__dirname, '../');
-const BUILD_SH = path.join(ENGINE_ROOT, 'build.sh');
-const FIXTURE = path.join(__dirname, 'fixtures', 'engine-smoke');
-
-const BUILD_TIMEOUT_MS = 120000;
+import { buildSmokeInstance, readPage, BUILD_TIMEOUT_MS } from './helpers/smoke-build.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Create a stub binary at `dir/name` that exits 0 and does nothing.
+ * Write one entity page and one place page with no code, which the content
+ * adapter never produces, so the templates run with the param set but the
+ * code missing.
  */
-function writeStub(dir, name) {
-  fs.writeFileSync(path.join(dir, name), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 });
-}
-
-/**
- * Build a temp instance from the engine-smoke fixture and run build.sh
- * against it with the real Hugo.
- *
- * @param {string|null} paramsToml — a `[params]` table appended to
- *   hugo.toml, or null for none
- * @returns {string} the instance root (caller removes it)
- */
-function buildInstance(paramsToml) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zasqua-reuse-links-test-'));
-  fs.cpSync(FIXTURE, dir, { recursive: true });
-
-  // Enable the entity and place modules
-  const manifestPath = path.join(dir, 'zasqua.manifest.toml');
-  const manifest = fs.readFileSync(manifestPath, 'utf8')
-    .replace(/^entities = false$/m, 'entities = true')
-    .replace(/^places = false$/m, 'places = true');
-  fs.writeFileSync(manifestPath, manifest, 'utf8');
-
-  // The entities module requires entity_links.json; the fixture has none
-  fs.writeFileSync(path.join(dir, 'exports', 'entity_links.json'), '[]', 'utf8');
-
-  if (paramsToml) {
-    fs.appendFileSync(path.join(dir, 'hugo.toml'), `\n${paramsToml}\n`, 'utf8');
-  }
-
-  // One entity page and one place page with no code
+function writeCodelessPages(dir) {
   fs.mkdirSync(path.join(dir, 'content', 'entidad'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'content', 'entidad', 'sin-codigo.md'), [
     '---',
@@ -117,38 +70,16 @@ function buildInstance(paramsToml) {
     '---',
     '',
   ].join('\n'), 'utf8');
-
-  // Theme copy, as `zasqua build` does; node_modules for Tailwind
-  fs.mkdirSync(path.join(dir, 'themes'), { recursive: true });
-  fs.cpSync(path.join(ENGINE_ROOT, 'themes', 'base'), path.join(dir, 'themes', 'base'), { recursive: true });
-  fs.symlinkSync(path.join(ENGINE_ROOT, 'node_modules'), path.join(dir, 'node_modules'));
-  fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'test', version: '0.0.0' }), 'utf8');
-
-  const stubBinDir = path.join(dir, '.stub-bin');
-  fs.mkdirSync(stubBinDir, { recursive: true });
-  for (const bin of ['npm', 'pagefind', 'b2', 'pip']) writeStub(stubBinDir, bin);
-
-  const env = {
-    ...process.env,
-    ENGINE_ROOT,
-    INSTANCE_ROOT: dir,
-    PATH: `${stubBinDir}:${ENGINE_ROOT}/node_modules/.bin:${process.env.PATH}`,
-  };
-  try {
-    execFileSync('bash', [BUILD_SH], { cwd: dir, env, stdio: 'pipe' });
-  } catch (err) {
-    const out = `${(err.stdout || '').toString()}\n${(err.stderr || '').toString()}`;
-    fs.rmSync(dir, { recursive: true, force: true });
-    throw new Error(`build.sh failed (exit ${err.status}):\n${out.slice(-4000)}`);
-  }
-  return dir;
 }
 
 /**
- * Read a rendered page from an instance's public/ directory.
+ * Build the smoke instance with the codeless pages added.
  */
-function readPage(dir, slug) {
-  return fs.readFileSync(path.join(dir, 'public', slug, 'index.html'), 'utf8');
+function buildInstance(paramsToml) {
+  return buildSmokeInstance(paramsToml, {
+    prefix: 'zasqua-reuse-links-test-',
+    prepare: writeCodelessPages,
+  });
 }
 
 /**
@@ -287,4 +218,4 @@ describe('Reuse block — base URLs not set', () => {
   });
 });
 
-// Version: v1.5.0
+// Version: v1.6.0
