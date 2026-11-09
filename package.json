@@ -47,7 +47,7 @@
     "ajv": "8.20.0",
     "csv-parse": "6.2.1",
     "entities": "7.0.1",
-    "fast-xml-parser": "5.8.0",
+    "fast-xml-parser": "5.11.2",
     "graphology": "^0.26.0",
     "graphology-layout-forceatlas2": "^0.10.1",
     "hugo-extended": "0.160.1",
