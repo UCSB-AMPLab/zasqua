@@ -1,0 +1,189 @@
+[
+  {
+    "id": "81b058b2-f737-486c-88a1-0a3483a2b610",
+    "code": "co-aeh",
+    "name": "Archivo Histórico de Ejemplo",
+    "short_name": null,
+    "display_title": "Archivo Histórico de Ejemplo",
+    "subtitle": {
+      "es": "Materiales digitalizados en el Archivo Histórico de Ejemplo, en el proyecto EX-0001.",
+      "en": null
+    },
+    "hero_image_url": null,
+    "other_names": [
+      "Example Historical Archive",
+      "Archivo del Juzgado de Ejemplo"
+    ],
+    "institution_type": null,
+    "logo_url": null,
+    "contact": {
+      "street_address": null,
+      "city": "Ciudad de Ejemplo",
+      "region": "Región de Ejemplo",
+      "country": "Colombia",
+      "country_code": "COL",
+      "postal_code": null,
+      "telephone": null,
+      "email": null,
+      "website": null
+    },
+    "city": "Ciudad de Ejemplo",
+    "country": "Colombia",
+    "country_code": "COL",
+    "address": null,
+    "website": null,
+    "holdings": {
+      "es": null,
+      "en": null
+    },
+    "history": {
+      "es": "Los expedientes de este archivo los produjo el juzgado de la Ciudad de Ejemplo, que todavía los custodia.\n\nLos expedientes se clasificaron por tema y por año en dos series, que hoy ocupan 37 cajas. La colección se digitalizó en el proyecto EX-0001.",
+      "en": "The case files in this archive were produced by the court of Ciudad de Ejemplo, which still keeps them.\n\nThe files were arranged by subject and year into two series, which now fill 37 boxes. The collection was digitized under project EX-0001."
+    },
+    "access": {
+      "opening_times": {
+        "es": null,
+        "en": null
+      },
+      "conditions": {
+        "es": null,
+        "en": null
+      },
+      "accessibility": {
+        "es": null,
+        "en": null
+      }
+    },
+    "reproduction_services": {
+      "es": "Para solicitar autorización de reproducción en publicaciones, diríjase al Archivo Histórico de Ejemplo.",
+      "en": null
+    },
+    "image_licence": {
+      "uri": "http://creativecommons.org/licenses/by-nc/4.0/",
+      "label": {
+        "es": "CC BY-NC 4.0",
+        "en": "CC BY-NC 4.0"
+      }
+    },
+    "catalogue_licence": {
+      "uri": null,
+      "label": {
+        "es": null,
+        "en": null
+      }
+    },
+    "funders": [
+      {
+        "name": "Fundación de Ejemplo",
+        "programme": "Programa de Archivos en Riesgo",
+        "project_id": "EX-0001",
+        "url": "https://example.org/ex-0001"
+      },
+      {
+        "name": "Universidad de Ejemplo",
+        "programme": null,
+        "project_id": null,
+        "url": null
+      }
+    ],
+    "attribution": {
+      "es": "Archivo Histórico de Ejemplo, Ciudad de Ejemplo, Colombia. Digitalizado en el marco del Programa de Archivos en Riesgo (EX-0001). CC BY-NC 4.0. Alojado en Zasqua.",
+      "en": "Archivo Histórico de Ejemplo, Ciudad de Ejemplo, Colombia. Digitized under the Programa de Archivos en Riesgo (EX-0001). CC BY-NC 4.0. Hosted on Zasqua."
+    },
+    "description_language": null,
+    "home_order": 2,
+    "created_at": "2025-12-11T09:17:16.000Z",
+    "updated_at": "2026-11-03T05:27:04.863Z",
+    "description_count": 276,
+    "root_descriptions": []
+  },
+  {
+    "id": "960a61f0-02b4-410e-8092-ed7210e2c8d7",
+    "code": "co-aem",
+    "name": "Archivo Municipal de Ejemplo",
+    "short_name": null,
+    "display_title": "Archivo Municipal de Ejemplo",
+    "subtitle": {
+      "es": "Catálogos y materiales digitalizados en el Archivo Municipal de Ejemplo.",
+      "en": null
+    },
+    "hero_image_url": null,
+    "other_names": [],
+    "institution_type": null,
+    "logo_url": null,
+    "contact": {
+      "street_address": null,
+      "city": "Ciudad de Ejemplo",
+      "region": "Región de Ejemplo",
+      "country": "Colombia",
+      "country_code": "COL",
+      "postal_code": null,
+      "telephone": null,
+      "email": null,
+      "website": null
+    },
+    "city": "Ciudad de Ejemplo",
+    "country": "Colombia",
+    "country_code": "COL",
+    "address": null,
+    "website": null,
+    "holdings": {
+      "es": null,
+      "en": null
+    },
+    "history": {
+      "es": null,
+      "en": null
+    },
+    "access": {
+      "opening_times": {
+        "es": null,
+        "en": null
+      },
+      "conditions": {
+        "es": null,
+        "en": null
+      },
+      "accessibility": {
+        "es": null,
+        "en": null
+      }
+    },
+    "reproduction_services": {
+      "es": "Para solicitar autorización de reproducción en publicaciones, diríjase al Archivo Municipal de Ejemplo.",
+      "en": null
+    },
+    "image_licence": {
+      "uri": "http://creativecommons.org/licenses/by-nc/4.0/",
+      "label": {
+        "es": "CC BY-NC 4.0",
+        "en": "CC BY-NC 4.0"
+      }
+    },
+    "catalogue_licence": {
+      "uri": null,
+      "label": {
+        "es": null,
+        "en": null
+      }
+    },
+    "funders": [
+      {
+        "name": "Alcaldía de Ejemplo",
+        "programme": null,
+        "project_id": null,
+        "url": null
+      }
+    ],
+    "attribution": {
+      "es": "Archivo Municipal de Ejemplo, Ciudad de Ejemplo, Colombia. Digitalizado y alojado en Zasqua.",
+      "en": "Archivo Municipal de Ejemplo, Ciudad de Ejemplo, Colombia. Digitized and hosted on Zasqua."
+    },
+    "description_language": null,
+    "home_order": 3,
+    "created_at": "2025-12-11T09:17:16.000Z",
+    "updated_at": "2026-11-03T04:02:11.431Z",
+    "description_count": 55358,
+    "root_descriptions": []
+  }
+]

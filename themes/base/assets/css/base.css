@@ -16,12 +16,15 @@
  * classes actually appear in rendered HTML.
  *
  * The @theme block below declares placeholder token names only — it
- * does not set brand-specific colours or fonts. Instance themes supply
- * their own @theme override file (e.g. tokens.css in the instance
- * theme) that redefines these tokens with real values. Hugo theme
- * composition merges both files; the instance @theme wins the cascade.
+ * does not set brand-specific colours or fonts. Colour tokens are named
+ * by role (primary, accent, ...); the palette names used before 1.6.0
+ * remain as deprecated aliases, explained above the second @theme block.
+ * Instance themes supply their own @theme override file (e.g. tokens.css
+ * in the instance theme) that redefines these tokens with real values.
+ * Hugo theme composition merges both files; the instance @theme wins the
+ * cascade.
  *
- * Layout constants (:root), base resets (@layer base), component
+ * Layout constants and the graph and map colours (:root), base resets (@layer base), component
  * classes (@layer components), and utility overrides follow below.
  *
  * One rule sits outside @layer by design: the `.place-tooltip
@@ -29,7 +32,7 @@
  * GL's unlayered default popup styles, and only wins the cascade
  * when it is itself unlayered.
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 /* source(none) disables Tailwind's automatic file scanning so the utility
@@ -53,18 +56,59 @@
 @source "hugo_stats.json";
 @source "themes/base";
 
+/* The class name `container` belongs to the component rule below, which
+   caps the page at --max-width. Left to itself, Tailwind also emits a
+   `container` utility for that class, with a max-width per breakpoint
+   (768px, 1024px, 1280px…), and the utilities layer overrides the
+   component: the page would step between those widths instead of filling
+   the window up to --max-width. */
+@source not inline("container");
+
 /* --- placeholder @theme tokens; instance theme overrides these --- */
 
+/* Colour tokens are named by role. A site sets them in its own @theme
+   block (an overlay theme's tokens.css, imported after this file). The
+   values below are neutral greys.
+
+   Older sites set the palette names this theme used before 1.6.0
+   (burgundy, burgundy-deep, burgundy-light, burgundy-dark, pale-rose,
+   ochre, sage, periwinkle). Those names still work in 1.6.0 and are
+   deprecated; 2.0.0 removes them. The mapping runs both ways without a
+   cycle:
+
+     - Each role token reads its old name first and falls back to the
+       grey, so a site that sets only the old names colours every rule
+       below, which all use the role names.
+     - The old names are declared in a second block with `inline
+       reference`. Tailwind then emits no custom property for them and
+       compiles their utility classes (`bg-burgundy-dark`,
+       `hover:text-periwinkle`, ...) straight to the role token, so a site
+       that sets only the role names colours those classes too. When a
+       site sets an old name in its own @theme block, its declaration
+       replaces this one, Tailwind emits it, and the role token picks it
+       up through the fallback.
+
+     old name        role name
+     burgundy        primary
+     burgundy-deep   primary-deep    (buttons, active states)
+     burgundy-light  primary-light   (link hover, badges)
+     burgundy-dark   primary-dark    (footer, hero)
+     pale-rose       primary-pale
+     ochre           secondary
+     sage            tertiary
+     periwinkle      accent          (underlines, highlights, pills)
+
+   A site should not set an old name to var() of its role name; that
+   makes a cycle and both go unset. */
 @theme {
-  /* Accent colour scale — overridden by instance tokens.css */
-  --color-burgundy: #888;
-  --color-burgundy-deep: #666;
-  --color-burgundy-light: #aaa;
-  --color-burgundy-dark: #444;
-  --color-pale-rose: #f5f5f5;
-  --color-ochre: #aaa;
-  --color-sage: #aaa;
-  --color-periwinkle: #ddd;
+  --color-primary: var(--color-burgundy, #888);
+  --color-primary-deep: var(--color-burgundy-deep, #666);
+  --color-primary-light: var(--color-burgundy-light, #aaa);
+  --color-primary-dark: var(--color-burgundy-dark, #444);
+  --color-primary-pale: var(--color-pale-rose, #f5f5f5);
+  --color-secondary: var(--color-ochre, #aaa);
+  --color-tertiary: var(--color-sage, #aaa);
+  --color-accent: var(--color-periwinkle, #ddd);
   --color-bg: #ffffff;
 
   /* Font stacks — overridden by instance tokens.css */
@@ -74,10 +118,50 @@
   --font-display: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
+/* Deprecated palette names, kept as aliases of the role names until
+   2.0.0 (see above). */
+@theme inline reference {
+  --color-burgundy: var(--color-primary);
+  --color-burgundy-deep: var(--color-primary-deep);
+  --color-burgundy-light: var(--color-primary-light);
+  --color-burgundy-dark: var(--color-primary-dark);
+  --color-pale-rose: var(--color-primary-pale);
+  --color-ochre: var(--color-secondary);
+  --color-sage: var(--color-tertiary);
+  --color-periwinkle: var(--color-accent);
+}
+
 /* Layout constants — NOT in @theme (used in calc(), not as utility tokens) */
 :root {
   --max-width: 1200px;
   --header-height: 70px;
+}
+
+/* Graph and map colours. The entity graphs, the place map and their
+   legends read these; the scripts read them at run time through
+   static/js/theme-colors.js. They sit outside @theme because no utility
+   class uses them and Tailwind would drop an unused theme variable, so a
+   site overrides them in a plain `:root` rule after importing this file,
+   not in @theme.
+
+   Person nodes and map markers follow the primary colour, and hollow
+   nodes are filled with the page background. The other values are the
+   colours the graphs have always drawn with; the entity graphs need a
+   second hue for corporate bodies and families and a warm grey for
+   documents, which the role tokens do not supply. In 2.0.0 these
+   defaults become neutral greys and a site that wants these colours sets
+   them itself. */
+:root {
+  --graph-person: var(--color-primary);
+  --graph-corporate: #6666BB;            /* corporate bodies and families */
+  --graph-document: #A09888;
+  --graph-document-hover: #807060;
+  --graph-document-dimmed: #E8E4E0;
+  --graph-entity-dimmed: #DDD8E0;
+  --graph-node-fill: var(--color-bg);    /* inside of hollow nodes */
+  --graph-link: #E0DDD8;                 /* entity page edges */
+  --graph-link-faint: rgba(160, 152, 136, 0.3); /* entity explorer edges */
+  --map-marker: var(--color-primary);
 }
 
 @layer base {
@@ -103,7 +187,7 @@
     @apply text-stone-900 no-underline;
   }
   a:hover {
-    @apply text-burgundy-light underline;
+    @apply text-primary-light underline;
   }
   img {
     max-width: 100%;
@@ -143,18 +227,26 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 1.5rem;
     height: var(--header-height);
   }
 
+  /* The logo keeps its full width; the nav and the search field give way
+     when the row is tight. The image takes a fixed height rather than a
+     max-height: an SVG in an <img> with width:auto and only a max-height
+     adds nothing to the link's minimum width, so the wordmark beside it
+     would overflow onto the nav. */
   .site-logo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-shrink: 0;
   }
 
   .site-logo img {
-    max-height: 2.25rem;
+    height: 2.25rem;
     width: auto;
+    flex-shrink: 0;
   }
 
   .site-logo-text {
@@ -180,6 +272,15 @@
     display: flex;
     gap: 1.5rem;
     align-items: center;
+    min-width: 0;
+  }
+
+  /* Between the hamburger breakpoint and a full desktop row, the links
+     sit closer together */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .site-nav {
+      gap: 1rem;
+    }
   }
 
   .site-nav a {
@@ -195,7 +296,7 @@
   .site-nav a.active {
     @apply text-stone-900;
     text-decoration: none;
-    border-bottom: 2px solid var(--color-periwinkle);
+    border-bottom: 2px solid var(--color-accent);
     padding-bottom: calc(0.5rem - 2px);
   }
 
@@ -225,7 +326,7 @@
     transform: rotate(180deg);
   }
   .nav-dropdown-trigger:hover {
-    border-bottom: 2px solid var(--color-periwinkle);
+    border-bottom: 2px solid var(--color-accent);
     padding-bottom: calc(0.5rem - 2px);
   }
   .nav-dropdown-menu {
@@ -255,7 +356,7 @@
     border-bottom: none;
   }
   .nav-dropdown-menu a:hover {
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
     color: var(--color-stone-900);
     border-bottom: none;
     padding-bottom: 8px;
@@ -268,13 +369,17 @@
     border-radius: 50px;
     overflow: hidden;
     background: var(--color-bg);
+    min-width: 0;
   }
 
+  /* 200px when there is room, down to 6rem when the row is tight */
   .header-search input {
     border: none;
     padding: 8px 16px;
     font-size: 14px;
     width: 200px;
+    min-width: 6rem;
+    flex: 1 1 auto;
     outline: none;
     border-radius: 50px 0 0 50px;
   }
@@ -400,7 +505,7 @@
 
   .hero {
     position: relative;
-    background-color: var(--color-burgundy-dark);
+    background-color: var(--color-primary-dark);
     /* Instance themes override via tokens.css @theme or a hero image file
        in their own static/ directory. The base theme ships no hero image. */
     min-height: 75vh;
@@ -420,6 +525,7 @@
   .hero-logo {
     display: block;
     max-height: 200px;
+    max-width: 100%;
     width: auto;
     margin-inline: auto;
     filter: brightness(0) invert(1) drop-shadow(0 2px 8px rgba(0,0,0,0.6));
@@ -504,6 +610,15 @@
     font-size: 24px;
   }
 
+  /* On a phone the hero text box keeps the page gutter, not the desktop
+     margin and padding */
+  @media (max-width: 768px) {
+    .hero-content {
+      margin: 0 16px;
+      padding: 2rem 0;
+    }
+  }
+
   /* ====================
      Home Sections
      ==================== */
@@ -582,6 +697,13 @@
     position: relative;
     display: block;
     overflow: hidden;
+  }
+
+  /* A card without an image takes the repository header's colour and
+     keeps a height for its caption. */
+  .repo-link-plain {
+    background-color: var(--color-primary-dark);
+    min-height: 200px;
   }
 
   .repo-image {
@@ -677,9 +799,9 @@
      ==================== */
 
   .site-footer {
-    background-color: var(--color-burgundy-dark);
+    background-color: var(--color-primary-dark);
     color: #fff;
-    padding: 50px 0;
+    padding: 40px 0;
     margin-top: 50px;
   }
 
@@ -687,12 +809,20 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 56px;
   }
 
+  /* Left group: the site's mark, then the text block. */
   .footer-left {
+    display: flex;
+    align-items: center;
+    gap: 24px;
     font-size: 14px;
     line-height: 1.6;
-    max-width: 400px;
+  }
+
+  .footer-text {
+    max-width: 480px;
   }
 
   .footer-left a {
@@ -701,8 +831,29 @@
   }
 
   .footer-left a:hover {
-    color: var(--color-periwinkle);
+    color: var(--color-accent);
     text-decoration: underline;
+  }
+
+  .footer-mark {
+    display: block;
+    width: 72px;
+    height: auto;
+    flex: none;
+  }
+
+  /* The site's marks and the engine's pomegranate are drawn white. */
+  .footer-mark,
+  .footer-seal,
+  .footer-engine-mark {
+    filter: brightness(0) invert(1);
+  }
+
+  /* Tagline — the opening line naming the site. Renders at the
+     .footer-left base size (14px); the gap to the copyright line comes
+     from .footer-copyright's margin-top, so its own margins are zero. */
+  .footer-tagline {
+    margin: 0;
   }
 
   .footer-copyright {
@@ -711,43 +862,184 @@
     opacity: 0.8;
   }
 
-  /* Framework attribution — the quietest line in the footer. Kept a step
-     smaller and more muted than the copyright so the engine credit reads
-     as fine print rather than competing with the deployer's identity. */
-  .footer-framework {
-    margin-top: 0.75rem;
-    font-size: 12px;
-    line-height: 1.5;
-    opacity: 0.55;
-  }
-
-  .footer-framework a {
-    font-weight: 500;
-  }
-
+  /* Right group: the engine credit, a rule, the site's seals. */
   .footer-right {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 32px;
     justify-content: flex-end;
   }
 
+  /* Engine credit — the pomegranate beside the quietest line in the
+     footer. The line is a step smaller and more muted than the copyright
+     so it reads as fine print rather than competing with the site's
+     identity. */
+  .footer-engine {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: 360px;
+  }
+
+  .footer-engine-link {
+    display: block;
+    flex: none;
+  }
+
+  .footer-engine-mark {
+    display: block;
+    width: 64px;
+    height: auto;
+  }
+
+  .footer-framework {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    opacity: 0.85;
+  }
+
+  .footer-framework a {
+    font-weight: 600;
+  }
+
+  .footer-rule {
+    display: block;
+    flex: none;
+    width: 1px;
+    height: 72px;
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+
+  .footer-seals {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .footer-seals-more {
+    display: contents;
+  }
+
   .footer-seal {
+    width: 96px;
     max-width: 120px;
     height: auto;
     opacity: 0.6;
-    filter: invert(1);
   }
 
-  @media (max-width: 768px) {
+  /* 769–1024 px: two rows, the left group, then the engine credit with
+     the seals under a 1 px rule. */
+  @media (max-width: 1024px) {
+    .site-footer {
+      padding: 36px 0;
+    }
+
     .site-footer .container {
       flex-direction: column;
-      text-align: center;
-      gap: 2rem;
+      align-items: stretch;
+      gap: 28px;
+      padding-left: 32px;
+      padding-right: 32px;
     }
 
     .footer-right {
-      justify-content: center;
+      justify-content: space-between;
+      border-top: 1px solid rgba(255, 255, 255, 0.25);
+      padding-top: 24px;
+    }
+
+    .footer-rule {
+      display: none;
+    }
+
+    .footer-engine-mark {
+      width: 56px;
+    }
+  }
+
+  /* 768 px and below: the site's mark and the first seal share the top
+     row at its two ends, then the text, then the rule and the engine
+     credit, then the remaining seals in one row. The groups are set to
+     display: contents so that the first seal can sit beside the mark.
+     Spacing between rows comes from top margins, so that a footer with
+     neither mark nor first seal has no top row and no gap above the
+     text. */
+  @media (max-width: 768px) {
+    .site-footer {
+      padding: 28px 0;
+    }
+
+    .site-footer .container {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      row-gap: 0;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .footer-left,
+    .footer-right,
+    .footer-seals {
+      display: contents;
+    }
+
+    .footer-mark {
+      width: 64px;
+    }
+
+    .footer-left > a,
+    .footer-left > .footer-mark {
+      grid-row: 1;
+      grid-column: 1;
+      justify-self: start;
+    }
+
+    .footer-seals > :first-child {
+      grid-row: 1;
+      grid-column: 2;
+      justify-self: end;
+    }
+
+    .footer-seals-more {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      grid-row: 4;
+      grid-column: 1 / -1;
+      margin-top: 20px;
+    }
+
+    .footer-text {
+      grid-row: 2;
+      grid-column: 1 / -1;
+      max-width: none;
+      margin-top: 20px;
+    }
+
+    .site-footer .container:not(:has(.footer-mark, .footer-seals > :first-child)) .footer-text {
+      margin-top: 0;
+    }
+
+    .footer-rule {
+      display: block;
+      grid-row: 3;
+      grid-column: 1 / -1;
+      width: auto;
+      height: 1px;
+      margin-top: 20px;
+    }
+
+    .footer-engine {
+      grid-row: 3;
+      grid-column: 1 / -1;
+      margin-top: 20px;
+      padding-top: 18px;
+      max-width: none;
+    }
+
+    .footer-engine-mark {
+      width: 52px;
     }
   }
 
@@ -767,13 +1059,13 @@
   }
 
   .btn-primary {
-    background-color: var(--color-burgundy-deep);
+    background-color: var(--color-primary-deep);
     color: #fff;
     border: none;
   }
 
   .btn-primary:hover {
-    background-color: var(--color-burgundy);
+    background-color: var(--color-primary);
     color: #fff;
     text-decoration: none;
   }
@@ -815,7 +1107,7 @@
   }
 
   .breadcrumb a:hover {
-    color: var(--color-burgundy-light);
+    color: var(--color-primary-light);
     text-decoration: underline;
   }
 
@@ -950,6 +1242,112 @@
     text-shadow: 0 1px 3px rgba(0,0,0,0.5);
   }
 
+  /* A header without a hero image takes the footer's colour, so the white
+     title stays legible. */
+  .repo-header {
+    background-color: var(--color-primary-dark);
+  }
+
+  /* At phone width the overlay is in flow, so a long title and subtitle
+     grow the header instead of overflowing it. */
+  @media (max-width: 768px) {
+    .repo-header-overlay {
+      position: relative;
+      flex: 1;
+      align-self: stretch;
+      min-height: 300px;
+    }
+
+    .repo-header-title {
+      font-size: 1.75rem;
+    }
+  }
+
+  .repo-logo {
+    display: block;
+    max-width: 160px;
+    height: auto;
+    margin-bottom: 1rem;
+  }
+
+  /* Collapsible institution record */
+  .repo-record {
+    margin-bottom: 2rem;
+    border-top: 1px solid var(--color-stone-300);
+    border-bottom: 1px solid var(--color-stone-300);
+  }
+
+  .repo-record-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    cursor: pointer;
+    list-style: none;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-stone-900);
+  }
+
+  .repo-record-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .repo-record-summary:hover {
+    color: var(--color-primary-light);
+  }
+
+  .repo-record-summary:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .repo-record-chevron {
+    transition: transform 0.2s;
+    transform: rotate(-90deg);
+  }
+
+  .repo-record[open] .repo-record-chevron {
+    transform: rotate(0deg);
+  }
+
+  .repo-record[open] > .desc-layout {
+    padding: 1.5rem 0 0.5rem;
+  }
+
+  /* Contact strip above the record bar */
+  .repo-keyinfo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 14px;
+    color: var(--color-stone-500);
+  }
+
+  .repo-keyinfo-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .repo-keyinfo-item .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--color-stone-400);
+  }
+
+  .repo-keyinfo a {
+    color: var(--color-stone-900);
+    text-decoration: underline;
+    text-decoration-color: var(--color-stone-300);
+  }
+
+  .repo-keyinfo a:hover {
+    color: var(--color-primary-light);
+  }
+
   /* ====================
      Utilities
      ==================== */
@@ -1056,7 +1454,7 @@
   }
 
   .result-title a:hover {
-    color: var(--color-burgundy-light);
+    color: var(--color-primary-light);
   }
 
   .result-meta {
@@ -1120,7 +1518,7 @@
   }
 
   .search-result-item.graph-focused {
-    border: 2px solid var(--color-burgundy, #8b2942);
+    border: 2px solid var(--color-primary);
     padding: 15px 17px; /* compensate for the extra 1px border */
   }
 
@@ -1155,12 +1553,12 @@
     color: #1c1917;
   }
   .search-result-item .entity-type-badge--person {
-    background: var(--color-burgundy-light, #b14d66);
+    background: var(--color-primary-light);
     color: #fff;
   }
   .search-result-item .entity-type-badge--corporate,
   .search-result-item .entity-type-badge--family {
-    background: var(--color-periwinkle, #c9d5ff);
+    background: var(--color-accent);
     color: #030213;
   }
 
@@ -1282,7 +1680,7 @@
   }
 
   .refine-search:focus-within {
-    border-color: var(--color-burgundy-light);
+    border-color: var(--color-primary-light);
     background: #fff;
   }
 
@@ -1374,13 +1772,13 @@
     font-family: var(--font-sans);
     font-size: 0.8125rem;
     line-height: 1.35;
-    color: var(--color-burgundy, #7a1f27);
+    color: var(--color-primary);
     text-align: left;
     transition: color 120ms ease;
   }
 
   .advanced-filters-activate:hover:not(:disabled) {
-    color: var(--color-burgundy-deep, #5c1820);
+    color: var(--color-primary-deep);
     text-decoration: underline;
     text-underline-offset: 2px;
   }
@@ -1471,7 +1869,7 @@
   .facet-option input[type="checkbox"] {
     width: 1rem;
     height: 1rem;
-    accent-color: var(--color-burgundy-deep);
+    accent-color: var(--color-primary-deep);
     flex-shrink: 0;
   }
 
@@ -1498,7 +1896,7 @@
     margin-top: 4px;
     font-size: 0.8rem;
     font-family: var(--font-sans);
-    color: var(--color-burgundy);
+    color: var(--color-primary);
     background: none;
     border: 1px dashed var(--color-stone-300);
     border-radius: 4px;
@@ -1507,7 +1905,7 @@
   }
   .facet-show-all-btn:hover {
     background: var(--color-stone-50);
-    border-color: var(--color-burgundy);
+    border-color: var(--color-primary);
   }
 
   .facet-modal-overlay {
@@ -1564,7 +1962,7 @@
     outline: none;
   }
   .facet-modal-search:focus {
-    border-color: var(--color-burgundy);
+    border-color: var(--color-primary);
     box-shadow: 0 0 0 2px rgba(139, 41, 66, 0.15);
   }
   .facet-modal-list {
@@ -1654,7 +2052,7 @@
     height: 1rem;
     margin: 0;
     flex-shrink: 0;
-    accent-color: var(--color-burgundy-deep);
+    accent-color: var(--color-primary-deep);
   }
 
   .date-tree-label {
@@ -1709,7 +2107,7 @@
     align-items: center;
     gap: 0.25rem;
     padding: 0.25rem 0.5rem;
-    background: var(--color-burgundy);
+    background: var(--color-primary);
     color: #fff;
     border-radius: 50px;
     font-size: 0.75rem;
@@ -1763,14 +2161,14 @@
   }
 
   .pagination-link:hover {
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
     text-decoration: none;
   }
 
   .pagination-link.active {
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
     @apply text-stone-900;
-    border-color: var(--color-periwinkle);
+    border-color: var(--color-accent);
   }
 
   .pagination-link.disabled {
@@ -1825,7 +2223,7 @@
     width: 84px;
     height: 84px;
     border: 5px solid #e0dcd4;
-    border-top-color: var(--color-burgundy-deep);
+    border-top-color: var(--color-primary-deep);
     border-radius: 50%;
     animation: spinner-rotate 0.7s linear infinite;
   }
@@ -2118,11 +2516,11 @@
   }
 
   .miller-item:hover {
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
   }
 
   .miller-item.selected {
-    @apply bg-burgundy-deep text-white;
+    @apply bg-primary-deep text-white;
   }
 
   .miller-item.selected-ancestor {
@@ -2225,11 +2623,11 @@
     display: inline-block;
     margin-top: 4px;
     font-size: 12px;
-    color: var(--color-burgundy-deep);
+    color: var(--color-primary-deep);
   }
 
   .miller-item-metadata .metadata-link:hover {
-    color: var(--color-burgundy-light);
+    color: var(--color-primary-light);
   }
 
   .miller-item.selected .miller-item-metadata .metadata-scope,
@@ -2297,7 +2695,7 @@
   }
 
   .column-filter:focus {
-    border-color: var(--color-burgundy-light);
+    border-color: var(--color-primary-light);
   }
 
   .miller-column:last-child .column-filter {
@@ -2324,16 +2722,19 @@
     flex-shrink: 0;
   }
 
-  /* Entity pages: metadata narrow left, timeline wide right */
+  /* Entity and place pages: metadata narrow left, timeline wide right,
+     in a 35:65 share of the row after the gap. Fixed 35% and 65% widths
+     plus the gap would come to more than the row. */
   .entity-layout .desc-metadata {
-    flex: none;
-    width: 35%;
+    flex: 35 1 0;
+    min-width: 0;
     max-width: none;
   }
 
   .entity-layout .desc-aside {
-    flex: none;
-    width: 65%;
+    flex: 65 1 0;
+    min-width: 0;
+    width: auto;
   }
 
   @media (max-width: 768px) {
@@ -2353,7 +2754,9 @@
       flex-direction: column;
     }
 
-    .entity-layout .desc-metadata {
+    .entity-layout .desc-metadata,
+    .entity-layout .desc-aside {
+      flex: none;
       width: 100%;
       max-width: none;
     }
@@ -2364,7 +2767,7 @@
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
     border: 1px solid #b8c4f0;
     border-radius: 3px;
     padding: 2px 8px;
@@ -2407,6 +2810,21 @@
     margin: 0;
   }
 
+  /* The contact block on the repository page: addresses read better
+     left-aligned than centred. */
+  .desc-notice.repo-contact {
+    text-align: left;
+  }
+
+  .repo-contact .desc-notice-icon {
+    font-size: 32px;
+    margin-bottom: 0.5rem;
+  }
+
+  .repo-contact .desc-notice-text {
+    margin-bottom: 0.5rem;
+  }
+
   .repro-subsection {
     margin-bottom: 10px;
   }
@@ -2436,7 +2854,7 @@
   }
 
   .reuse-blurb a:hover {
-    color: var(--color-burgundy-light);
+    color: var(--color-primary-light);
   }
 
   .reuse-manifest-label {
@@ -2462,6 +2880,17 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: monospace;
+  }
+
+  .citation-text {
+    flex: 1;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-stone-700);
+    background: var(--color-stone-100);
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 0;
   }
 
   .reuse-coming-soon {
@@ -2502,7 +2931,7 @@
   }
 
   .detail-field a:hover {
-    color: var(--color-burgundy-light);
+    color: var(--color-primary-light);
   }
 
   .desc-viewer {
@@ -2671,9 +3100,9 @@
   }
 
   .entity-view-link {
-    color: var(--color-burgundy);
+    color: var(--color-primary);
     text-decoration: underline;
-    text-decoration-color: var(--color-burgundy-light);
+    text-decoration-color: var(--color-primary-light);
     text-underline-offset: 2px;
     cursor: pointer;
     background: none;
@@ -2683,13 +3112,13 @@
   }
 
   .entity-view-link:hover {
-    text-decoration-color: var(--color-burgundy);
+    text-decoration-color: var(--color-primary);
   }
 
   .entity-view-link.active {
     font-weight: 600;
     text-decoration-thickness: 2px;
-    text-decoration-color: var(--color-burgundy);
+    text-decoration-color: var(--color-primary);
   }
 
   /* Segmented control toggle */
@@ -2719,12 +3148,12 @@
   }
 
   .entity-toggle-btn:hover:not(.active) {
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
     @apply text-stone-900;
   }
 
   .entity-toggle-btn.active {
-    background: var(--color-burgundy);
+    background: var(--color-primary);
     color: #fff;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   }
@@ -2763,14 +3192,14 @@
   }
 
   .entity-role-btn.active {
-    background: var(--color-burgundy);
-    border-color: var(--color-burgundy);
+    background: var(--color-primary);
+    border-color: var(--color-primary);
     color: #fff;
   }
 
   .entity-role-btn.active:hover {
-    background: var(--color-burgundy-deep);
-    border-color: var(--color-burgundy-deep);
+    background: var(--color-primary-deep);
+    border-color: var(--color-primary-deep);
   }
 
   .entity-timeline-frame {
@@ -2836,20 +3265,20 @@
   }
 
   .graph-legend-person {
-    background: #8B2942;
+    background: var(--graph-person);
   }
 
   .graph-legend-corporate {
-    background: #6666BB;
+    background: var(--graph-corporate);
   }
 
   .graph-legend-doc-filled {
-    background: #A09888;
+    background: var(--graph-document);
   }
 
   .graph-legend-doc {
-    background: #FAFAF9;
-    border: 1.5px solid #A09888;
+    background: var(--graph-node-fill);
+    border: 1.5px solid var(--graph-document);
   }
 
   /* ====================
@@ -3034,12 +3463,12 @@
     line-height: 1.4;
   }
   .selected-entity-badge--person {
-    background: var(--color-burgundy-light, #b14d66);
+    background: var(--color-primary-light);
     color: #fff;
   }
   .selected-entity-badge--corporate,
   .selected-entity-badge--family {
-    background: var(--color-periwinkle, #c9d5ff);
+    background: var(--color-accent);
     color: #030213;
   }
 
@@ -3053,7 +3482,7 @@
     font-family: var(--font-sans);
     font-size: 2rem;
     font-weight: 700;
-    color: var(--color-burgundy, #8b2942);
+    color: var(--color-primary);
     line-height: 1.1;
   }
 
@@ -3077,7 +3506,7 @@
     font-family: var(--font-sans);
     font-size: 0.875rem;
     font-weight: 500;
-    color: var(--color-burgundy, #8b2942);
+    color: var(--color-primary);
     text-decoration: none;
   }
 
@@ -3114,7 +3543,7 @@
     padding: 0;
     font-family: var(--font-sans);
     font-size: 0.75rem;
-    color: var(--color-burgundy, #8b2942);
+    color: var(--color-primary);
     cursor: pointer;
   }
 
@@ -3194,7 +3623,8 @@
   }
 
   /* Viewport-filter toggle (filter column, above search bar).
-     Periwinkle when active to mirror the focal-graph link colour. */
+     Takes the graph's corporate-body colour when active, so the active
+     filter reads as part of the graph. */
   .viewport-filter-btn {
     display: flex;
     align-items: center;
@@ -3218,8 +3648,8 @@
   }
 
   .viewport-filter-btn.is-active {
-    background: #6666BB;
-    border-color: #6666BB;
+    background: var(--graph-corporate);
+    border-color: var(--graph-corporate);
     color: #fff;
   }
 
@@ -3296,8 +3726,8 @@
   }
 
   .graph-empty-state-link:hover {
-    color: var(--color-burgundy, #8b2942);
-    text-decoration-color: var(--color-burgundy, #8b2942);
+    color: var(--color-primary);
+    text-decoration-color: var(--color-primary);
   }
 
   /* Mobile / narrow viewport — collapse to single column scroll */
@@ -3343,7 +3773,7 @@
     height: 20px;
     border-radius: 50%;
     @apply bg-white;
-    border: 2px solid var(--color-burgundy);
+    border: 2px solid var(--color-primary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3355,7 +3785,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--color-burgundy);
+    background: var(--color-primary);
   }
 
   .timeline-line {
@@ -3392,7 +3822,7 @@
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
     @apply text-stone-900;
     border-radius: 3px;
     padding: 1px 6px;
@@ -3400,7 +3830,7 @@
   }
 
   .timeline-title {
-    color: var(--color-burgundy);
+    color: var(--color-primary);
     font-size: 0.85rem;
     text-decoration: none;
     display: block;
@@ -3442,7 +3872,7 @@
     align-items: center;
     gap: 4px;
     font-size: 0.8rem;
-    color: var(--color-burgundy);
+    color: var(--color-primary);
     padding: 4px 8px;
     border-radius: 20px;
     @apply bg-stone-50 border-stone-200;
@@ -3452,7 +3882,7 @@
 
   .authority-pill:hover {
     @apply bg-stone-100;
-    color: var(--color-burgundy-deep);
+    color: var(--color-primary-deep);
   }
 
   /* Full-width authority rows (Figma style) */
@@ -3477,12 +3907,12 @@
 
   .authority-row:hover {
     @apply border-stone-300;
-    background: var(--color-periwinkle);
+    background: var(--color-accent);
     @apply text-stone-900;
   }
 
   .authority-row:hover .authority-row-icon {
-    color: var(--color-burgundy);
+    color: var(--color-primary);
   }
 
   .authority-row-static {
@@ -3519,7 +3949,7 @@
 
   .entity-type-badge {
     display: inline-block;
-    background: var(--color-burgundy);
+    background: var(--color-primary);
     color: #fff;
     border-radius: 4px;
     padding: 4px 8px;
@@ -3577,7 +4007,7 @@
     color: #a8a29e; /* stone-400 */
   }
   .graph-tooltip.is-hover .graph-tooltip-name a {
-    color: #c9d5ff; /* periwinkle for contrast on dark */
+    color: var(--color-accent); /* light accent for contrast on dark */
   }
 
   .graph-tooltip-date {
@@ -3677,8 +4107,8 @@
      Styles the markdown rendered from content/colofon/_index.md inside
      the .colofon-prose article. Reproduces the earlier per-element Tailwind
      design so the colophon keeps its established look: font-display headings
-     with a bottom border, font-serif body, burgundy underlined links, and
-     burgundy left-border italic blockquotes. Written as plain CSS (CSS custom
+     with a bottom border, font-serif body, primary-colour underlined links, and
+     italic blockquotes with a primary-colour left border. Written as plain CSS (CSS custom
      properties, no @apply of utilities) so it does not depend on
      Tailwind's class scan, which never sees markdown-rendered HTML.
      ==================== */
@@ -3713,12 +4143,12 @@
   }
 
   .colofon-prose a {
-    color: var(--color-burgundy);
+    color: var(--color-primary);
     text-decoration: underline;
   }
 
   .colofon-prose a:hover {
-    color: var(--color-burgundy-light);
+    color: var(--color-primary-light);
   }
 
   .colofon-prose ul {
@@ -3741,7 +4171,7 @@
     color: var(--color-stone-900);
     line-height: 1.625;
     font-style: italic;
-    border-left: 4px solid var(--color-burgundy);
+    border-left: 4px solid var(--color-primary);
     padding-left: 1rem;
     padding-top: 0.25rem;
     padding-bottom: 0.25rem;
@@ -3756,6 +4186,56 @@
     font-weight: 600;
   }
 
+  /* Engine section closing the colophon (<section id="zasqua">): stone box
+     with the engine's mark beside the heading and text, above them on
+     phones. Padding 32px 36px (24px 20px on phones); mark 128px (88px on
+     phones); 32px gap. */
+  .colofon-engine {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-top: 3rem;
+    padding: 2rem 2.25rem;
+    background-color: var(--color-stone-100);
+    border: 1px solid var(--color-stone-200);
+    border-radius: 4px;
+  }
+
+  .colofon-engine-mark {
+    flex: none;
+    width: 128px;
+    height: 128px;
+  }
+
+  .colofon-engine-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .colofon-prose .colofon-engine h2 {
+    margin: 0 0 10px;
+    padding: 0;
+    border-bottom: 0;
+    font-size: 1.5rem;
+  }
+
+  .colofon-prose .colofon-engine p {
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .colofon-engine {
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 1.5rem 1.25rem;
+    }
+
+    .colofon-engine-mark {
+      width: 88px;
+      height: 88px;
+    }
+  }
+
 }
 
 /* Place explorer hover tooltip — outside @layer so it overrides
@@ -3763,7 +4243,7 @@
 .place-tooltip .maplibregl-popup-content {
   background: rgba(28, 25, 23, 0.95);
   color: #fafaf9;
-  font-family: 'DM Sans', sans-serif;
+  font-family: var(--font-sans);
   font-size: 0.8125rem;
   line-height: 1.4;
   padding: 5px 10px;
@@ -3775,4 +4255,4 @@
   border-top-color: rgba(28, 25, 23, 0.95);
 }
 
-/* Version: v1.4.0 */
+/* Version: v1.6.0 */

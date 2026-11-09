@@ -1,22 +1,21 @@
-# Zasqua UI strings — Colombian Spanish
+# Zasqua UI strings — Colombian Spanish (deprecated, removal in 2.0.0)
 #
-# This file holds the residual Spanish text that Hugo templates still read via
-# `.Site.Data.ui` at render time: navigation labels, search/facet copy,
-# record-provenance strings, repository-page labels, footer copy, and general
-# chrome. Several sections that used to live here have since moved to more
-# specific homes:
+# DEPRECATED: this file is kept only for instance themes that still read
+# `hugo.Data.ui.*` directly. The engine's own templates no longer read it:
+# every interface string lives in the i18n bundles
+# (`themes/base/i18n/en.toml` and `es.toml`), which follow the site's
+# `[ui] language` setting, while this file is Spanish only. Engine 2.0.0
+# removes it. An instance template that reads `hugo.Data.ui.<section>.<key>`
+# switches to `i18n "<section>.<key>"`, which has the same path in the
+# bundles (for example `hugo.Data.ui.nav.home` is `i18n "nav.home"`). The
+# exceptions: the description section headers (metadataHeader through
+# reuseHeader) come from the standards profiles in `data/standards/`, and
+# the footer credits from `site.Params.footer_credits`.
 #
-#   levels/levelsPlural — moved to the standards profiles (data/standards/)
-#   roles/roleGroups/placeRoles — moved to the vocab files (data/vocab/)
-#   entity: / place: blocks — moved to the i18n bundles (themes/base/i18n/)
-#   fields: — removed once nothing consumed it
+# The values are unchanged, so an instance that still reads the file
+# renders as before.
 #
-# What remains: nav, error404, breadcrumb, search, facets, recordMeta,
-# description, repository, footer, general. Templates reach these via
-# `hugo.Data.ui.*`; e.g. `hugo.Data.ui.facets` is injected as
-# data-facet-labels on the search page.
-#
-# Version: v1.2.0
+# Version: v1.6.0
 
 # Navigation
 nav:
@@ -155,4 +154,4 @@ general:
   viewMore: "Ver más"
   back: "Volver"
 
-# Version: v1.2.0
+# Version: v1.6.0

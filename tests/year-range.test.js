@@ -1,15 +1,18 @@
 /**
- * Year-range tests — descriptionYearRange in lib/year-range.js
+ * Year-range tests — descriptionYearRange and contractYear in lib/year-range.js
  *
- * The helper is shared by the Pagefind date facets and the Linked Places
- * `when` block, so its reading of `date_start` and `date_expression` is pinned
- * here once rather than through either consumer.
+ * descriptionYearRange is shared by the Pagefind date facets and the Linked
+ * Places `when` block, so its reading of `date_start` and `date_expression` is
+ * pinned here once rather than through either consumer. contractYear reads an
+ * entity's `date_earliest` or `date_latest`, which the contract allows as
+ * "YYYY", "YYYY-MM-DD" or an integer year; the last block checks that the
+ * entity search index takes the year from each form.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
-const { descriptionYearRange } = require('../lib/year-range.js');
+const { descriptionYearRange, contractYear } = require('../lib/year-range.js');
 const pagefind = require('../scripts/generate-pagefind-indices.js');
 
 describe('descriptionYearRange', () => {
@@ -42,4 +45,47 @@ describe('descriptionYearRange', () => {
   });
 });
 
-// Version: v1.5.0
+describe('contractYear', () => {
+  it('reads the year from each form the contract allows', () => {
+    expect(contractYear('1818')).toBe(1818);
+    expect(contractYear('1818-01-01')).toBe(1818);
+    expect(contractYear('1818-06')).toBe(1818);
+    expect(contractYear(1818)).toBe(1818);
+    expect(contractYear(' 1818-01-01 ')).toBe(1818);
+  });
+  it('returns null for an empty or unreadable value', () => {
+    expect(contractYear(null)).toBe(null);
+    expect(contractYear(undefined)).toBe(null);
+    expect(contractYear('')).toBe(null);
+    expect(contractYear('s. XVIII')).toBe(null);
+    expect(contractYear(Number.NaN)).toBe(null);
+  });
+});
+
+describe('entity search index: dates', () => {
+  const entity = { entity_code: 'ne-aaaaaa', display_name: 'A', date_earliest: '1818-01-01', date_latest: '1820-12-31' };
+
+  it('builds year, century and decade filters from full dates', () => {
+    const f = pagefind.FIELD_MAP.entities.filters(entity);
+    expect(f.year).toEqual(['1818']);
+    expect(f.century).toEqual(['XIX']);
+    expect(f.decade).toEqual(['1810', '1820']);
+  });
+  it('gives the result card and the sort the years, not the dates', () => {
+    const m = pagefind.FIELD_MAP.entities.meta(entity);
+    expect(m.date_earliest).toBe('1818');
+    expect(m.date_latest).toBe('1820');
+    expect(pagefind.FIELD_MAP.entities.sort(entity).date).toBe('1818');
+  });
+  it('builds the same filters from bare years', () => {
+    const f = pagefind.FIELD_MAP.entities.filters({ ...entity, date_earliest: '1818', date_latest: '1820' });
+    expect(f).toMatchObject({ year: ['1818'], century: ['XIX'], decade: ['1810', '1820'] });
+  });
+  it('emits no date filter for an undated entity', () => {
+    const f = pagefind.FIELD_MAP.entities.filters({ ...entity, date_earliest: null, date_latest: null });
+    expect(f.year).toBeUndefined();
+    expect(f.century).toBeUndefined();
+  });
+});
+
+// Version: v1.6.0

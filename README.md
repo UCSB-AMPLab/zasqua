@@ -148,10 +148,11 @@ walkthrough — from install to a hosted, branded site — see
 
 ## The Data Contract
 
-The engine consumes a six-file JSON contract: `descriptions.json`,
+The engine consumes a JSON contract of six record files — `descriptions.json`,
 `repositories.json`, `entities.json`, `entity_links.json`, `places.json`, and
-`place_links.json`. The contract is versioned independently of the engine package
-as **Zasqua data contract v1.0**. Any data source that produces conforming files —
+`place_links.json` — and two optional files, `publisher.json` and
+`vocabulary.json`. The contract is versioned independently of the engine package
+as **Zasqua data contract v1.1**. Any data source that produces conforming files —
 whether from a Fisqua catalog, a CSV spreadsheet, an EAD3 finding aid, or a
 CollectiveAccess export — can drive a build.
 
@@ -163,7 +164,7 @@ zasqua validate --strict # full JSON Schema (draft-07) pass
 ```
 
 For the complete field reference — every field, type, required/optional flag, and
-description for all six files — see [`docs/data-contract.md`](docs/data-contract.md).
+description for every file — see [`docs/data-contract.md`](docs/data-contract.md).
 Per-format mapping references are available for
 [CSV](docs/model-csv/data-dictionary.md),
 [EAD3](docs/importers/ead3-mapping.md), and
@@ -202,9 +203,9 @@ RAD field labels and section headings, selectable per repository via
 without engine changes.
 
 **UI language.** The interface language is a single BCP-47 locale tag declared in
-the manifest (`language = "en-US"` or `language = "es-CO"`). All three surfaces —
-Hugo templates, `ui.yaml` data, and client JavaScript — derive locale from this
-single source. The engine ships English and Colombian Spanish bundles; adding a new
+the manifest (`language = "en-US"` or `language = "es-CO"`). Hugo templates, the
+build-time date and number formatting, the search indexes, and client JavaScript
+all take the language from this single source. The engine ships English and Colombian Spanish bundles; adding a new
 language means adding an `i18n/` TOML file and a `themes/base/data/vocab/<lang>.yaml`
 file.
 

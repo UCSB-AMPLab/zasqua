@@ -15,15 +15,23 @@
   _partials/i18n-blob.html + place-only keys) so place-explorer.js renders
   every user-facing string locale-driven and blob-only (no Spanish
   fallback); data-place-role-labels carries vocab.placeRoles (role-label
-  vocab, not bundle keys); data-maptiler-key + data-maptiler-style-id carry
+  vocab, not bundle keys); data-initial-bounds carries the optional place_explorer_bounds param;
+  data-maptiler-key + data-maptiler-style-id carry
   the MapTiler style URL components from site.Params. JSON attributes are
   emitted via printf + safeHTMLAttr to preserve raw double quotes.
 
-  Vocab source: themes/base/data/vocab/{lang}.yaml, resolved by
-  site.Language.LanguageCode ("es-CO" → "es", "en-US" → "en"), falling
-  back to vocab.es when the language key is absent.
+  Vocab source: _partials/vocab.html, which applies the export's
+  vocabulary.json to themes/base/data/vocab/{lang}.yaml. The JSON
+  attributes are single-quoted and their labels can come from the export,
+  so each escapes the apostrophe as \u0027 after jsonify.
 
-  Version: v1.5.0
+  The intro ends with a run of example places from
+  site.Params.place_examples, rendered by _partials/example-links.html;
+  place-explorer.js selects the place named in a button's data-place.
+  The engine names no place code, so a site without the setting shows
+  the intro without the examples or the word that introduces them.
+
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
 
@@ -33,10 +41,8 @@
 {{ end }}
 
 {{ define "main" }}
-{{/* Resolve vocab by site language: "es-CO" → "es", "en-US" → "en" */}}
-{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
-{{ $vocab := index hugo.Data.vocab $langKey }}
-{{ if not $vocab }}{{ $vocab = hugo.Data.vocab.es }}{{ end }}
+{{/* Labels and role groups: bundled vocab with the export's vocabulary.json applied */}}
+{{ $vocab := partialCached "vocab.html" . site.Language.Lang }}
 {{ $places := slice }}
 {{ with resources.Get "hugo-data/places.json" }}
   {{ $places = . | transform.Unmarshal }}
@@ -55,13 +61,13 @@
 
   <header class="explorer-page-header">
     <h1 class="explorer-page-title">{{ i18n "place.explorerTitle" }}</h1>
-    <p class="explorer-page-intro">{{ replace (i18n "place.explorerIntro") "{count}" (printf `<strong id="place-count-live">%s</strong>` (lang.FormatNumber 0 $placeCount)) | safeHTML }}
-      {{ i18n "place.explorerExamplesPrefix" }}
-      <button type="button" class="graph-empty-state-link" data-place="santafe-de-bogota">Santafé de Bogotá</button>,
-      <button type="button" class="graph-empty-state-link" data-place="cartagena">Cartagena</button>,
-      <button type="button" class="graph-empty-state-link" data-place="quito">Quito</button>
-      {{ i18n "place.explorerExamplesConj" }}
-      <button type="button" class="graph-empty-state-link" data-place="popayan">Popayán</button>.</p>
+    <p class="explorer-page-intro">{{ replace (i18n "place.explorerIntro" (dict "Site" site.Title)) "{count}" (printf `<strong id="place-count-live">%s</strong>` (lang.FormatNumber 0 $placeCount)) | safeHTML }}
+      {{- $examples := partial "example-links.html" (dict
+            "items" site.Params.place_examples
+            "attr"  "data-place"
+            "conj"  (i18n "place.explorerExamplesConj")
+            "conjBeforeO" (i18n "place.explorerExamplesConjBeforeO")) }}
+      {{ with $examples }}{{ i18n "place.explorerExamplesPrefix" }} {{ . }}{{ end }}</p>
   </header>
 
   <div class="explorer-grid">
@@ -136,11 +142,12 @@
         "viewportFilterActive" (i18n "place.viewportFilterActive")
       ) }}
       <div id="place-explorer"
-           {{ printf `data-place-types='%s'` (jsonify $vocab.placeTypes) | safeHTMLAttr }}
-           {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}
-           {{ printf `data-place-role-labels='%s'` (jsonify $vocab.placeRoles) | safeHTMLAttr }}
+           {{ printf `data-place-types='%s'` (replace (jsonify $vocab.placeTypes) "'" `\u0027`) | safeHTMLAttr }}
+           {{ printf `data-i18n='%s'` (jsonify $i18n | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+           {{ printf `data-place-role-labels='%s'` (replace (jsonify $vocab.placeRoles) "'" `\u0027`) | safeHTMLAttr }}
            data-maptiler-key="{{ site.Params.maptiler_key }}"
-           data-maptiler-style-id="{{ site.Params.maptiler_style_id }}"></div>
+           data-maptiler-style-id="{{ site.Params.maptiler_style_id }}"
+           {{ with site.Params.place_explorer_bounds }}{{ printf `data-initial-bounds='%s'` (jsonify . | replaceRE "'" `\u0027`) | safeHTMLAttr }}{{ end }}></div>
     </div>
 
   </div>
@@ -151,4 +158,4 @@
 {{ define "scripts" }}
   <script src="/js/place-explorer.js"></script>
 {{ end }}
-{{/* Version: v1.5.0 */}}
+{{/* Version: v1.6.0 */}}

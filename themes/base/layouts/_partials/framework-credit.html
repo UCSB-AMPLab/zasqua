@@ -1,12 +1,11 @@
 {{/*
   Engine attribution — hardcoded, language-responsive
 
-  Renders the single line crediting the Zasqua engine to AMPL. This is
+  Renders the line crediting the Zasqua engine to AMPL. This is
   the engine's OWN attribution, deliberately NOT a deployer-editable
-  data/config value: every site built on the engine carries it. Included
-  by the base footer partial and by any instance footer override — the
-  Neogranadina overlay includes it explicitly, since that overlay
-  replaces the base footer wholesale and would otherwise drop the line.
+  data/config value: every site built on the engine carries it. The base
+  footer includes it, and a site that overrides the footer has to include
+  it too, or the line is lost.
 
   Language-responsive via site.Language.Lang: US English for the
   README/docs locale, Colombian Spanish for the rendered site. The
@@ -20,19 +19,33 @@
   source of the running program be offered to its users, so the link that
   satisfies that obligation is labelled plainly as source code.
 
+  The engine's pomegranate (mark-small.svg, drawn white by the footer
+  CSS) precedes the line and links to the engine section of the colophon,
+  /colofon/#zasqua.
+
   Links:
     AMPL                         -> https://ampl.clair.ucsb.edu
     Source code / Código fuente  -> https://github.com/UCSB-AMPLab/zasqua
                                     (the engine's source repository)
     "open-source" / "código abierto" and "AGPL-3.0" are plain text.
 
-  Version: v1.0.2
+  Version: v1.6.0
 */}}
+{{- /*
+  We would be grateful if you kept this credit. The source-code link
+  offers users the engine's source, as the AGPL-3.0 (§13) requires of a
+  site that runs it; the rest of the line is not required, but from it
+  readers learn which software publishes the site, and other archives find
+  the engine through it.
+*/ -}}
+<div class="footer-engine">
+<a href="/colofon/#zasqua" class="footer-engine-link"><img src="/img/zasqua-engine/mark-small.svg" alt="Zasqua" class="footer-engine-mark"></a>
 <p class="footer-framework">
   {{- if eq site.Language.Lang "en" -}}
-  Built with the Zasqua engine by <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — open-source software for publishing digital archives (AGPL-3.0). <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">Source code</a>.
+  Built with the Zasqua engine by <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-accent">AMPL</a> — open-source software for publishing digital archives (AGPL-3.0). <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-accent">Source code</a>.
   {{- else -}}
-  Hecho con el motor de publicación de archivos digitales Zasqua, de <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">AMPL</a> — software de código abierto (AGPL-3.0). <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-periwinkle">Código fuente</a>.
+  Hecho con el motor de publicación de archivos digitales Zasqua, de <a href="https://ampl.clair.ucsb.edu" target="_blank" rel="noopener" class="text-white hover:text-accent">AMPL</a> — software de código abierto (AGPL-3.0). <a href="https://github.com/UCSB-AMPLab/zasqua" target="_blank" rel="noopener" class="text-white hover:text-accent">Código fuente</a>.
   {{- end -}}
 </p>
-{{/* Version: v1.0.2 */}}
+</div>
+{{/* Version: v1.6.0 */}}

@@ -53,11 +53,13 @@
  *      the VIAF or Wikidata shape, and eac_agency_code / eac_language_code
  *      must match the ISIL and ISO 639-2 patterns.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createRequire } from 'module';
+import { execFileSync } from 'child_process';
+import { fileURLToPath } from 'url';
 import fs from 'fs';
 import os from 'os';
 import { join } from 'path';
@@ -281,6 +283,13 @@ describe('buildEacCpf — existDates', () => {
     expect(gYear('2024-02-29')).toBe('2024-02-29');
     expect(gYear('0050-01-31')).toBe('0050-01-31');
   });
+  it('rejects a string whose year part is 0000, as it rejects numeric 0', () => {
+    for (const bad of ['0000', '0000-01', '0000-01-01']) {
+      expect(() => gYear(bad)).toThrow('invalid year');
+      expect(() => buildEacCpf({ ...PERSON, date_earliest: bad }, OPTS)).toThrow(`[generate-eac] ne-755zr: invalid year "${bad}"`);
+    }
+    expect(gYear('0001')).toBe('0001');
+  });
 });
 
 describe('buildEacCpf — functions and biogHist', () => {
@@ -296,6 +305,16 @@ describe('buildEacCpf — functions and biogHist', () => {
     const xml = buildEacCpf({ ...PERSON, functions: ['Catedrático', { function: 'Doctor', count: 1 }] }, OPTS);
     expect(xml.match(/<function>/g).length).toBe(1);
     expect(buildEacCpf({ ...PERSON, functions: null }, OPTS)).not.toContain('<functions>');
+  });
+  it('reads an empty or whitespace-only functions string as no functions, as Fisqua writes it', () => {
+    for (const blank of ['', '   ', '\n']) {
+      const xml = buildEacCpf({ ...PERSON, functions: blank }, OPTS);
+      expect(xml).toContain('<eac-cpf ');
+      expect(xml).not.toContain('<functions>');
+    }
+    const plan = planEacRecord({ ...PERSON, functions: '' }, OPTS, new Map());
+    expect(plan.skip).toBeUndefined();
+    expect(plan.xml).toContain('<eac-cpf ');
   });
   it('emits biogHist only when history is non-empty, and no description at all when nothing applies', () => {
     expect(buildEacCpf({ ...PERSON, history: 'Nació en Popayán.' }, OPTS)).toContain('<biogHist>\n        <p>Nació en Popayán.</p>');
@@ -488,4 +507,64 @@ describe('isUnderPublic', () => {
   });
 });
 
-// Version: v1.5.0
+// ---------------------------------------------------------------------------
+// Publisher legal_name and the byte-identical 1.0 output
+// ---------------------------------------------------------------------------
+
+describe('maintenance agency from publisher.json', () => {
+  const here = join(fileURLToPath(import.meta.url), '..');
+  const SCRIPT = join(here, '..', 'scripts', 'generate-eac.js');
+  const SMOKE = join(here, 'fixtures', 'engine-smoke');
+  const GOLDEN = join(here, 'fixtures', 'engine-smoke-golden', 'eac');
+  const PUBLISHER = join(here, 'fixtures', 'fisqua-institutions', 'publisher.json');
+  const dirs = [];
+  const tmp = () => {
+    const d = fs.mkdtempSync(join(os.tmpdir(), 'zasqua-eac-pub-'));
+    dirs.push(d);
+    return d;
+  };
+  afterEach(() => {
+    while (dirs.length) fs.rmSync(dirs.pop(), { recursive: true, force: true });
+  });
+
+  function run(publisher, toml) {
+    const root = tmp();
+    fs.mkdirSync(join(root, 'exports'));
+    fs.copyFileSync(join(SMOKE, 'exports', 'entities.json'), join(root, 'exports', 'entities.json'));
+    fs.writeFileSync(join(root, 'hugo.toml'), toml);
+    if (publisher) fs.writeFileSync(join(root, 'exports', 'publisher.json'), JSON.stringify(publisher));
+    const out = join(root, 'out');
+    execFileSync('node', [SCRIPT], { env: { ...process.env, INSTANCE_ROOT: root, EAC_DIR: out }, encoding: 'utf8' });
+    const f = fs.readdirSync(out).sort()[0];
+    return fs.readFileSync(join(out, f), 'utf8');
+  }
+
+  const toml = 'title = "Site"\n[params]\n  eac_agency_name = "Setting Agency"\n';
+  const fixture = () => JSON.parse(fs.readFileSync(PUBLISHER, 'utf8'));
+
+  it('uses legal_name when publisher.json has one', () => {
+    expect(run(fixture(), toml)).toContain('<agencyName>Fundación Archivo de Ejemplo</agencyName>');
+  });
+
+  it('falls back to eac_agency_name without a legal_name', () => {
+    expect(run({ ...fixture(), legal_name: null }, toml)).toContain('<agencyName>Setting Agency</agencyName>');
+    expect(run({ ...fixture(), legal_name: '  ' }, toml)).toContain('<agencyName>Setting Agency</agencyName>');
+  });
+
+  it('falls back to eac_agency_name without publisher.json', () => {
+    expect(run(null, toml)).toContain('<agencyName>Setting Agency</agencyName>');
+  });
+
+  it('a 1.0 export (no publisher.json) is byte-identical to the earlier output', () => {
+    const out = tmp();
+    execFileSync('node', [SCRIPT], { env: { ...process.env, INSTANCE_ROOT: SMOKE, EAC_DIR: out }, encoding: 'utf8' });
+    const names = fs.readdirSync(GOLDEN).sort();
+    expect(fs.readdirSync(out).sort()).toEqual(names);
+    for (const n of names) {
+      expect(fs.readFileSync(join(out, n), 'utf8')).toBe(fs.readFileSync(join(GOLDEN, n), 'utf8'));
+    }
+  });
+});
+
+// Version: v1.6.0
+

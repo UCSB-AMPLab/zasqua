@@ -37,14 +37,33 @@
  * by code). Every tooltip, legend, and count string is read from
  * the #graph-container data-i18n blob with no Spanish fallback:
  * linkedDocs / refocus, the legend.* items, expand / loading, and the
- * connectedTo {one,other} plural (Intl.PluralRules). Date ordering is
- * locale-aware: US "Month D, YYYY" under en, "D de Month de YYYY"
- * under es.
+ * connectedTo {one,other} plural (Intl.PluralRules). Numbers, plurals,
+ * sorting and dates follow the page's <html lang> through Intl ("March
+ * 15, 1723" under en-US, "15 de marzo de 1723" under es-CO).
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 (function () {
   'use strict';
+
+  // label-map:start
+  // A code → label map read from a data-*-labels attribute. The map has no
+  // prototype, so a code such as "constructor" or "toString" finds no
+  // inherited value and `labels[code] || code` falls back to the code. Only
+  // string values are kept; a missing or malformed attribute gives an empty
+  // map.
+  function parseLabelMap(raw) {
+    var map = Object.create(null);
+    if (!raw) return map;
+    var parsed;
+    try { parsed = JSON.parse(raw); } catch (e) { return map; }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return map;
+    Object.keys(parsed).forEach(function (key) {
+      if (typeof parsed[key] === 'string') map[key] = parsed[key];
+    });
+    return map;
+  }
+  // label-map:end
 
   // Role + entity-type display labels are NOT hardcoded here — they are
   // read from data-role-labels / data-entity-type-labels on the
@@ -52,14 +71,23 @@
   // this._roleLabels / this._typeLabels in the constructor. Single-
   // source vocab; no Spanish fallback.
 
+  // Colours come from the theme tokens through theme-colors.js, which the
+  // layout shell loads first; the grey stands in if a layout omits it.
+  var themeColor = window.zasquaThemeColor || function () { return '#888'; };
+  var themeFont = window.zasquaThemeFont || function () { return 'sans-serif'; };
+
+  var PERSON_COLOR = themeColor('graph-person');
+  var CORPORATE_COLOR = themeColor('graph-corporate');
   var entityColors = {
-    person: '#8B2942',
-    corporate_body: '#6666BB',
-    corporate: '#6666BB',
-    family: '#6666BB'
+    person: PERSON_COLOR,
+    corporate_body: CORPORATE_COLOR,
+    corporate: CORPORATE_COLOR,
+    family: CORPORATE_COLOR
   };
 
-  var DOC_COLOR = '#A09888';
+  var DOC_COLOR = themeColor('graph-document');
+  var NODE_FILL_COLOR = themeColor('graph-node-fill');
+  var LINK_COLOR = themeColor('graph-link-faint');
   // Soft pruning limit — distant branches get cleaned up only after very
   // deep exploration. The corpus's worst-case doc has 210 connected
   // entities and only one doc breaks 200, so a normal trail will never
@@ -76,12 +104,11 @@
     this.tooltipEl = document.getElementById('graph-tooltip');
     this.legendEl = document.getElementById('graph-legend');
 
-    // Locale-aware formatters (read from <html lang>; fallback es-CO)
-    var _locale = document.documentElement.lang || 'es-CO';
+    // Locale-aware formatters, in the language of <html lang>
+    var _locale = document.documentElement.lang || undefined;
     this._locale = _locale;
     this._coll = new Intl.Collator(_locale);
-    this._monthFmt = new Intl.DateTimeFormat(_locale, { month: 'long' });
-    this._pr = new Intl.PluralRules(_locale.split('-')[0]);
+    this._pr = new Intl.PluralRules(_locale);
 
     // App-label strings from data-i18n blob injected by the template
     this._i18n = {};
@@ -92,10 +119,8 @@
     }
 
     // Render-time vocab from data-* attributes (ui.yaml single-source).
-    this._roleLabels = {};
-    this._typeLabels = {};
-    try { this._roleLabels = JSON.parse((container && container.dataset.roleLabels) || '{}'); } catch (e) {}
-    try { this._typeLabels = JSON.parse((container && container.dataset.entityTypeLabels) || '{}'); } catch (e) {}
+    this._roleLabels = parseLabelMap(container && container.dataset.roleLabels);
+    this._typeLabels = parseLabelMap(container && container.dataset.entityTypeLabels);
 
     // Graph state
     this.graphInstance = null;
@@ -249,6 +274,10 @@
     /* global ForceGraph */
     var initialWidth = this.container.clientWidth || 800;
     var initialHeight = this.container.clientHeight || 600;
+    // Canvas labels use the font the page computes for the graph's
+    // container, since a canvas does not inherit CSS fonts.
+    this.labelFont = themeFont(this.container);
+
     this.graphInstance = new ForceGraph(this.container)
       .width(initialWidth)
       .height(initialHeight)
@@ -267,7 +296,7 @@
       .onNodeDragEnd(function (node) { node.fx = node.x; node.fy = node.y; })
       .onZoom(this.updateTooltipPosition.bind(this))
       .onBackgroundClick(this.dismissTooltip.bind(this))
-      .linkColor(function () { return 'rgba(160,152,136,0.3)'; })
+      .linkColor(function () { return LINK_COLOR; })
       .linkWidth(1)
       // Hide a link if either of its endpoints is filtered out. Without
       // this, filtering an entity leaves its incident edges as orphaned
@@ -337,7 +366,7 @@
     var s = globalScale;
 
     if (node.type === 'entity') {
-      var color = entityColors[node.entity_type] || '#8B2942';
+      var color = entityColors[node.entity_type] || PERSON_COLOR;
       var rScreen = Math.max(4, Math.min(11, Math.sqrt(node.linked_count || 1) * 1.5));
       var r = rScreen / s;
 
@@ -352,7 +381,7 @@
       var showLabel = s > 1.2;
       if (showLabel && node.label) {
         var fontSize = 11 / s;
-        ctx.font = fontSize + 'px DM Sans, sans-serif';
+        ctx.font = fontSize + 'px ' + this.labelFont;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillStyle = '#333';
@@ -374,7 +403,7 @@
       } else {
         ctx.beginPath();
         ctx.arc(node.x, node.y, 2.5 / s, 0, 2 * Math.PI);
-        ctx.fillStyle = '#FAFAF9';
+        ctx.fillStyle = NODE_FILL_COLOR;
         ctx.fill();
         ctx.strokeStyle = DOC_COLOR;
         ctx.lineWidth = 1.2 / s;
@@ -455,7 +484,7 @@
     var tooltip = this.tooltipEl;
     if (!tooltip) return;
 
-    var color = entityColors[node.entity_type] || '#8B2942';
+    var color = entityColors[node.entity_type] || PERSON_COLOR;
 
     var html = '';
     html += '<div class="graph-tooltip-header">';
@@ -530,7 +559,7 @@
     if (!tooltip) return;
 
     var self = this;
-    var typeLabel = entityColors[node.entity_type] || '#8B2942';
+    var typeLabel = entityColors[node.entity_type] || PERSON_COLOR;
     var isFocal = node.id === this.focalEntityCode;
 
     tooltip.innerHTML = '';
@@ -760,7 +789,8 @@
         });
       }
       if (!this.focalDocRoles.has(ref)) this.focalDocRoles.set(ref, new Set());
-      this.focalDocRoles.get(ref).add(entry.role);
+      // Role codes are kept in lowercase, the form the role filter uses
+      this.focalDocRoles.get(ref).add(entry.role ? String(entry.role).toLowerCase() : entry.role);
       docEdges.push({ source: entityCode, target: ref, role: entry.role });
     }
     return { docNodes: docNodes, docEdges: docEdges };
@@ -1061,8 +1091,8 @@
 
     var _i18n = this._i18n;
     el.innerHTML = [
-      legendItem('#8B2942', 'filled', _i18n.legendPerson || ''),
-      legendItem('#6666BB', 'filled', _i18n.legendCorporateFamily || ''),
+      legendItem(PERSON_COLOR, 'filled', _i18n.legendPerson || ''),
+      legendItem(CORPORATE_COLOR, 'filled', _i18n.legendCorporateFamily || ''),
       legendItem(DOC_COLOR, 'filled', _i18n.legendDocExpandable || ''),
       legendItem(DOC_COLOR, 'hollow', _i18n.legendDocPlain || '')
     ].join('');
@@ -1082,71 +1112,49 @@
   };
 
   // -----------------------------------------------------------------------
-  // Date formatter (replicated from entity.js lines 842-869)
+  // Date formatter — the page's language is the one in <html lang>, which
+  // Hugo writes from the site's [ui] language setting.
   // -----------------------------------------------------------------------
 
-  // _graphMonthFmt: shared Intl.DateTimeFormat for date formatting
-  // Initialised lazily at first formatDate call to avoid constructor-time
-  // DOM access inside the IIFE (document.documentElement may not exist).
-  var _graphMonthFmt = null;
-  function _getMonthFmt() {
-    if (!_graphMonthFmt) {
-      var _loc = (document.documentElement && document.documentElement.lang) || 'es-CO';
-      _graphMonthFmt = new Intl.DateTimeFormat(_loc, { month: 'long' });
-    }
-    return _graphMonthFmt;
-  }
-
-  // Date connector for es ordering, read from the #graph-container blob
-  // (ui.dateConnector). Lazily resolved once; blob-only, no Spanish literal.
-  var _graphDateConn = null;
-  function _getDateConn() {
-    if (_graphDateConn === null) {
-      _graphDateConn = '';
-      try {
-        var c = document.getElementById('graph-container');
-        var blob = JSON.parse((c && c.dataset.i18n) || '{}');
-        _graphDateConn = blob.dateConnector || '';
-      } catch (e) {}
-    }
-    return _graphDateConn;
-  }
-
-  function _graphIsEn() {
-    return (((document.documentElement && document.documentElement.lang) || 'es-CO').slice(0, 2) === 'en');
-  }
-
   function formatDate(dateStr) {
-    if (!dateStr) return '';
-
-    if (dateStr.indexOf(' .. ') !== -1) {
-      var parts = dateStr.split(' .. ');
-      return formatDate(parts[0]) + ' \u2013 ' + formatDate(parts[1]);
-    }
-
-    // Date ordering is locale-aware (approved 2026-06-02): en uses US
-    // order "Month D, YYYY"; es keeps "D de Month de YYYY" with the
-    // bundle dateConnector. Branch on <html lang>.
-    var _isEn = _graphIsEn();
-    var _conn = _getDateConn();
-
-    var match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (match) {
-      var day = parseInt(match[3], 10);
-      var month = _getMonthFmt().format(new Date(2000, parseInt(match[2], 10) - 1, 1));
-      if (_isEn) return month + ' ' + day + ', ' + match[1];
-      return day + _conn + month + _conn + match[1];
-    }
-
-    var ymMatch = dateStr.match(/^(\d{4})-(\d{2})$/);
-    if (ymMatch) {
-      var m = _getMonthFmt().format(new Date(2000, parseInt(ymMatch[2], 10) - 1, 1));
-      if (_isEn) return m + ' ' + ymMatch[1];
-      return m + _conn + ymMatch[1];
-    }
-
-    return dateStr;
+    return narrativeDate(dateStr, (document.documentElement && document.documentElement.lang) || undefined);
   }
+
+  // narrative-date:start
+  // Formats an archival date string ("1723-03-15", "1723-03", or a range
+  // joined by " .. ") as prose in `locale`, with the month names and word
+  // order Intl takes from CLDR: "15 de marzo de 1723" in es-CO, "March 15,
+  // 1723" in en-US. The year is copied from the input so that years before
+  // 1000 keep four digits. Anything else passes through unchanged. This
+  // block is identical in entity.js, infinite-bipartite-explorer.js and
+  // place.js, and matches scripts/enrichment/date-format.js; tests check all four.
+  var _narrativeDateFmts = {};
+  function narrativeDate(dateStr, locale) {
+    if (!dateStr) return '';
+    if (dateStr.indexOf(' .. ') !== -1) {
+      var range = dateStr.split(' .. ');
+      return narrativeDate(range[0], locale) + ' – ' + narrativeDate(range[1], locale);
+    }
+    var m = dateStr.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+    if (!m) return dateStr;
+    var month = parseInt(m[2], 10);
+    var day = m[3] ? parseInt(m[3], 10) : 0;
+    if (month < 1 || month > 12) return dateStr;
+    // 2000 is a leap year, so 29 February is a valid stand-in date.
+    var date = new Date(Date.UTC(2000, month - 1, day || 1));
+    if (day && date.getUTCDate() !== day) return dateStr;
+    var key = (locale || '') + (day ? '|ymd' : '|ym');
+    if (!_narrativeDateFmts[key]) {
+      var opts = { timeZone: 'UTC', calendar: 'gregory', year: 'numeric', month: 'long' };
+      if (day) opts.day = 'numeric';
+      _narrativeDateFmts[key] = new Intl.DateTimeFormat(locale || undefined, opts);
+    }
+    var year = m[1];
+    return _narrativeDateFmts[key].formatToParts(date).map(function (p) {
+      return p.type === 'year' ? year : p.value;
+    }).join('');
+  }
+  // narrative-date:end
 
   // -----------------------------------------------------------------------
   // HTML escape helper
@@ -1454,7 +1462,7 @@
         var n = self.graphNodes.get(docId);
         if (!n || n.type !== 'document') return;
         if (!focalDocRoles.has(docId)) focalDocRoles.set(docId, new Set());
-        focalDocRoles.get(docId).add(l.role);
+        focalDocRoles.get(docId).add(l.role ? String(l.role).toLowerCase() : l.role);
       });
     }
 
@@ -1504,4 +1512,4 @@
 
 })();
 
-// Version: v1.4.0
+// Version: v1.6.0

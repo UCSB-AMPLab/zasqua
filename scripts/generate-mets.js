@@ -35,13 +35,21 @@
  *
  * Output location is wrapper-specified (METS_DIR), exactly as Hugo's publishDir
  * is for HTML. A single-bucket deployer writes the default public/mets/ (served
- * with the site); a deployer with a separate manifests host (e.g. Neogranadina)
+ * with the site); a deployer with a separate manifests host
  * sets METS_DIR outside public/ and uploads it there. The per-record link is set
  * by generate-content.js from the same mets_base_url, so links and files agree.
+ *
+ * Before writing, the run removes the earlier `*.xml` files directly inside
+ * METS_DIR (other extensions and subdirectories stay) and logs how many it removed,
+ * so a record dropped from the input does not leave its file behind. The removal
+ * happens after the inputs are read and checked, so a run that fails early leaves
+ * the previous output in place.
  *
  * Reads:
  *   exports/descriptions.json   — the flat array of all archival records
  *   exports/repositories.json   — for the CUSTODIAN agent, dc:source, repo rights
+ *   exports/publisher.json      — optional; its legal_name, tax_id, location and
+ *                                 website replace mets_creator_name / _url
  *   hugo.toml [params]          — METS config (see readMetsConfig)
  * Writes:
  *   {METS_DIR}/{slug}.xml       — one METS document per description
@@ -54,12 +62,16 @@
  *   DATA_DIR       — override the default exports directory (absolute path).
  *   METS_DIR       — override the default public/mets output directory.
  *
- * @version v1.3.0
+ * @version v1.6.0
  */
 
 const fs = require('fs');
 const path = require('path');
 const { parse: parseToml } = require('smol-toml');
+const { loadStandardData } = require('../lib/standards');
+const { loadManifest } = require('../lib/manifest');
+const { siteLanguage } = require('../lib/site-language');
+const { readPublisher, publisherLine, pickLang } = require('../lib/publisher');
 
 const INSTANCE_ROOT = process.env.INSTANCE_ROOT || process.cwd();
 const DATA_DIR = process.env.DATA_DIR || path.join(INSTANCE_ROOT, 'exports');
@@ -77,22 +89,20 @@ const NS_DCTERMS = 'http://purl.org/dc/terms/';
 // ---------------------------------------------------------------------------
 // Description level → Dublin Core type mapping
 //
-// Aggregate levels are intellectual Collections; leaf bibliographic levels
-// (item, volume) are Text. Matches the retired backend's mapping so existing
-// METS consumers see no change in dc:type semantics.
+// The map lives in the descriptive-standard profiles (`dc_types` in
+// themes/base/data/standards/*.yaml): aggregate levels are Collection, leaf
+// bibliographic levels (item, volume) are Text. `DC_TYPE_MAP` is the ISAD(G)
+// map, kept as an export; buildMets looks the type up under the record's own
+// standard (repository, then description), so a site can change it in its
+// copy of the profile.
 // ---------------------------------------------------------------------------
 
-const DC_TYPE_MAP = {
-  fonds: 'Collection',
-  subfonds: 'Collection',
-  series: 'Collection',
-  subseries: 'Collection',
-  collection: 'Collection',
-  section: 'Collection',
-  file: 'Collection',
-  item: 'Text',
-  volume: 'Text',
-};
+const DC_TYPE_MAP = loadStandardData('isadg').dc_types;
+
+function dcTypeOf(desc, repo, level, opts) {
+  const standard = (repo && repo.descriptive_standard) || desc.descriptive_standard || 'isadg';
+  return loadStandardData(standard, opts && opts.instanceRoot).dc_types[level] || '';
+}
 
 // ---------------------------------------------------------------------------
 // XML escaping
@@ -145,25 +155,45 @@ function dcLine(qname, value) {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve a record's dc:rights text via the data-driven ladder (no hardcoded
- * institution text — see plan §4.2):
- *   1. digitised item whose repository carries reproduction text → that text
+ * Resolve a record's dc:rights text from the data, with no institution text
+ * written into the engine:
+ *   1. digitised item → the repository's `attribution` in opts.language, else
+ *      its `image_reproduction_text`
  *   2. else the record's own reproduction/access conditions (ISAD(G) 3.4.2/3.4.1)
- *   3. else the deployer's optional house default (opts.defaultRights)
- *   4. else '' (omit)
+ *   3. else the repository's `catalogue_licence`
+ *   4. else the deployer's optional house default (opts.defaultRights)
+ *   5. else '' (omit)
+ * Bilingual members fall back to the other language when the chosen one is
+ * empty. opts.language is the site's language base subtag (default 'es').
  *
  * @param {object} desc
  * @param {object|null} repo
- * @param {object} opts — { defaultRights }
+ * @param {object} opts — { defaultRights, language }
  * @returns {string}
  */
 function computeRights(desc, repo, opts) {
-  if (desc.has_digital && repo && repo.image_reproduction_text) {
-    return repo.image_reproduction_text;
+  const lang = opts.language || 'es';
+  if (desc.has_digital && repo) {
+    const credit = pickLang(repo.attribution, lang) || pickLang(repo.image_reproduction_text, lang);
+    if (credit) return credit;
   }
   const conditions = desc.reproduction_conditions || desc.access_conditions;
   if (conditions) return conditions;
-  return opts.defaultRights || '';
+  // The repository's catalogue licence stands where the house default would.
+  return catalogueLicenceText(repo, lang) || opts.defaultRights || '';
+}
+
+/**
+ * The repository's catalogue licence as "<label> (<uri>)", the uri alone when
+ * there is no label, the label alone when there is no uri, or ''.
+ */
+function catalogueLicenceText(repo, lang) {
+  const licence = repo && repo.catalogue_licence;
+  if (!licence || typeof licence !== 'object') return '';
+  const label = pickLang(licence.label, lang);
+  const uri = typeof licence.uri === 'string' ? licence.uri.trim() : '';
+  if (label && uri) return `${label} (${uri})`;
+  return uri || label;
 }
 
 /**
@@ -175,6 +205,7 @@ function computeRights(desc, repo, opts) {
  * @param {string} opts.creatorName — CREATOR agent name (deploying institution)
  * @param {string} [opts.creatorNote] — CREATOR agent note (about/source URL)
  * @param {string} [opts.defaultRights] — optional house dc:rights fallback
+ * @param {string} [opts.language] — site language base subtag for bilingual fields
  * @returns {string} a complete METS XML document
  */
 function buildMets(desc, repo, opts) {
@@ -227,7 +258,7 @@ function buildMets(desc, repo, opts) {
   // Language is a plain string in the contract — pass it through verbatim.
   xml += dcLine('dc:language', desc.language);
   xml += dcLine('dc:format', desc.extent);
-  xml += dcLine('dc:type', DC_TYPE_MAP[level] || '');
+  xml += dcLine('dc:type', dcTypeOf(desc, repo, level, opts));
   // dc:source — repository name, plus city when known.
   if (repo && repo.name) {
     const source = repo.city ? `${repo.name}, ${repo.city}` : repo.name;
@@ -283,6 +314,7 @@ function buildMets(desc, repo, opts) {
 //   creatorName  ← params.mets_creator_name, else top-level `title`
 //   creatorNote  ← params.mets_creator_url, else params.about_url||source_url
 //   defaultRights← params.mets_default_rights (optional house dc:rights fallback)
+//   language     ← zasqua.manifest.toml [ui] language (base subtag), else 'es'
 //   metsBaseUrl  ← params.mets_base_url (trailing slashes stripped), else null
 //                  (null = "unset"; consumers fall back to "/mets" — see the
 //                  three-state mets_url derivation in generate-content.js)
@@ -298,6 +330,14 @@ function readMetsConfig(instanceRoot) {
   let creatorNote = '';
   let defaultRights = '';
   let metsBaseUrl = null;
+  let language = 'es';
+  try {
+    if (fs.existsSync(path.join(instanceRoot, 'zasqua.manifest.toml'))) {
+      language = siteLanguage(loadManifest(instanceRoot)).base;
+    }
+  } catch (err) {
+    console.warn(`[generate-mets] WARN: could not read the site language (${err.message}); using "es"`);
+  }
   try {
     const cfg = parseToml(fs.readFileSync(hugoTomlPath, 'utf8'));
     const params = cfg.params || {};
@@ -314,7 +354,39 @@ function readMetsConfig(instanceRoot) {
       `(${err.message}); using neutral defaults`
     );
   }
-  return { creatorName, creatorNote, defaultRights, metsBaseUrl };
+  return { creatorName, creatorNote, defaultRights, metsBaseUrl, language };
+}
+
+/**
+ * Remove the `.xml` files directly inside `dir` and return how many were
+ * removed. Each run writes the whole set again, so a file left from an
+ * earlier run would otherwise stay behind for a record that is no longer in
+ * the input. Only regular files with this extension are touched: other
+ * extensions and subdirectories are left alone, and a missing directory
+ * counts as empty.
+ */
+function clearOutputDir(dir) {
+  // The output directory must be the generator's own. Clearing the site root
+  // or public/ itself would take the build's sitemap and index files with it.
+  const resolved = path.resolve(dir);
+  if (resolved === path.resolve(INSTANCE_ROOT) || resolved === path.resolve(INSTANCE_ROOT, 'public')) {
+    throw new Error(`[generate-mets] refusing to clear ${resolved}: set the output directory to a folder of its own`);
+  }
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return 0;
+    throw err;
+  }
+  let removed = 0;
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith('.xml')) {
+      fs.unlinkSync(path.join(dir, entry.name));
+      removed++;
+    }
+  }
+  return removed;
 }
 
 // ---------------------------------------------------------------------------
@@ -343,7 +415,17 @@ async function main() {
     for (const r of repositories) reposByCode.set(r.code, r);
   }
 
-  const { creatorName, creatorNote, defaultRights, metsBaseUrl } = readMetsConfig(INSTANCE_ROOT);
+  const config = readMetsConfig(INSTANCE_ROOT);
+  const { defaultRights, metsBaseUrl, language } = config;
+  let { creatorName, creatorNote } = config;
+  // The publisher record names the legal entity behind the site; without a
+  // legal_name the hugo.toml settings stand.
+  const publisher = readPublisher(DATA_DIR);
+  const publisherName = publisherLine(publisher);
+  if (publisherName) {
+    creatorName = publisherName;
+    creatorNote = typeof publisher.website === 'string' ? publisher.website.trim() : '';
+  }
   console.log(`[generate-mets] CREATOR agent: ${creatorName}`);
 
   // Orphan-trap warning: if the site will link METS off-domain (absolute
@@ -361,7 +443,11 @@ async function main() {
     );
   }
 
+  // Inputs are read and checked by now, so a run that failed earlier has not
+  // emptied the directory. Clear the previous output before writing the new.
   fs.mkdirSync(METS_DIR, { recursive: true });
+  const removed = clearOutputDir(METS_DIR);
+  console.log(`[generate-mets] Removed ${removed} xml file${removed === 1 ? '' : 's'} from ${METS_DIR} before writing`);
 
   let written = 0;
   let skipped = 0;
@@ -373,7 +459,7 @@ async function main() {
     }
     const slug = metsSlug(ref);
     const repo = reposByCode.get(desc.repository_code) || null;
-    const xml = buildMets(desc, repo, { creatorName, creatorNote, defaultRights });
+    const xml = buildMets(desc, repo, { creatorName, creatorNote, defaultRights, language, instanceRoot: INSTANCE_ROOT });
     fs.writeFileSync(path.join(METS_DIR, `${slug}.xml`), xml, 'utf8');
     written++;
     if (written % 10000 === 0) {
@@ -387,7 +473,7 @@ async function main() {
   }
 }
 
-module.exports = { buildMets, computeRights, metsSlug, readMetsConfig, DC_TYPE_MAP };
+module.exports = { buildMets, computeRights, catalogueLicenceText, metsSlug, readMetsConfig, DC_TYPE_MAP };
 
 if (require.main === module) {
   main().catch(err => {
@@ -396,4 +482,4 @@ if (require.main === module) {
   });
 }
 
-// Version: v1.3.0
+// Version: v1.6.0

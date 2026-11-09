@@ -25,10 +25,56 @@
  * undated ("Sin fecha") at the tail. Display still uses
  * `date_expression`; only the sort key changes.
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 // Main page logic — shard loading, role filters, description list with sort
+// label-map:start
+// A code → label map read from a data-*-labels attribute. The map has no
+// prototype, so a code such as "constructor" or "toString" finds no
+// inherited value and `labels[code] || code` falls back to the code. Only
+// string values are kept; a missing or malformed attribute gives an empty
+// map.
+function parseLabelMap(raw) {
+  var map = Object.create(null);
+  if (!raw) return map;
+  var parsed;
+  try { parsed = JSON.parse(raw); } catch (e) { return map; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return map;
+  Object.keys(parsed).forEach(function (key) {
+    if (typeof parsed[key] === 'string') map[key] = parsed[key];
+  });
+  return map;
+}
+// label-map:end
+
+// role-label-groups:start
+// Place-role codes are compared in lowercase everywhere: in the pills, the
+// filter and the label lookups, as in the vocab partial, which lowercases
+// the export's role codes. roleCode gives that form ('' for a link without
+// a role).
+function roleCode(role) {
+  return role ? String(role).toLowerCase() : '';
+}
+
+// The links grouped by the display label of their place role, so roles
+// that share a label (subject/mentioned) make one pill. Returns a map of
+// label → { roles, count } with no prototype, so a label or code such as
+// "constructor" is grouped like any other. A link without a role counts
+// as 'unknown'.
+function groupRolesByLabel(links, labels) {
+  var groups = Object.create(null);
+  for (var i = 0; i < links.length; i++) {
+    var r = roleCode(links[i].role) || 'unknown';
+    var label = labels[r] || r;
+    if (!groups[label]) groups[label] = { roles: [], count: 0 };
+    if (groups[label].roles.indexOf(r) === -1) groups[label].roles.push(r);
+    groups[label].count++;
+  }
+  return groups;
+}
+// role-label-groups:end
+
 (async function() {
   var timelineEl = document.getElementById('place-timeline');
   if (!timelineEl) return;
@@ -36,10 +82,10 @@
   var placeId = timelineEl.dataset.placeId;
   if (!placeId) return;
 
-  // Locale-aware formatters (read from <html lang>; fallback es-CO).
-  var locale = document.documentElement.lang || 'es-CO';
+  // Locale-aware formatters, in the language of <html lang>, which the
+  // layout always sets; 'en' covers a page without one.
+  var locale = document.documentElement.lang || 'en';
   var coll = new Intl.Collator(locale);
-  var monthFmt = new Intl.DateTimeFormat(locale, { month: 'long' });
   var noDateLabel = timelineEl.dataset.noDateLabel;
 
   // Client-i18n blob (shardError/filteredEmpty/selectedClose/dateConnector),
@@ -50,8 +96,7 @@
   // Place-role labels keyed by the raw role code, sourced from
   // ui.yaml.placeRoles via data-place-role-labels — drops the former inline
   // Spanish map so the vocab is single-sourced.
-  var placeRoleLabels = {};
-  try { placeRoleLabels = JSON.parse(timelineEl.dataset.placeRoleLabels || '{}'); } catch (e) { /* keep {} */ }
+  var placeRoleLabels = parseLabelMap(timelineEl.dataset.placeRoleLabels);
 
   var links;
   try {
@@ -99,14 +144,7 @@
     if (!filtersEl) return;
 
     // Group roles by display label so duplicates (e.g. subject/mentioned) merge into one pill
-    var labelGroups = {};
-    for (var i = 0; i < allLinks.length; i++) {
-      var r = allLinks[i].role || 'unknown';
-      var label = placeRoleLabels[r] || r;
-      if (!labelGroups[label]) labelGroups[label] = { roles: [], count: 0 };
-      if (labelGroups[label].roles.indexOf(r) === -1) labelGroups[label].roles.push(r);
-      labelGroups[label].count++;
-    }
+    var labelGroups = groupRolesByLabel(allLinks, placeRoleLabels);
 
     var labels = Object.keys(labelGroups).sort(function(a, b) {
       return labelGroups[b].count - labelGroups[a].count;
@@ -141,7 +179,7 @@
 
 function renderDescriptionList(container, links, activeRoles, sortMode) {
   var filtered = activeRoles && activeRoles.size > 0
-    ? links.filter(function(l) { return activeRoles.has(l.role || 'unknown'); })
+    ? links.filter(function(l) { return activeRoles.has(roleCode(l.role) || 'unknown'); })
     : links;
 
   if (!filtered || filtered.length === 0) {
@@ -215,7 +253,7 @@ function renderTimelineEntry(link, isLast, hideTrack) {
     html += '<div class="timeline-date">' + escapeHtml(formatDate(link.date_expression)) + '</div>';
   }
   if (link.role) {
-    var roleLabel = (typeof placeRoleLabels !== 'undefined' ? placeRoleLabels[link.role] : null) || link.role;
+    var roleLabel = (typeof placeRoleLabels !== 'undefined' ? placeRoleLabels[roleCode(link.role)] : null) || link.role;
     html += '<span class="timeline-role-badge">' + escapeHtml(roleLabel) + '</span>';
   }
   html += '<a href="/' + slug + '/" class="timeline-title">' + escapeHtml(link.title) + '</a>';
@@ -226,39 +264,47 @@ function renderTimelineEntry(link, isLast, hideTrack) {
   return html;
 }
 
+// Dates on the place timeline read as they do on the record and entity
+// pages: in the page's language, through narrativeDate below.
 function formatDate(dateStr) {
-  if (!dateStr) return '';
-
-  if (dateStr.indexOf(' .. ') !== -1) {
-    var parts = dateStr.split(' .. ');
-    return formatDate(parts[0]) + ' \u2013 ' + formatDate(parts[1]);
-  }
-
-  // Locale-aware date ordering (approved 2026-06-02): es keeps the Spanish
-  // "D de Month de YYYY" form glued with i18n.dateConnector (" de "); en (US)
-  // renders "Month D, YYYY". Branch on the locale read from <html lang>.
-  var isEs = locale.indexOf('es') === 0;
-  var conn = i18n.dateConnector;
-
-  var match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (match) {
-    var day = parseInt(match[3], 10);
-    var month = monthFmt.format(new Date(2000, parseInt(match[2], 10) - 1, 1));
-    return isEs
-      ? day + conn + month + conn + match[1]
-      : month + ' ' + day + ', ' + match[1];
-  }
-
-  var ymMatch = dateStr.match(/^(\d{4})-(\d{2})$/);
-  if (ymMatch) {
-    var m = monthFmt.format(new Date(2000, parseInt(ymMatch[2], 10) - 1, 1));
-    return isEs
-      ? m + conn + ymMatch[1]
-      : m + ' ' + ymMatch[1];
-  }
-
-  return dateStr;
+  return narrativeDate(dateStr, locale);
 }
+
+// narrative-date:start
+// Formats an archival date string ("1723-03-15", "1723-03", or a range
+// joined by " .. ") as prose in `locale`, with the month names and word
+// order Intl takes from CLDR: "15 de marzo de 1723" in es-CO, "March 15,
+// 1723" in en-US. The year is copied from the input so that years before
+// 1000 keep four digits. Anything else passes through unchanged. This
+// block is identical in entity.js, infinite-bipartite-explorer.js and
+// place.js, and matches scripts/enrichment/date-format.js; tests check all four.
+var _narrativeDateFmts = {};
+function narrativeDate(dateStr, locale) {
+  if (!dateStr) return '';
+  if (dateStr.indexOf(' .. ') !== -1) {
+    var range = dateStr.split(' .. ');
+    return narrativeDate(range[0], locale) + ' – ' + narrativeDate(range[1], locale);
+  }
+  var m = dateStr.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
+  if (!m) return dateStr;
+  var month = parseInt(m[2], 10);
+  var day = m[3] ? parseInt(m[3], 10) : 0;
+  if (month < 1 || month > 12) return dateStr;
+  // 2000 is a leap year, so 29 February is a valid stand-in date.
+  var date = new Date(Date.UTC(2000, month - 1, day || 1));
+  if (day && date.getUTCDate() !== day) return dateStr;
+  var key = (locale || '') + (day ? '|ymd' : '|ym');
+  if (!_narrativeDateFmts[key]) {
+    var opts = { timeZone: 'UTC', calendar: 'gregory', year: 'numeric', month: 'long' };
+    if (day) opts.day = 'numeric';
+    _narrativeDateFmts[key] = new Intl.DateTimeFormat(locale || undefined, opts);
+  }
+  var year = m[1];
+  return _narrativeDateFmts[key].formatToParts(date).map(function (p) {
+    return p.type === 'year' ? year : p.value;
+  }).join('');
+}
+// narrative-date:end
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -306,12 +352,14 @@ function escapeHtml(str) {
       renderWorldCopies: false
     });
 
-    // Burgundy dot marker
+    // Dot marker in the theme's map-marker colour (theme-colors.js; the
+    // grey stands in if a layout omits that script)
+    var markerColor = window.zasquaThemeColor ? window.zasquaThemeColor('map-marker') : '#888';
     var markerEl = document.createElement('div');
     markerEl.style.width = '12px';
     markerEl.style.height = '12px';
     markerEl.style.borderRadius = '50%';
-    markerEl.style.backgroundColor = '#8B2942';
+    markerEl.style.backgroundColor = markerColor;
     markerEl.style.border = '2px solid #FFFFFF';
     markerEl.style.cursor = 'pointer';
 
@@ -377,4 +425,4 @@ function escapeHtml(str) {
   }
 })();
 
-// Version: v1.4.0
+// Version: v1.6.0

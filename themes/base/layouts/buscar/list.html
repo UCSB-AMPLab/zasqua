@@ -12,7 +12,12 @@
   'series', etc.); values are the language-appropriate display labels.
   search.js resolves facet bucket labels from this blob.
 
-  data-facet-labels: remains sourced from ui.yaml facets (unchanged).
+  data-level-order: the `level_order` list of the ISAD(G) profile, level
+  codes in hierarchy order. search.js sorts the level facet by it.
+
+  data-facet-labels: the facet headings from the i18n [facets] table, in
+  the site's language, keyed as before (repository, level, dateRange,
+  hasDigital, country).
 
   The single data-i18n blob is built by merging the shared chrome dict
   (from _partials/i18n-blob.html — clearFilters, noResults, viewAll,
@@ -22,20 +27,30 @@
   reads every string from this single-source blob with no Spanish
   fallback; Spanish lives only in es.toml, mirrored in en.toml.
 
+  data-logo: site.Params.logo, when set. search.js shows it above the
+  landing prompt and leaves the image out when the attribute is absent.
+
   The analytics beacon is sent conditionally: when site.Params.beacon_url
   is set in hugo.toml, the inline IIFE fires navigator.sendBeacon with
   the search query; when the param is absent the beacon is omitted. No
   literal infrastructure URL lives in this engine file.
 
-  Version: v3.1.0
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
 {{ $i18n := partial "i18n-blob.html" . }}
+{{ $facetLabels := dict
+  "repository" (i18n "facets.repository")
+  "level"      (i18n "facets.level")
+  "dateRange"  (i18n "facets.dateRange")
+  "hasDigital" (i18n "facets.hasDigital")
+  "country"    (i18n "facets.country")
+}}
 {{ $i18n = merge $i18n (dict
   "loadingFilters"       (i18n "search.loadingFilters")
   "filterToggle"         (i18n "search.filterToggle")
-  "landingP1"            (i18n "search.landingP1")
+  "landingP1"            (i18n "search.landingP1" (dict "Site" site.Title))
   "landingP2"            (i18n "search.landingP2")
   "browsePromptCount"    (i18n "search.browsePromptCount")
   "browsePromptHint"     (i18n "ui.browsePromptHint")
@@ -59,10 +74,10 @@
   "facetLevel"           (i18n "facets.level")
   "searchRetry"          (i18n "search.retry")
   "digitalStatusGroup"   (i18n "search.digitalStatus.group")
-  "digitalStatusInZasqua" (i18n "search.digitalStatus.inZasqua")
+  "digitalStatusHosted"  (i18n "search.digitalStatus.hosted" (dict "Site" site.Title))
   "digitalStatusExternal" (i18n "search.digitalStatus.external")
   "digitalStatusNone"    (i18n "search.digitalStatus.none")
-  "digitalPillInZasqua"  (i18n "search.digitalStatusPill.inZasqua")
+  "digitalPillHosted"    (i18n "search.digitalStatusPill.hosted" (dict "Site" site.Title))
   "digitalPillExternal"  (i18n "search.digitalStatusPill.external")
   "digitalPillNone"      (i18n "search.digitalStatusPill.none")
   "sortTitle"            (i18n "search.sort.title")
@@ -76,9 +91,11 @@
 {{ $defaultProfile := partial "resolve-profile.html" (dict "Params" (dict "repository" (dict))) }}
 <div class="container font-sans">
   <div id="search-page"
-       {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levels) | safeHTMLAttr }}
-       {{ printf `data-facet-labels='%s'` (jsonify hugo.Data.ui.facets) | safeHTMLAttr }}
-       {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}>
+       {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levels | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+       {{ printf `data-level-order='%s'` (jsonify (index hugo.Data.standards.isadg "level_order") | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+       {{ printf `data-facet-labels='%s'` (jsonify $facetLabels | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+       {{ printf `data-i18n='%s'` (jsonify $i18n | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+       {{ with site.Params.logo }}data-logo="{{ . }}"{{ end }}>
   </div>
 </div>
 
@@ -92,4 +109,4 @@
 </script>
 {{ end }}
 {{ end }}
-{{/* Version: v3.1.0 */}}
+{{/* Version: v1.6.0 */}}

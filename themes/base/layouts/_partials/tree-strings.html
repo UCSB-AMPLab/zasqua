@@ -1,0 +1,49 @@
+{{/*
+  Collection-tree strings — _partials/tree-strings.html
+
+  Writes the strings and level labels that tree.js (the Miller-column
+  collection tree) needs as one JSON block in the page, on the pages that
+  show the tree: a repository landing page and a description page that has
+  children. The script reads the block with the id `tree-strings`.
+
+  The block holds three things: the interface strings (`i18n`), the
+  lowercase plural level labels (`levelsPlural`) and the lowercase singular
+  level labels (`levelsSingular`), both taken from the active standards
+  profile, so the child count under an item reads "1 file" or "12 files" in
+  the profile's own terms. A profile without `levelsSingular`, such as a copy
+  made for an earlier release, falls back to its `levels` label in lowercase.
+
+  base/baseof.html calls this partial so that a site template that replaces
+  the repository or description layout still gets the strings, without
+  having to pass them itself.
+
+  Version: v1.6.0
+*/}}
+{{ if and (eq .Kind "page") (or (eq .Section "repository") .Params.has_children) }}
+  {{ $profile := partial "resolve-profile.html" . }}
+  {{ $plural := $profile.levelsPlural | default dict }}
+  {{ $levels := $profile.levels | default dict }}
+  {{ $given := $profile.levelsSingular | default dict }}
+  {{ $singular := dict }}
+  {{ range $key, $_ := $plural }}
+    {{ $label := index $given $key }}
+    {{ if not $label }}
+      {{ with index $levels $key }}{{ $label = lower . }}{{ end }}
+    {{ end }}
+    {{ if $label }}
+      {{ $singular = merge $singular (dict $key $label) }}
+    {{ end }}
+  {{ end }}
+  {{ $strings := dict
+    "i18n" (dict
+      "contentLabel"      (i18n "tree.contentLabel")
+      "filterPlaceholder" (i18n "tree.filterPlaceholder")
+      "viewRecord"        (i18n "tree.viewRecord")
+      "childUnit"         (dict "one" (i18n "tree.childUnit" 1) "other" (i18n "tree.childUnit" 2))
+    )
+    "levelsPlural"   $plural
+    "levelsSingular" $singular
+  }}
+  <script type="application/json" id="tree-strings">{{ jsonify $strings | safeJS }}</script>
+{{ end }}
+{{/* Version: v1.6.0 */}}

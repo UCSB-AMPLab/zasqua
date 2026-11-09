@@ -7,8 +7,8 @@
   citation examples, technology stack, accessibility, privacy, license,
   and contact are all institution-specific prose, authored as markdown by
   the deployer, NOT engine chrome. This template therefore carries no
-  hardcoded prose and no i18n chrome lookups; it only supplies the page
-  title, an optional logo, and the rendered .Content.
+  hardcoded prose of its own; it supplies the page title, the rendered
+  .Content, the publisher block and the engine section (below).
 
   Dynamic values (version, year) come from the version/year shortcodes
   used in the markdown, so the content stays static-author-friendly and a
@@ -18,12 +18,35 @@
   Prose styling: the article carries the .colofon-prose class; the base
   stylesheet (assets/css/base.css) defines the matching heading / body /
   link / list / blockquote rules (font-display headings with a bottom
-  border, font-serif body, burgundy underlined links, burgundy-left-border
+  border, font-serif body, primary-colour underlined links, primary-colour left-border
   italic blockquotes) so markdown-rendered HTML matches the prior design.
 
-  site.Params.logo — optional logo image rendered above the content.
+  The engine draws no mark above the site's text; a site that wants one
+  puts it in its Markdown.
 
-  Version: v3.0.0
+  After .Content the template renders the publisher block, built from
+  publisher.json (partial publisher.html) and repositories.json. Sections,
+  in order: publisher, credits, represented archives, how to cite,
+  license, privacy and data, takedown policy, contact. The block renders
+  only when the export has a publisher.json (a site without one keeps its
+  hand-written colophon unchanged), and each section is omitted when its
+  fields are empty. Bilingual prose goes through lang-field.html and
+  markdown-prose.html (Markdown, raw HTML escaped; wrapped in an element
+  with lang when the other language is shown).
+
+  The page always ends with the engine section (<section id="zasqua">):
+  the engine's mark, a heading and a paragraph naming the engine version
+  (hugo.Data.engine.version) with links to the engine's source and to its
+  developers. It sits outside the publisher block, so a site without a
+  publisher.json has it too; the mark beside the footer's credit is a link to #zasqua.
+
+  The site citation template (citation_template.site) is Markdown. It is
+  filled with {site} = site.Title, {url} = site.BaseURL, {year} = the
+  current year and {version} = site.Params.version; other placeholders are
+  left as written. The template is rendered by citation.html, which fills the
+  values after rendering, so a site title with asterisks shows as written.
+
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ .Title }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
@@ -32,12 +55,123 @@
     <article class="colofon colofon-prose max-w-3xl mx-auto">
 
       <h1 class="font-display text-stone-900 text-4xl font-normal mb-6">{{ .Title }}</h1>
-      {{ with site.Params.logo }}<img src="{{ . }}" alt="{{ site.Title }}" class="block max-w-[200px] mx-auto pb-8">{{ end }}
 
       {{ .Content }}
+
+      {{- $pub := partial "publisher.html" . -}}
+      {{- if $pub -}}
+      {{- $repos := slice -}}
+      {{- with resources.Get "hugo-data/repositories.json" -}}
+        {{- $repos = sort (. | transform.Unmarshal) "name" -}}
+      {{- end -}}
+
+      {{- $hasPublisher := false -}}
+      {{- range $k := slice "legal_name" "tax_id" "location" "website" "email" "logo_url" -}}
+        {{- if index $pub $k -}}{{- $hasPublisher = true -}}{{- end -}}
+      {{- end -}}
+      {{- $desc := partial "lang-field.html" $pub.description -}}
+      {{- if $desc.text -}}{{- $hasPublisher = true -}}{{- end -}}
+      {{- if $hasPublisher }}
+      <h2>{{ i18n "colophon.publisherHeader" }}</h2>
+      {{ with $pub.logo_url }}<img src="{{ . }}" alt="{{ $pub.display_name | default $pub.legal_name }}" class="block max-w-[160px] mb-4">{{ end }}
+      {{- $idLine := slice -}}
+      {{- with $pub.tax_id }}{{ $idLine = $idLine | append (. | htmlEscape) }}{{ end -}}
+      {{- with $pub.location }}{{ $idLine = $idLine | append (. | htmlEscape) }}{{ end -}}
+      {{- $linkLine := slice -}}
+      {{- /* Only an http(s) address becomes a link (web-url.html); the line is marked safe below. */ -}}
+      {{- with partial "web-url.html" $pub.website }}{{ $linkLine = $linkLine | append (printf `<a href="%s" target="_blank" rel="noopener">%s</a>` (. | htmlEscape) ((urls.Parse .).Host | default . | strings.TrimPrefix "www." | htmlEscape)) }}{{ end -}}
+      {{- with $pub.email }}{{ $linkLine = $linkLine | append (printf `<a href="mailto:%s">%s</a>` (. | htmlEscape) (. | htmlEscape)) }}{{ end }}
+      <p>{{ with $pub.legal_name }}<strong>{{ . }}</strong>{{ end }}{{ with $idLine }}{{ if $pub.legal_name }}<br>{{ end }}{{ delimit . " · " | safeHTML }}{{ end }}{{ with $linkLine }}{{ if or $pub.legal_name $idLine }}<br>{{ end }}{{ delimit . " · " | safeHTML }}{{ end }}</p>
+      {{ partial "markdown-prose.html" $desc }}
+      {{ end }}
+
+      {{- with $pub.credits }}
+      <h2>{{ i18n "colophon.creditsHeader" }}</h2>
+      <ul>
+        {{ range . }}
+        <li>{{ if .url }}<a href="{{ .url }}" target="_blank" rel="noopener">{{ .name }}</a>{{ else }}{{ .name }}{{ end }}{{ with .role }} · {{ i18n (printf "colophon.creditRole.%s" .) }}{{ end }}</li>
+        {{ end }}
+      </ul>
+      {{ end }}
+
+      {{- with $repos }}
+      <h2>{{ i18n "colophon.archivesHeader" }}</h2>
+      <ul>
+        {{ range . }}
+        {{- $contact := .contact | default dict -}}
+        {{- $city := $contact.city | default .city -}}
+        {{- $country := $contact.country | default .country -}}
+        {{- $parts := slice -}}
+        {{- with $city }}{{ $parts = $parts | append . }}{{ end -}}
+        {{- with $country }}{{ $parts = $parts | append . }}{{ end -}}
+        {{- $place := delimit $parts ", " -}}
+        <li><a href="/{{ .code }}/">{{ .name }}</a>{{ with $place }} — {{ . }}{{ end }}</li>
+        {{ end }}
+      </ul>
+      {{ end }}
+
+      {{- $cite := partial "lang-field.html" ((index $pub "citation_template" | default dict).site) -}}
+      {{- if $cite.text }}
+      {{- $c := partial "citation.html" (dict "text" $cite.text "vals" (dict
+            "site" site.Title
+            "url" site.BaseURL
+            "year" (now.Format "2006")
+            "version" (site.Params.version | default "" | string))) -}}
+      <h2>{{ i18n "colophon.citeHeader" }}</h2>
+      {{- $out := cond $c.block $c.html (printf "<p>%s</p>" $c.html) }}
+      {{ if $cite.lang }}<div lang="{{ $cite.lang }}">{{ $out | safeHTML }}</div>{{ else }}{{ $out | safeHTML }}{{ end }}
+      {{ end }}
+
+      {{- $terms := partial "lang-field.html" $pub.terms_of_use -}}
+      {{- $licensed := slice -}}
+      {{- range $r := $repos -}}
+        {{- with $r.catalogue_licence -}}
+          {{- $label := partial "lang-field.html" .label -}}
+          {{- if $label.text -}}
+            {{- $licensed = $licensed | append (dict "repo" $r.name "label" $label "uri" .uri) -}}
+          {{- end -}}
+        {{- end -}}
+      {{- end -}}
+      {{- if or $terms.text $licensed }}
+      <h2>{{ i18n "colophon.licenseHeader" }}</h2>
+      {{ partial "markdown-prose.html" $terms }}
+      {{ with $licensed }}
+      <ul>
+        {{ range . }}
+        <li>{{ .repo }}: {{ if .label.lang }}<span lang="{{ .label.lang }}">{{ end }}{{ if .uri }}<a href="{{ .uri }}" target="_blank" rel="noopener">{{ .label.text }}</a>{{ else }}{{ .label.text }}{{ end }}{{ if .label.lang }}</span>{{ end }}</li>
+        {{ end }}
+      </ul>
+      {{ end }}
+      {{ end }}
+
+      {{- $privacy := partial "lang-field.html" $pub.privacy -}}
+      {{- if $privacy.text }}
+      <h2>{{ i18n "colophon.privacyHeader" }}</h2>
+      {{ partial "markdown-prose.html" $privacy }}
+      {{ end }}
+
+      {{- $takedown := partial "lang-field.html" $pub.takedown -}}
+      {{- if $takedown.text }}
+      <h2>{{ i18n "colophon.takedownHeader" }}</h2>
+      {{ partial "markdown-prose.html" $takedown }}
+      {{ end }}
+
+      {{- with $pub.email }}
+      <h2>{{ i18n "colophon.contactHeader" }}</h2>
+      <p><a href="mailto:{{ . }}">{{ . }}</a></p>
+      {{ end }}
+      {{- end }}
+
+      <section id="zasqua" class="colofon-engine">
+        <img src="/img/zasqua-engine/mark.svg" alt="" class="colofon-engine-mark" width="128" height="128">
+        <div class="colofon-engine-body">
+          <h2>{{ i18n "colophon.engineHeader" }}</h2>
+          <p>{{ i18n "colophon.engineText" (dict "Version" hugo.Data.engine.version "SourceURL" "https://github.com/UCSB-AMPLab/zasqua" "LabURL" "https://ampl.clair.ucsb.edu") | safeHTML }}</p>
+        </div>
+      </section>
 
     </article>
   </div>
 </section>
 {{ end }}
-{{/* Version: v3.0.0 */}}
+{{/* Version: v1.6.0 */}}

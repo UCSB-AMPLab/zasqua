@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ucsb-amplab.github.io/zasqua/schemas/v1.1/publisher.schema.json",
+  "x-contract-version": "1.1",
+  "title": "Zasqua publisher.json — Data Contract v1.1",
+  "description": "JSON Schema draft-07 for the optional publisher file: the institution that publishes the site, its texts and its credits. Field meanings are in docs/data-contract.md.",
+  "definitions": {
+    "bilingual": {
+      "type": "object",
+      "description": "Text in each language, keyed by language code (es, en). A member may be null; the field counts as empty when every member is.",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  },
+  "type": "object",
+  "properties": {
+    "federation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "legal_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "display_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tax_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "location": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "website": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "email": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "logo_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "description": {
+      "$ref": "#/definitions/bilingual"
+    },
+    "terms_of_use": {
+      "$ref": "#/definitions/bilingual"
+    },
+    "privacy": {
+      "$ref": "#/definitions/bilingual"
+    },
+    "takedown": {
+      "$ref": "#/definitions/bilingual"
+    },
+    "citation_template": {
+      "type": "object",
+      "properties": {
+        "site": {
+          "$ref": "#/definitions/bilingual"
+        },
+        "record": {
+          "$ref": "#/definitions/bilingual"
+        }
+      }
+    },
+    "credits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "role"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "partner",
+              "funder",
+              "developer",
+              "host"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

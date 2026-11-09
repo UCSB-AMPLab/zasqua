@@ -2,7 +2,7 @@
  * Ancestor Chain Builder
  *
  * This module deals with walking the archival hierarchy upwards. A
- * description like `co-ahr-0001-item-042` sits at the bottom of a chain —
+ * description like `xx-arch-001-d042` (an example code) sits at the bottom of a chain —
  * item inside a file inside a series inside a fonds. To render a
  * breadcrumb the frontend needs the full chain, oldest to youngest. The
  * loader used to do this walk on every page render; this module does it
@@ -20,7 +20,7 @@
  * upstream. 20 is a comfortable ceiling;
  * real archival hierarchies rarely exceed 6 levels.
  *
- * @version v1.0.0
+ * @version v1.6.0
  */
 
 'use strict';
@@ -49,3 +49,5 @@ function buildAncestorChain(desc, byRefCode) {
 }
 
 module.exports = { buildAncestorChain };
+
+// Version: v1.6.0

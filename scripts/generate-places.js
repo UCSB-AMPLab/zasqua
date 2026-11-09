@@ -41,11 +41,19 @@
  * and the run continues. So is a record whose filename is already taken by
  * an earlier record, or would be index.json.
  *
+ * Before writing, the run removes the earlier `*.json` files directly inside
+ * PLACES_DIR (other extensions and subdirectories stay) and logs how many it removed,
+ * so a record dropped from the input does not leave its file behind. The removal
+ * happens after the inputs are read and checked, so a run that fails early leaves
+ * the previous output in place.
+ *
  * Reads:
  *   exports/places.json         — the place contract (one object per place)
+ *   exports/vocabulary.json     — place-type terms (optional; see placeTypeTerms)
  *   exports/place_links.json    — place mentions in descriptions (optional)
  *   exports/descriptions.json   — the descriptions, for their dates (optional)
  *   hugo.toml                   — site and places config (see readPlacesConfig)
+ *   zasqua.manifest.toml        — the site language, for vocabulary labels
  * Writes:
  *   {PLACES_DIR}/{slug}.json    — one LPF FeatureCollection per place
  *     (slug = place_code with ?, # and / stripped)
@@ -59,7 +67,7 @@
  *   DATA_DIR       — override the default exports directory (absolute path).
  *   PLACES_DIR     — override the default public/places output directory.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 const fs = require('fs');
@@ -67,6 +75,9 @@ const path = require('path');
 const { parse: parseToml } = require('smol-toml');
 const { isUnderDir } = require('../lib/under-dir');
 const { descriptionYearRange } = require('../lib/year-range');
+const { pickLang } = require('../lib/publisher');
+const { siteLanguage } = require('../lib/site-language');
+const { loadManifest } = require('../lib/manifest');
 
 const INSTANCE_ROOT = process.env.INSTANCE_ROOT || process.cwd();
 const DATA_DIR = process.env.DATA_DIR || path.join(INSTANCE_ROOT, 'exports');
@@ -101,9 +112,18 @@ const isBlank = (v) => {
 // ---------------------------------------------------------------------------
 // Feature types and authority links
 //
-// PLACE_TYPE_AAT maps the contract's place_type to a Getty AAT concept for
-// LPF's types member. A place_type not in the map (blank, "other", or any
-// unmapped value) leaves types out rather than guessing.
+// A place_type's term for LPF's types member comes from vocabulary.json
+// when the export carries one: a place_types entry whose external.uri is an
+// http(s) URI gives the identifier, and external.label, else the entry's
+// bilingual label in the site language, gives the label (see
+// placeTypeTerms). LPF's type objects have no member for external.scheme,
+// so it is not written.
+//
+// PLACE_TYPE_AAT is the fallback for a place_type the vocabulary gives no
+// usable external term, and for an export without vocabulary.json: it maps
+// the place_type to a Getty AAT concept. A place_type found in neither
+// (blank, "other", or any unmapped value) leaves types out rather than
+// guessing.
 //
 // PLACE_LINKS lists, in output order, the authority ids that become
 // closeMatch links, each with the pattern its id must match and the URL it
@@ -116,6 +136,52 @@ const PLACE_TYPE_AAT = {
   river: { identifier: 'http://vocab.getty.edu/aat/300008707', label: 'rivers' },
   region: { identifier: 'http://vocab.getty.edu/aat/300182722', label: 'regions (geographic)' },
 };
+
+// Only an absolute http(s) URI with a host is taken from the vocabulary as a
+// type identifier: it must start with http:// or https://, parse as a URL,
+// and name a non-empty hostname. Anything else (javascript:, data:, a
+// relative path, "https://#", "http:/x") counts as absent.
+function isHttpUri(value) {
+  // The URI is written to the output as given, so it must already be a
+  // well-formed absolute URI: no whitespace or control characters.
+  if (!/^https?:\/\/[^\s\u0000-\u001f\u007f]+$/i.test(value)) return false;
+  let url;
+  try {
+    url = new URL(value);
+  } catch (err) {
+    return false;
+  }
+  return (url.protocol === 'http:' || url.protocol === 'https:') && url.hostname !== '';
+}
+
+/**
+ * The place-type terms vocabulary.json defines, keyed by lower-cased code.
+ * An entry without an `external` member, or whose external.uri is not an
+ * http(s) URI with a host and no whitespace (isHttpUri), is left out, so
+ * the code falls back to PLACE_TYPE_AAT. The
+ * label is external.label, else the entry's bilingual label resolved for
+ * `lang` by pickLang, else the code.
+ *
+ * @param {object|null} vocabulary — the parsed vocabulary.json, or null
+ * @param {string} lang — the site's base language subtag (es, en)
+ * @returns {Map<string, {identifier: string, label: string}>}
+ */
+function placeTypeTerms(vocabulary, lang) {
+  const terms = new Map();
+  const entries = vocabulary && Array.isArray(vocabulary.place_types) ? vocabulary.place_types : [];
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object' || isBlank(entry.code)) continue;
+    const external = entry.external;
+    if (!external || typeof external !== 'object') continue;
+    const uri = typeof external.uri === 'string' ? external.uri.trim() : '';
+    if (!isHttpUri(uri)) continue;
+    const code = String(entry.code).trim().toLowerCase();
+    const label = (typeof external.label === 'string' ? external.label.trim() : '')
+      || pickLang(entry.label, lang) || String(entry.code).trim();
+    terms.set(code, { identifier: uri, label });
+  }
+  return terms;
+}
 
 const PLACE_LINKS = [
   { field: 'whg_id', pattern: /^\d+$/, href: id => `https://whgazetteer.org/places/${id}/detail` },
@@ -215,11 +281,13 @@ function buildLinks(input, code) {
  *
  * @param {object} input - one record from the place contract
  * @param {{siteBaseUrl?: string, siteTitle?: string, language?: string|null,
- *   attested?: {start: string, end: string, count: number}}} [opts]
+ *   attested?: {start: string, end: string, count: number},
+ *   placeTypes?: Map<string, {identifier: string, label: string}>}} [opts]
  *   siteBaseUrl falls back to '/' and siteTitle to 'Zasqua' when unset or
  *   empty; lang is emitted on the name only when language is set; attested
  *   (one entry of attestedYears) becomes when, with end omitted when it
- *   equals start
+ *   equals start; placeTypes (from placeTypeTerms) gives the type term for
+ *   a place_type before PLACE_TYPE_AAT is consulted
  * @returns {object} the Feature
  */
 function buildPlaceFeature(input, opts = {}) {
@@ -254,7 +322,10 @@ function buildPlaceFeature(input, opts = {}) {
   const names = [name, ...buildFurtherNames(input, title, lang, code)];
 
   const type = typeof input.place_type === 'string' ? input.place_type.trim().toLowerCase() : '';
-  const types = Object.prototype.hasOwnProperty.call(PLACE_TYPE_AAT, type) ? [{ ...PLACE_TYPE_AAT[type] }] : null;
+  const vocabTerm = opts.placeTypes instanceof Map ? opts.placeTypes.get(type) : undefined;
+  let types = null;
+  if (vocabTerm) types = [{ ...vocabTerm }];
+  else if (Object.prototype.hasOwnProperty.call(PLACE_TYPE_AAT, type)) types = [{ ...PLACE_TYPE_AAT[type] }];
   const links = buildLinks(input, code);
 
   const feature = {
@@ -452,6 +523,38 @@ function planPlaceRecord(place, slugOwners) {
   return { write: true, code, slug };
 }
 
+/**
+ * Remove the `.json` files directly inside `dir` and return how many were
+ * removed. Each run writes the whole set again, so a file left from an
+ * earlier run would otherwise stay behind for a record that is no longer in
+ * the input. Only regular files with this extension are touched: other
+ * extensions and subdirectories are left alone, and a missing directory
+ * counts as empty.
+ */
+function clearOutputDir(dir) {
+  // The output directory must be the generator's own. Clearing the site root
+  // or public/ itself would take the build's sitemap and index files with it.
+  const resolved = path.resolve(dir);
+  if (resolved === path.resolve(INSTANCE_ROOT) || resolved === path.resolve(INSTANCE_ROOT, 'public')) {
+    throw new Error(`[generate-places] refusing to clear ${resolved}: set the output directory to a folder of its own`);
+  }
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return 0;
+    throw err;
+  }
+  let removed = 0;
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith('.json')) {
+      fs.unlinkSync(path.join(dir, entry.name));
+      removed++;
+    }
+  }
+  return removed;
+}
+
 // ---------------------------------------------------------------------------
 // Entry point: read the place contract, write one LPF file per place and the
 // corpus index.json.
@@ -475,7 +578,7 @@ function readJson(file) {
 }
 
 // The description fields attestedYears reads. descriptions.json is the
-// largest export (over 200 MB on the Neogranadina catalogue), so once it is
+// largest export (over 200 MB on a large catalogue), so once it is
 // parsed each record is reduced to these keys and the full records are left
 // for the garbage collector, rather than kept resident for the whole run.
 // (A JSON.parse reviver that drops the other keys was measured and rejected:
@@ -501,6 +604,41 @@ function readDescriptionDates(file) {
     }
     return slim;
   });
+}
+
+/**
+ * The place-type terms of the export's vocabulary.json, resolved for the
+ * site's language (the base subtag of `[ui] language` in
+ * zasqua.manifest.toml). An export without the file yields an empty map, so
+ * every type comes from PLACE_TYPE_AAT. A file that cannot be parsed is
+ * reported with a warning and treated as absent; `zasqua validate` reports
+ * it as an error.
+ *
+ * @param {string} dataDir — the exports directory
+ * @param {string} instanceRoot — the instance directory
+ * @returns {Map<string, {identifier: string, label: string}>}
+ */
+function readPlaceTypeTerms(dataDir, instanceRoot) {
+  const file = path.join(dataDir, 'vocabulary.json');
+  if (!fs.existsSync(file)) return new Map();
+  let vocabulary;
+  try {
+    vocabulary = readJson(file);
+  } catch (err) {
+    console.warn(`[generate-places] WARN: could not read ${file} (${err.message}); using the bundled place types`);
+    return new Map();
+  }
+  let lang = siteLanguage().base;
+  try {
+    if (fs.existsSync(path.join(instanceRoot, 'zasqua.manifest.toml'))) {
+      lang = siteLanguage(loadManifest(instanceRoot)).base;
+    }
+  } catch (err) {
+    console.warn(`[generate-places] WARN: could not read the site language (${err.message}); using "${lang}"`);
+  }
+  const terms = placeTypeTerms(vocabulary, lang);
+  console.log(`[generate-places] vocabulary.json: ${terms.size} place type term${terms.size === 1 ? '' : 's'}`);
+  return terms;
 }
 
 async function main() {
@@ -529,6 +667,7 @@ async function main() {
   }
 
   const { siteBaseUrl, siteTitle, language, placesBaseUrl } = readPlacesConfig(INSTANCE_ROOT);
+  const placeTypes = readPlaceTypeTerms(DATA_DIR, INSTANCE_ROOT);
 
   // If places_base_url names another host (an absolute URL) but the records
   // are written under the rendered site tree (public/), they would be served
@@ -554,7 +693,11 @@ async function main() {
     );
   }
 
+  // Inputs are read and checked by now, so a run that failed earlier has not
+  // emptied the directory. Clear the previous output before writing the new.
   fs.mkdirSync(PLACES_DIR, { recursive: true });
+  const removed = clearOutputDir(PLACES_DIR);
+  console.log(`[generate-places] Removed ${removed} json file${removed === 1 ? '' : 's'} from ${PLACES_DIR} before writing`);
 
   const slugOwners = new Map();
   // index.json is the corpus for bulk ingest, so it holds only the features
@@ -575,7 +718,7 @@ async function main() {
     const code = isBlank(record.place_code) ? '(no place_code)' : String(record.place_code).trim();
     let feature;
     try {
-      feature = buildPlaceFeature(record, { siteBaseUrl, siteTitle, language, attested: years.get(code) });
+      feature = buildPlaceFeature(record, { siteBaseUrl, siteTitle, language, placeTypes, attested: years.get(code) });
     } catch (err) {
       // buildPlaceFeature messages start "[generate-places] <trimmed
       // place_code>: " (or "(no place_code): "); drop that literal prefix so
@@ -613,7 +756,7 @@ async function main() {
 }
 
 module.exports = {
-  buildPlaceFeature, FCLASSES, LPF_CONTEXT, PLACE_TYPE_AAT, PLACE_LINKS,
+  buildPlaceFeature, FCLASSES, LPF_CONTEXT, PLACE_TYPE_AAT, PLACE_LINKS, placeTypeTerms, readPlaceTypeTerms,
   attestedYears, buildFeatureCollection, serialize, readPlacesConfig, placesSlug, planPlaceRecord,
   isUnderPublic, readDescriptionDates,
 };
@@ -625,4 +768,4 @@ if (require.main === module) {
   });
 }
 
-// Version: v1.5.0
+// Version: v1.6.0

@@ -13,7 +13,7 @@
   manifest [ui].language setting, so the same template renders in
   English or Colombian Spanish without any hardcoded prose.
 
-  Version: v1.1.0
+  Version: v1.6.0
 */}}
 {{ define "title" }}{{ i18n "error404.title" }} | {{ site.Title }}{{ end }}
 {{ define "main" }}
@@ -22,10 +22,10 @@
     <h1 class="section-title font-display text-stone-900">{{ i18n "error404.title" }}</h1>
     <p class="error-message text-stone-500">{{ i18n "error404.message" }}</p>
     <div class="error-actions">
-      <a href="/" class="btn btn-primary btn-pill bg-burgundy-deep text-white hover:bg-burgundy">{{ i18n "error404.home" }}</a>
+      <a href="/" class="btn btn-primary btn-pill bg-primary-deep text-white hover:bg-primary">{{ i18n "error404.home" }}</a>
       <a href="/buscar/" class="btn btn-secondary btn-pill">{{ i18n "error404.search" }}</a>
     </div>
   </div>
 </section>
 {{ end }}
-{{/* Version: v1.1.0 */}}
+{{/* Version: v1.6.0 */}}

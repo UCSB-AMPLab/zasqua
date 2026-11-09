@@ -30,8 +30,12 @@
  * one choice (or none) is dead weight in the UI. The same suppressed keys
  * are excluded from the pivot and triple sidecars. A `[facets] force_keep`
  * list in zasqua.manifest.toml can re-include a suppressed key for deployers
- * who intentionally run a single-valued facet. On the Neogranadina corpus
+ * who intentionally run a single-valued facet. In a typical corpus
  * every facet has multiple distinct values so nothing is suppressed.
+ *
+ * Language: every record goes into the index in the site's language,
+ * the base subtag of the manifest's `[ui] language` (`es` for `es-CO`),
+ * so Pagefind applies that language's word stemming.
  *
  * Module gating: the entities and places index builds are gated on
  * `manifest.modules.entities` and `manifest.modules.places` respectively.
@@ -69,7 +73,7 @@
  * (or process.cwd() as a fallback) rather than from the script's own
  * location.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 'use strict';
@@ -78,7 +82,8 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { loadManifest } = require('../lib/manifest');
-const { descriptionYearRange } = require('../lib/year-range');
+const { siteLanguage } = require('../lib/site-language');
+const { descriptionYearRange, contractYear } = require('../lib/year-range');
 
 const INSTANCE_ROOT = process.env.INSTANCE_ROOT || process.cwd();
 // PROJECT_ROOT is the base used only to render readable relative paths in
@@ -148,21 +153,19 @@ function decadesInRange(startYear, endYear) {
 // no inline label map needed. Display labels resolve client-side via the
 // data-level-labels blob injected by buscar/list.html from the active standard profile.
 
-// Display-name overrides for repositories whose upstream `name`/`short_name`
-// in exports/repositories.json is unsuitable for user-facing facet display.
-// Preferred over `short_name` (too abbreviated, e.g. "CIHJML") and the raw
-// `name` (sometimes ends with institutional affiliation instead of city).
-// The upstream source of truth should be corrected when possible; this map
-// is the bridge until that happens.
-const REPO_NAME_OVERRIDES = {
-  'co-cihjml': 'Centro de Investigaciones Históricas José María Arboleda Llorente, Popayán',
-};
-
+// The repository's name in the search facet and result metadata comes from
+// its record in repositories.json, attached to each description as
+// r.repository: display_title, then short_name, then name, then the
+// repository code. An empty or non-string value at any step passes to the
+// next.
 function repoDisplayName(r) {
+  const repo = (r && r.repository) || {};
+  const plain = (v) => (typeof v === 'string' ? v.trim() : '');
   return (
-    REPO_NAME_OVERRIDES[r.repository_code] ||
-    (r.repository && (r.repository.short_name || r.repository.name)) ||
-    r.repository_code ||
+    plain(repo.display_title) ||
+    plain(repo.short_name) ||
+    plain(repo.name) ||
+    (r && r.repository_code) ||
     ''
   );
 }
@@ -370,7 +373,7 @@ function tallyCorpusTriples(filters, triples, keys) {
 // (from manifest.facets.force_keep). A suppressed key is completely absent
 // from the output — not present as an empty object.
 //
-// On the Neogranadina corpus all facets are multi-valued so the function
+// In a typical corpus all facets are multi-valued so the function
 // returns the tally unchanged.
 // ---------------------------------------------------------------------------
 
@@ -397,6 +400,17 @@ function suppressSingleValuedFacets(tally, forceKeep) {
   return result;
 }
 
+/**
+ * The Pagefind language for every index: the base subtag of the site's
+ * `[ui] language` (`es` for `es-CO`). Pagefind chooses its stemmer from it.
+ *
+ * @param {object} manifest — the object returned by loadManifest
+ * @returns {string}
+ */
+function indexLanguage(manifest) {
+  return siteLanguage(manifest).base;
+}
+
 const FIELD_MAP = {
   // ENTITIES — strict parity with layouts/entidad/single.html.
   entities: {
@@ -404,7 +418,6 @@ const FIELD_MAP = {
     // Search-ranking text: display name plus any name variants so a
     // search for an alternate spelling still surfaces the entity.
     content: r => [r.display_name, ...(r.name_variants || [])].filter(Boolean).join(' '),
-    language: () => 'es',
     filters: r => {
       const f = {};
       // Single-value filters wrapped in arrays per Pagefind contract
@@ -417,12 +430,16 @@ const FIELD_MAP = {
       // decade stay as bucket-granularity emissions (they drive the
       // date-tree widget on /entidades/ and do not explode the
       // filter-chunk index the way per-year bindings do).
-      if (r.date_earliest != null) {
-        f.year = [String(r.date_earliest)];
-        const e = r.date_latest != null ? r.date_latest : r.date_earliest;
-        const centuries = centuriesInRange(r.date_earliest, e);
+      // The contract allows "YYYY-MM-DD" as well as "YYYY"; every bucket
+      // is keyed on the year alone.
+      const start = contractYear(r.date_earliest);
+      if (start != null) {
+        f.year = [String(start)];
+        const latest = contractYear(r.date_latest);
+        const e = latest != null ? latest : start;
+        const centuries = centuriesInRange(start, e);
         if (centuries.length) f.century = centuries;
-        const decades = decadesInRange(r.date_earliest, e);
+        const decades = decadesInRange(start, e);
         if (decades.length) f.decade = decades;
       }
       // role filter omitted — the enriched JSON does not yet carry the
@@ -431,7 +448,7 @@ const FIELD_MAP = {
     },
     sort: r => ({
       name: r.sort_name || r.display_name || '',
-      date: String(r.date_earliest || ''),
+      date: String(contractYear(r.date_earliest) ?? ''),
       count: String(r._linked_count || 0),
     }),
     meta: r => {
@@ -439,8 +456,9 @@ const FIELD_MAP = {
         // `title` is highly recommended by Pagefind for result rendering.
         title: r.display_name || r.entity_code || '',
         entity_type: r.entity_type || '',
-        date_earliest: r.date_earliest != null ? String(r.date_earliest) : '',
-        date_latest: r.date_latest != null ? String(r.date_latest) : '',
+        // Years, which the explorer's result card shows as a range.
+        date_earliest: String(contractYear(r.date_earliest) ?? ''),
+        date_latest: String(contractYear(r.date_latest) ?? ''),
         primary_function: r.primary_function || '',
         linked_count: String(r._linked_count || 0),
       };
@@ -457,7 +475,6 @@ const FIELD_MAP = {
   places: {
     url: r => `/${r.place_code}/`,
     content: r => [r.display_name, ...(r.name_variants || [])].filter(Boolean).join(' '),
-    language: () => 'es',
     filters: r => {
       const hasCoords = r.latitude != null && r.longitude != null;
       const hasAuthority = !!(r.wikidata_id || r.whg_id || r.tgn_id || r.hgis_id);
@@ -499,19 +516,17 @@ const FIELD_MAP = {
   descriptions: {
     url: r => `/${r.reference_code}/`,
     // Full OCR retained. Title and reference_code are prepended
-    // so users searching for a series name (e.g. "Encomiendas") or a
+    // so users searching for a series name (e.g. "Correspondence") or a
     // reference code rank those hits first — HTML-scan picked these up
     // from the rendered <h1>; Node-API needs them in `content` because
     // Pagefind only full-text-indexes `content` (meta is for display).
     content: r => [r.title, r.reference_code, r.scope_content, r.ocr_text].filter(Boolean).join('\n'),
-    language: () => 'es',
     filters: r => {
       const f = {};
 
-      // The repository filter value is the display name, not the code.
-      // short_name falls back to name (never the code). REPO_NAME_OVERRIDES
-      // takes precedence for repositories whose upstream short_name/name is
-      // unsuitable for user-facing display.
+      // The repository filter value is the display name repoDisplayName
+      // takes from the repository record; the code is used only when the
+      // record names nothing.
       const repoName = repoDisplayName(r);
       if (repoName) f.repository = [repoName];
 
@@ -524,8 +539,10 @@ const FIELD_MAP = {
       // Country filter (Spanish display name already on the record).
       if (r.country) f.country = [r.country];
 
-      // Digital-status filter (raw token, not localised).
-      f.digital_status = [r.has_digital ? 'zasqua' : 'none'];
+      // Digital-status filter (raw token, not localised). `hosted` means the
+      // images are digitised and served by this site; it was `zasqua` before
+      // 1.6.0, and search.js still reads that value in old filter URLs.
+      f.digital_status = [r.has_digital ? 'hosted' : 'none'];
 
       // A SINGLE startYear, not the full yearsInRange. Binding every year in
       // the range was the roughly 30x blow-up behind multi-second faceted
@@ -598,7 +615,7 @@ const FIELD_MAP = {
         // Pre-computed Spanish narrative.
         date_formatted: r.date_formatted || '',
         // Retained for future sidebar localisation (not read by search.js today).
-        digital_status: r.has_digital ? 'zasqua' : 'none',
+        digital_status: r.has_digital ? 'hosted' : 'none',
       };
       if (Array.isArray(r.ancestor_chain) && r.ancestor_chain.length) {
         m.ancestor_chain = r.ancestor_chain
@@ -655,7 +672,7 @@ function pagefindCheck(label, response) {
 // for the next parity run to pick up if a record fails mid-loop.
 // ---------------------------------------------------------------------------
 
-async function buildIndex(pagefind, corpus, records, outputSubdir, forceKeep) {
+async function buildIndex(pagefind, corpus, records, outputSubdir, forceKeep, language) {
   const started = Date.now();
   const finalOut = path.join(OUT_DIR, outputSubdir);
   const tmpOut = path.join(OUT_DIR, `.pagefind-tmp.${process.pid}.${corpus}`);
@@ -693,7 +710,6 @@ async function buildIndex(pagefind, corpus, records, outputSubdir, forceKeep) {
       currentId = r.reference_code || r.entity_code || r.place_code || '(unknown)';
       currentField = 'url';      const url = map.url(r);
       currentField = 'content';  const content = map.content(r);
-      currentField = 'language'; const language = map.language(r);
       currentField = 'filters';  const filters = map.filters(r);
       if (corpus === 'descriptions') tallyCorpusFacets(filters, tally, SIDEBAR_FACET_KEYS);
       if (corpus === 'descriptions') tallyCorpusPivots(filters, pivots, PIVOT_FACET_KEYS);
@@ -961,14 +977,19 @@ async function main() {
   // script so it can stay shaped like generate-content.js.
   const pagefind = await import('pagefind');
 
+  // Every record is indexed in the site's language, so Pagefind stems
+  // queries and content with the matching rules.
+  const language = indexLanguage(manifest);
+  console.log(`[generate-pagefind-indices] language=${language}`);
+
   // The descriptions index is core and always built.
   const descriptions = loadDescriptionShards();
-  await buildIndex(pagefind, 'descriptions', descriptions, 'pagefind', forceKeep);
+  await buildIndex(pagefind, 'descriptions', descriptions, 'pagefind', forceKeep, language);
 
   // Entities index gated on manifest.modules.entities.
   if (manifest.modules.entities) {
     const entities = loadJSON('entities.json');
-    await buildIndex(pagefind, 'entities', entities, 'pagefind-entities', forceKeep);
+    await buildIndex(pagefind, 'entities', entities, 'pagefind-entities', forceKeep, language);
   } else {
     console.log('[generate-pagefind-indices] entities module disabled — skipping entity index');
   }
@@ -987,7 +1008,7 @@ async function main() {
       const hasLinks = (p._linked_count || 0) > 1;
       return hasCoords || hasLinks;
     });
-    await buildIndex(pagefind, 'places', places, 'pagefind-places', forceKeep);
+    await buildIndex(pagefind, 'places', places, 'pagefind-places', forceKeep, language);
   } else {
     console.log('[generate-pagefind-indices] places module disabled — skipping places index');
   }
@@ -1016,6 +1037,8 @@ if (require.main === module) {
 
 module.exports = {
   FIELD_MAP,
+  indexLanguage,
+  repoDisplayName,
   yearsInRange,
   centuriesInRange,
   decadesInRange,
@@ -1024,4 +1047,4 @@ module.exports = {
   suppressSingleValuedFacets,
 };
 
-// Version: v1.5.0
+// Version: v1.6.0

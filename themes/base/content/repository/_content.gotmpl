@@ -12,7 +12,13 @@
 
   Data shape (per record in repositories.json): code, name,
   description_count, country_code, country, city, root_descriptions
-  (array of fonds-level description stubs).
+  (array of fonds-level description stubs). Contract 1.1 records add
+  display_title, subtitle, hero_image_url, other_names, institution_type,
+  logo_url, contact, holdings, history, access, reproduction_services,
+  image_licence, funders, attribution, description_language and
+  updated_at; all are passed through as params, absent ones as nil. The
+  flat city, country, image_reproduction_text and modified_at stay as
+  fallbacks for 1.0 exports.
 
   Layout resolution: Hugo uses layouts/repository/single.html because
   the page's internal kind is "page" and its section is "repository".
@@ -22,15 +28,13 @@
   ("Zasqua") via baseof.html's fallback.
 
   Per-record modified_at ISO dates from the backend flow into Hugo's
-  .Lastmod for ETag stability. Repository detail pages have no
-  Reutilización block so no visible "actualizado" line is rendered —
-  the .Lastmod is invisible but keeps the landing pages off the full
-  re-upload path on rebuilds where their underlying data has not
-  changed. When modified_at is absent the dates key is omitted so Hugo
-  falls back to its build/git date rather than stamping the epoch
-  zero-time.
+  .Lastmod for ETag stability, and keep the landing pages off the full
+  re-upload path on rebuilds where their underlying data has not changed.
+  The visible date row of the page reads updated_at, then modified_at.
+  When modified_at is absent the dates key is omitted so Hugo falls back
+  to its build/git date rather than stamping the epoch zero-time.
 
-  Version: v1.1.0
+  Version: v1.6.0
 */}}
 
 {{ $data := slice }}
@@ -57,6 +61,24 @@
       "country_code" .country_code
       "city" .city
       "root_descriptions" .root_descriptions
+      "display_title" .display_title
+      "subtitle" .subtitle
+      "hero_image_url" .hero_image_url
+      "other_names" .other_names
+      "institution_type" .institution_type
+      "logo_url" .logo_url
+      "contact" .contact
+      "holdings" .holdings
+      "history" .history
+      "access" .access
+      "reproduction_services" .reproduction_services
+      "image_licence" .image_licence
+      "funders" .funders
+      "attribution" .attribution
+      "description_language" .description_language
+      "updated_at" .updated_at
+      "modified_at" .modified_at
+      "image_reproduction_text" .image_reproduction_text
   }}
   {{ $page := dict
       "kind" "page"
@@ -70,4 +92,4 @@
   {{ $page = merge $page (dict "url" (printf "/%s/" .code)) }}
   {{ $.AddPage $page }}
 {{ end }}
-{{/* Version: v1.1.0 */}}
+{{/* Version: v1.6.0 */}}

@@ -14,7 +14,7 @@
   translations. The matching CSV template is at
   `templates/model-csv/descriptions.csv` (version v0.1.0).
 
-  Version: v0.1.0
+  Version: v1.6.0
 -->
 
 # Model-CSV Data Dictionary
@@ -127,7 +127,7 @@ optional — omit this sheet if your dataset has no entity authority records.
 |--------|----------|------|-------|
 | `entity_code` | Yes | string | Unique code, must start with `ne-`. Example: `ne-abc12`. |
 | `display_name` | Yes | string | Name as displayed to users. |
-| `entity_type` | Yes | string | Type of entity. Common values: `person`, `corporateBody`, `family`. |
+| `entity_type` | Yes | string | Type of entity. Common values: `person`, `corporate`, `family`. |
 | `sort_name` | No | string | Name for alphabetic sorting (surname first for persons). |
 | `given_name` | No | string | Given name (persons only). |
 | `surname` | No | string | Surname or main name element. |
@@ -217,4 +217,4 @@ tags from text fields at import time.
 | `@file: path must not escape the CSV directory` | `ocr_text` cell contains `@file:../../etc/...` | Use a relative path inside the CSV directory |
 | `@file: path must be relative (absolute path rejected)` | `ocr_text` cell contains `@file:/absolute/path` | Use a relative path |
 
-<!-- Version: v0.1.0 -->
+<!-- Version: v1.6.0 -->

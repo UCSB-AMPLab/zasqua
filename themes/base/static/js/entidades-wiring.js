@@ -26,12 +26,12 @@
  * This file contains only static JS and no server-rendered values; the
  * i18n strings it reads are blob-only, with no Spanish fallback.
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 (function() {
   'use strict';
 
-  var _locale = document.documentElement.lang || 'es-CO';
+  var _locale = document.documentElement.lang || 'en';
 
   var graphContainer = document.getElementById('graph-container');
   var sidebarContainer = document.getElementById('entity-explorer');
@@ -131,4 +131,4 @@
   };
 })();
 
-// Version: v1.4.0
+// Version: v1.6.0

@@ -1,0 +1,197 @@
+{{/*
+  Zasqua controlled-vocabulary resolver
+
+  Returns the labels for the controlled values that records use as codes,
+  and the role groups the entity filters show. The entity and place pages
+  and their two explorers call it through partialCached keyed by
+  site.Language.Lang; it reads the site language, hugo.Data.vocab and one
+  site resource, and no page state.
+
+  Output (via `return`): a dict with
+    entityTypes, placeTypes, roles, roleGroups, placeRoles
+        — maps of code to label, the same keys as hugo.Data.vocab.<lang>
+    roleGroupOrder
+        — an ordered list of {id, members}: the role groups as the entity
+          filters show them, each with the role codes it holds
+
+  Labels. The bundled map is data/vocab/{lang}.yaml, where {lang} is the
+  first subtag of site.Language.LanguageCode ("es-CO" → "es"), and
+  data/vocab/es.yaml when no file exists for that language. When the
+  export carries vocabulary.json (assets/hugo-data/vocabulary.json, copied
+  by generate-content.js), its arrays are applied to the bundled map entry
+  by entry:
+    entity_types → entityTypes    place_types → placeTypes
+    entity_roles → roles          role_groups → roleGroups
+    place_roles  → placeRoles
+  Each entry's `code` is the key, and its bilingual `label` is resolved by
+  lang-field.html. A resolved label replaces the bundled one or adds a code
+  the bundle lacks; an empty or null label leaves the bundled label in
+  place; bundled codes the export does not mention keep their labels.
+  Entries marked deprecated are labelled like any other, because a record
+  can still use them. authority_sources is not read here.
+
+  The labels are plain text. Callers put them into attributes with jsonify
+  and escape the apostrophe (see the four templates); they must never be
+  passed through safeHTML.
+
+  Codes. Role codes (entity_roles, place_roles) and group ids (role_groups
+  codes and `group` targets) are compared in lowercase: the partial
+  lowercases them before it applies the export, and the scripts lowercase
+  the role codes of the links they count, filter and label. Entity-type
+  and place-type codes are used as the export writes them.
+
+  Role groups. The bundled grouping is data/vocab/role-groups.yaml. The
+  export changes it as follows:
+    - an entity_roles entry with `group: "<code>"` moves that role into
+      the group <code> and out of any other;
+    - `group: null` (or "") removes the role from every group, so the
+      filters list it after the grouped ones, under "otros";
+    - "otros" is reserved for that list of roles in no group: a role with
+      `group: "otros"` counts as having no group, and a role_groups entry
+      with code "otros" is never added to roleGroupOrder, though its label
+      still sets roleGroups.otros, the heading of that list;
+    - an entry without a `group` member leaves the role where the bundle
+      puts it;
+    - a group named by role_groups or by a role's `group` that the bundle
+      lacks is added. Roles moved into a group follow its bundled members,
+      in the order the export lists them.
+  Order rule: groups whose role_groups entry has a whole-number `order`
+  come first, sorted by `order` ascending; groups with the same `order`
+  keep the position they have without sorting. An `order` that is not a
+  number, or not a whole number, counts as absent. The values are compared
+  as the 64-bit floats transform.Unmarshal gives, with no conversion and
+  no arithmetic, so integers of any size keep their relative order, except
+  that integers beyond 2^53 closer together than float spacing compare as
+  equal. The groups without `order` follow, in their bundled position;
+  groups the bundle lacks come after the bundled ones, in the order the
+  export first names them.
+
+  Version: v1.6.0
+*/}}
+{{ $langKey := index (split (lower site.Language.LanguageCode) "-") 0 }}
+{{ $bundled := index hugo.Data.vocab $langKey }}
+{{ if not $bundled }}{{ $bundled = hugo.Data.vocab.es }}{{ end }}
+
+{{/* Copy the bundled maps, so that no write reaches hugo.Data. Role and
+     group keys are lowercased here, as the group ids and the scripts'
+     role codes are, so a bundled key in mixed case still finds its label. */}}
+{{ $s := newScratch }}
+{{ $lowered := slice "roles" "roleGroups" "placeRoles" }}
+{{ range $section := slice "entityTypes" "placeTypes" "roles" "roleGroups" "placeRoles" }}
+  {{ $s.Set $section (dict) }}
+  {{ range $code, $label := index $bundled $section }}
+    {{ $key := $code }}
+    {{ if in $lowered $section }}{{ $key = lower $code }}{{ end }}
+    {{ $s.SetInMap $section $key $label }}
+  {{ end }}
+{{ end }}
+
+{{ $bundledGroups := slice }}
+{{ with index hugo.Data.vocab "role-groups" }}{{ $bundledGroups = .groups }}{{ end }}
+
+{{ $export := dict }}
+{{ with resources.Get "hugo-data/vocabulary.json" }}
+  {{ $export = . | transform.Unmarshal }}
+{{ end }}
+
+{{/* Labels, entry by entry */}}
+{{ range $src, $dst := dict "entity_types" "entityTypes" "place_types" "placeTypes" "entity_roles" "roles" "role_groups" "roleGroups" "place_roles" "placeRoles" }}
+  {{ range index $export $src }}
+    {{ $code := "" }}
+    {{ with .code }}{{ $code = printf "%v" . }}{{ if in (slice "entity_roles" "place_roles" "role_groups") $src }}{{ $code = lower $code }}{{ end }}{{ end }}
+    {{ $label := (partial "lang-field.html" .label).text }}
+    {{ if and $code $label }}{{ $s.SetInMap $dst $code $label }}{{ end }}
+  {{ end }}
+{{ end }}
+
+{{/* Roles the export assigns: code → target group ("" for no group) */}}
+{{ $moved := slice }}
+{{ range index $export "entity_roles" }}
+  {{ $code := "" }}
+  {{ with .code }}{{ $code = lower (printf "%v" .) }}{{ end }}
+  {{ $hasGroup := false }}
+  {{ $target := "" }}
+  {{ range $k, $v := . }}
+    {{ if eq $k "group" }}
+      {{ $hasGroup = true }}
+      {{ with $v }}{{ $target = lower (printf "%v" .) }}{{ end }}
+      {{ if eq $target "otros" }}{{ $target = "" }}{{ end }}
+    {{ end }}
+  {{ end }}
+  {{ if and $code $hasGroup }}
+    {{ $s.SetInMap "moves" $code $target }}
+    {{ if not (in $moved $code) }}{{ $moved = $moved | append $code }}{{ end }}
+  {{ end }}
+{{ end }}
+{{ $moves := $s.Get "moves" | default dict }}
+
+{{/* Group ids: bundled, then role_groups, then targets of moved roles */}}
+{{ $ids := slice }}
+{{ range $bundledGroups }}{{ $ids = $ids | append (lower (printf "%v" .id)) }}{{ end }}
+{{ range index $export "role_groups" }}
+  {{ with .code }}
+    {{ $id := lower (printf "%v" .) }}
+    {{ if and (ne $id "otros") (not (in $ids $id)) }}{{ $ids = $ids | append $id }}{{ end }}
+  {{ end }}
+{{ end }}
+{{ range $moved }}
+  {{ $target := index $moves . }}
+  {{ if and $target (not (in $ids $target)) }}{{ $ids = $ids | append $target }}{{ end }}
+{{ end }}
+
+{{/* The export's order, for groups that set one */}}
+{{ range index $export "role_groups" }}
+  {{ $id := "" }}
+  {{ with .code }}{{ $id = lower (printf "%v" .) }}{{ end }}
+  {{ range $k, $v := . }}
+    {{ if and $id (eq $k "order") (in (slice "float64" "int" "int64") (printf "%T" $v)) }}
+      {{ if eq (float (math.Floor $v)) (float $v) }}{{ $s.SetInMap "order" $id $v }}{{ end }}
+    {{ end }}
+  {{ end }}
+{{ end }}
+{{ $order := $s.Get "order" | default dict }}
+
+{{/* Members of each group, then the order */}}
+{{ $ordered := slice }}
+{{ $orderValues := slice }}
+{{ $unsorted := slice }}
+{{ range $id := $ids }}
+  {{ $members := slice }}
+  {{ range $bundledGroups }}
+    {{ if eq (lower (printf "%v" .id)) $id }}
+      {{ range .members }}
+        {{ $role := lower (printf "%v" .) }}
+        {{ if not (in $moved $role) }}{{ $members = $members | append $role }}{{ end }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+  {{ range $moved }}
+    {{ if eq (index $moves .) $id }}{{ $members = $members | append . }}{{ end }}
+  {{ end }}
+  {{ $group := dict "id" $id "members" $members }}
+  {{ if isset $order $id }}
+    {{ $value := index $order $id }}
+    {{ $ordered = $ordered | append (dict "group" $group "order" $value) }}
+    {{ if not (in $orderValues $value) }}{{ $orderValues = $orderValues | append $value }}{{ end }}
+  {{ else }}
+    {{ $unsorted = $unsorted | append $group }}
+  {{ end }}
+{{ end }}
+{{ $roleGroupOrder := slice }}
+{{ range $value := sort $orderValues }}
+  {{ range $ordered }}
+    {{ if eq .order $value }}{{ $roleGroupOrder = $roleGroupOrder | append .group }}{{ end }}
+  {{ end }}
+{{ end }}
+{{ range $unsorted }}{{ $roleGroupOrder = $roleGroupOrder | append . }}{{ end }}
+
+{{ return (dict
+  "entityTypes"    ($s.Get "entityTypes")
+  "placeTypes"     ($s.Get "placeTypes")
+  "roles"          ($s.Get "roles")
+  "roleGroups"     ($s.Get "roleGroups")
+  "placeRoles"     ($s.Get "placeRoles")
+  "roleGroupOrder" $roleGroupOrder
+) }}
+
+{{/* Version: v1.6.0 */}}

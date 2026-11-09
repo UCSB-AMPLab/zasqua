@@ -1,0 +1,54 @@
+{{/*
+  Zasqua bilingual field resolver
+
+  Resolves a field of an export record that is either a plain string or a
+  bilingual object keyed by language code ({ "es": "...", "en": null }).
+  The bilingual rule is in docs/data-contract.md: the member for the site's
+  language is shown; when it is empty and another member is not, the other
+  one is shown marked with its language code; a field whose members are all
+  null or blank counts as absent.
+
+  Input: nil, a string, or a map of language code to string or null.
+
+  Output (via `return`): a dict with
+    text — the chosen string, trimmed; "" when there is nothing to show
+    lang — the language code of the member chosen when it is not the site
+           language; "" when the site-language member (or a plain string)
+           was used, and when text is ""
+
+  The fallback member is chosen in a fixed order: "en", then "es", then the
+  remaining keys alphabetically.
+
+  Callers render `<span lang="{{ .lang }}">` only when .lang is not empty.
+
+  The partial reads site.Language.Lang and nothing else, so it is safe to
+  call with partialCached.
+
+  Version: v1.6.0
+*/}}
+{{ $text := "" }}
+{{ $lang := "" }}
+{{ $in := . }}
+{{ if reflect.IsMap $in }}
+  {{ $siteLang := site.Language.Lang }}
+  {{ with index $in $siteLang }}{{ $text = strings.TrimSpace (printf "%v" .) }}{{ end }}
+  {{ if not $text }}
+    {{ $order := slice "en" "es" }}
+    {{ range $k, $_ := $in }}
+      {{ if not (in $order $k) }}{{ $order = $order | append $k }}{{ end }}
+    {{ end }}
+    {{ range $key := $order }}
+      {{ if and (not $text) (ne $key $siteLang) }}
+        {{ with index $in $key }}
+          {{ $candidate := strings.TrimSpace (printf "%v" .) }}
+          {{ if $candidate }}{{ $text = $candidate }}{{ $lang = $key }}{{ end }}
+        {{ end }}
+      {{ end }}
+    {{ end }}
+  {{ end }}
+{{ else if $in }}
+  {{ $text = strings.TrimSpace (printf "%v" $in) }}
+{{ end }}
+{{ return (dict "text" $text "lang" $lang) }}
+
+{{/* Version: v1.6.0 */}}

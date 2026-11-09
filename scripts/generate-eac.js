@@ -34,9 +34,16 @@
  * whose filename is empty or already taken by an earlier record, is skipped
  * with a warning naming it, and the run continues.
  *
+ * Before writing, the run removes the earlier `*.xml` files directly inside
+ * EAC_DIR (other extensions and subdirectories stay) and logs how many it removed,
+ * so a record dropped from the input does not leave its file behind. The removal
+ * happens after the inputs are read and checked, so a run that fails early leaves
+ * the previous output in place.
+ *
  * Reads:
  *   exports/entities.json   — the entity contract (one object per entity)
  *   hugo.toml [params]      — EAC config (see readEacConfig)
+ *   exports/publisher.json  — optional; legal_name names the maintenance agency
  * Writes:
  *   {EAC_DIR}/{slug}.xml    — one EAC-CPF document per entity
  *     (slug = entity_code with ?, # and / stripped)
@@ -48,12 +55,13 @@
  *   DATA_DIR       — override the default exports directory (absolute path).
  *   EAC_DIR        — override the default public/eac output directory.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 const fs = require('fs');
 const path = require('path');
 const { parse: parseToml } = require('smol-toml');
+const { readPublisher } = require('../lib/publisher');
 const { isUnderDir } = require('../lib/under-dir');
 
 const INSTANCE_ROOT = process.env.INSTANCE_ROOT || process.cwd();
@@ -156,8 +164,8 @@ function isCalendarDate(text) {
 /**
  * Format a contract year as a standardDate value: a positive integer is
  * zero-padded to four digits, a "YYYY", "YYYY-MM" or "YYYY-MM-DD" string
- * that names a real month or day passes through (trimmed). Returns undefined
- * for anything else.
+ * that names a real month or day passes through (trimmed), except that a year
+ * part of 0000 is refused. Returns undefined for anything else.
  *
  * @param {number|string} value
  * @returns {string|undefined}
@@ -166,7 +174,8 @@ function formatYear(value) {
   if (Number.isInteger(value) && value > 0) return String(value).padStart(4, '0');
   if (typeof value === 'string') {
     const text = value.trim();
-    if (YEAR_STRING.test(text) && isCalendarDate(text)) return text;
+    // Year 0000 does not exist, so it is refused as the number 0 is.
+    if (YEAR_STRING.test(text) && !text.startsWith('0000') && isCalendarDate(text)) return text;
   }
   return undefined;
 }
@@ -204,12 +213,14 @@ function readYear(entity, field) {
 }
 
 /**
- * Return entity[field] as an array: [] when null or undefined, the value
+ * Return entity[field] as an array: [] when null, undefined or a blank string
+ * (Fisqua writes an empty string for a field with no entries), the value
  * itself when it is an array. Throws, naming the entity, for anything else.
  */
 function readArray(entity, field) {
   const value = entity[field];
   if (value === undefined || value === null) return [];
+  if (typeof value === 'string' && value.trim() === '') return [];
   if (!Array.isArray(value)) {
     throw new Error(`[generate-eac] ${entity.entity_code}: ${field} must be an array`);
   }
@@ -591,6 +602,38 @@ function isUnderPublic(outDir, instanceRoot) {
   return isUnderDir(outDir, path.join(instanceRoot, 'public'));
 }
 
+/**
+ * Remove the `.xml` files directly inside `dir` and return how many were
+ * removed. Each run writes the whole set again, so a file left from an
+ * earlier run would otherwise stay behind for a record that is no longer in
+ * the input. Only regular files with this extension are touched: other
+ * extensions and subdirectories are left alone, and a missing directory
+ * counts as empty.
+ */
+function clearOutputDir(dir) {
+  // The output directory must be the generator's own. Clearing the site root
+  // or public/ itself would take the build's sitemap and index files with it.
+  const resolved = path.resolve(dir);
+  if (resolved === path.resolve(INSTANCE_ROOT) || resolved === path.resolve(INSTANCE_ROOT, 'public')) {
+    throw new Error(`[generate-eac] refusing to clear ${resolved}: set the output directory to a folder of its own`);
+  }
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return 0;
+    throw err;
+  }
+  let removed = 0;
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith('.xml')) {
+      fs.unlinkSync(path.join(dir, entry.name));
+      removed++;
+    }
+  }
+  return removed;
+}
+
 // ---------------------------------------------------------------------------
 // Entry point: read the entity contract, write one EAC-CPF file per entity.
 // ---------------------------------------------------------------------------
@@ -608,7 +651,13 @@ async function main() {
   const entities = JSON.parse(fs.readFileSync(entitiesPath, 'utf8'));
   console.log(`[generate-eac] entities.json: ${entities.length} records`);
 
-  const { agencyName, agencyCode, languageCode, eacBaseUrl } = readEacConfig(INSTANCE_ROOT);
+  const config = readEacConfig(INSTANCE_ROOT);
+  const { agencyCode, languageCode, eacBaseUrl } = config;
+  // The publisher's legal_name, when exports/publisher.json carries one,
+  // names the maintenance agency in place of eac_agency_name.
+  const publisher = readPublisher(DATA_DIR);
+  const legalName = publisher && typeof publisher.legal_name === 'string' ? publisher.legal_name.trim() : '';
+  const agencyName = legalName || config.agencyName;
   console.log(`[generate-eac] maintenance agency: ${agencyName}`);
 
   // If eac_base_url names another host (an absolute URL) but the records are
@@ -625,7 +674,11 @@ async function main() {
     );
   }
 
+  // Inputs are read and checked by now, so a run that failed earlier has not
+  // emptied the directory. Clear the previous output before writing the new.
   fs.mkdirSync(EAC_DIR, { recursive: true });
+  const removed = clearOutputDir(EAC_DIR);
+  console.log(`[generate-eac] Removed ${removed} xml file${removed === 1 ? '' : 's'} from ${EAC_DIR} before writing`);
 
   const opts = { agencyName, agencyCode, languageCode };
   const slugOwners = new Map();
@@ -663,4 +716,4 @@ if (require.main === module) {
   });
 }
 
-// Version: v1.5.0
+// Version: v1.6.0

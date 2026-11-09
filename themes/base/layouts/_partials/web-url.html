@@ -1,0 +1,20 @@
+{{/*
+  Web address from export data (returning partial)
+
+  Takes a value from an export file (repositories.json, publisher.json)
+  and returns it, trimmed, when it is an http or https address, else an
+  empty string. Templates that build a link as markup before handing it
+  to an i18n sentence use it, because Hugo's own URL filtering does not
+  reach markup marked safe: a javascript: or data: address returned here
+  as "" is shown as plain text, never as a link.
+
+  Usage: {{ $href := partial "web-url.html" $value }}
+
+  Version: v1.6.0
+*/}}
+{{- $url := strings.TrimSpace (printf "%v" (. | default "")) -}}
+{{- if not (findRE `(?i)^https?://` $url) -}}
+  {{- $url = "" -}}
+{{- end -}}
+{{- return $url -}}
+{{/* Version: v1.6.0 */}}

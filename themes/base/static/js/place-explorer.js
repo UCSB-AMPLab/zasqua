@@ -41,7 +41,7 @@
  *   explorer template slots (`#place-search-input`,
  *   `#sidebar-facets`, `#place-explorer`, `#selected-place-card`).
  *
- * @version v1.4.0
+ * @version v1.6.0
  */
 
 /**
@@ -96,11 +96,65 @@ function selectFacetCounts(result, facetKey, value, activeFilters) {
   if (sameFacetHasActive) {
     // Same-facet OR-group OR the active value itself — read totalFilters.
     const group = (result && result.totalFilters && result.totalFilters[facetKey]) || {};
-    return group[value] || 0;
+    return ownCount(group, value);
   }
   // Cross-facet display — read from filters (constrained counts).
   const group = (result && result.filters && result.filters[facetKey]) || {};
-  return group[value] || 0;
+  return ownCount(group, value);
+}
+
+// A facet value's count from a { value: count } map, read only from the
+// map's own properties, so a value such as "__proto__" or "constructor"
+// that the map lacks counts 0 instead of an inherited object.
+function ownCount(group, value) {
+  return Object.prototype.hasOwnProperty.call(group, value) ? (group[value] || 0) : 0;
+}
+
+// Facet counts for the places in the map viewport, as
+// { place_type, has_coordinates, has_authority } maps of value → count.
+// Every map has no prototype, so a type code such as "__proto__" is
+// counted like any other. A place without a type counts as 'unknown'.
+function viewportFacetsFromPlaces(places) {
+  var facets = {
+    place_type: Object.create(null),
+    has_coordinates: Object.create(null),
+    has_authority: Object.create(null)
+  };
+  for (var i = 0; i < places.length; i++) {
+    var p = places[i];
+    var pt = p.place_type || 'unknown';
+    facets.place_type[pt] = (facets.place_type[pt] || 0) + 1;
+    var hasCoords = (p.latitude != null && p.longitude != null) ? 'true' : 'false';
+    facets.has_coordinates[hasCoords] = (facets.has_coordinates[hasCoords] || 0) + 1;
+    var hasAuth = (p.has_wikidata || p.has_tgn || p.has_whg || p.has_hgis) ? 'true' : 'false';
+    facets.has_authority[hasAuth] = (facets.has_authority[hasAuth] || 0) + 1;
+  }
+  return facets;
+}
+
+// Per-value facet counts for a Pagefind search result, as
+// { facetKey: { value: count } } with no prototypes, each count chosen by
+// selectFacetCounts against the active filters. Falls back to a copy of
+// globalFilters when the result carries no facet payloads.
+function scopedFacetCountsPure(searchResult, activeFilters, globalFilters) {
+  var out = Object.create(null);
+  if (searchResult) {
+    var srcFilters = searchResult.filters || {};
+    var srcTotal = searchResult.totalFilters || {};
+    var keys = new Set(Object.keys(srcFilters).concat(Object.keys(srcTotal)));
+    keys.forEach(function (fk) {
+      out[fk] = Object.create(null);
+      var values = new Set(Object.keys(srcFilters[fk] || {}).concat(Object.keys(srcTotal[fk] || {})));
+      values.forEach(function (v) {
+        out[fk][v] = selectFacetCounts(searchResult, fk, v, activeFilters);
+      });
+    });
+  }
+  if (Object.keys(out).length === 0) {
+    var gf = globalFilters || {};
+    Object.keys(gf).forEach(function (gk) { out[gk] = gf[gk]; });
+  }
+  return out;
 }
 
 // 3-key pivot set for /lugares/. Must stay byte-equivalent to
@@ -111,6 +165,67 @@ function selectFacetCounts(result, facetKey, value, activeFilters) {
 // N=2 branch. Mirrors the PIVOT_KEYS constant in static/js/search.js with a
 // different binding (6 keys for /buscar/, 4 keys for /entidades/, 3 keys here).
 const PIVOT_KEYS = ['has_authority', 'has_coordinates', 'place_type'];
+
+// Initial map extent. `computeMapExtent` returns the bounding box of the
+// places that have coordinates, as [[west, south], [east, north]], or null
+// when none do. `MAP_FIT_MAX_ZOOM` keeps a site with one place (or a few
+// places very close together) from being zoomed to street level. With no
+// places the map shows the whole world.
+const MAP_FIT_MAX_ZOOM = 8;
+const MAP_FIT_PADDING = 40;
+
+// label-map:start
+// A code → label map read from a data-*-labels attribute. The map has no
+// prototype, so a code such as "constructor" or "toString" finds no
+// inherited value and `labels[code] || code` falls back to the code. Only
+// string values are kept; a missing or malformed attribute gives an empty
+// map.
+function parseLabelMap(raw) {
+  var map = Object.create(null);
+  if (!raw) return map;
+  var parsed;
+  try { parsed = JSON.parse(raw); } catch (e) { return map; }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return map;
+  Object.keys(parsed).forEach(function (key) {
+    if (typeof parsed[key] === 'string') map[key] = parsed[key];
+  });
+  return map;
+}
+// label-map:end
+// A site can set the initial view with `place_explorer_bounds` in `[params]`,
+// passed as `data-initial-bounds` (JSON [[west, south], [east, north]]).
+// `resolveInitialBounds` returns that box when it is valid, else the box of
+// the places, else null (world view).
+function parseBounds(raw) {
+  if (!raw) return null;
+  var b;
+  try { b = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { return null; }
+  if (!Array.isArray(b) || b.length !== 2) return null;
+  var ok = b.every(function(pt) {
+    return Array.isArray(pt) && pt.length === 2 && pt.every(function(n) { return typeof n === 'number' && isFinite(n); });
+  });
+  if (!ok) return null;
+  if (b[0][0] > b[1][0] || b[0][1] > b[1][1]) return null;
+  return b;
+}
+function resolveInitialBounds(raw, places) {
+  return parseBounds(raw) || computeMapExtent(places);
+}
+function computeMapExtent(places) {
+  var west = Infinity, south = Infinity, east = -Infinity, north = -Infinity;
+  var found = false;
+  (places || []).forEach(function(p) {
+    var lat = Number(p.latitude), lng = Number(p.longitude);
+    if (p.latitude == null || p.longitude == null) return;
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    found = true;
+    if (lng < west) west = lng;
+    if (lng > east) east = lng;
+    if (lat < south) south = lat;
+    if (lat > north) north = lat;
+  });
+  return found ? [[west, south], [east, north]] : null;
+}
 
 /**
  * Pure helper that computes a scoped filters object from the pivot /
@@ -259,8 +374,8 @@ class PlaceExplorer {
     this._onMoveEnd = null;
     this._searchGen = 0;
 
-    // Locale-aware formatters (read from <html lang>; fallback es-CO).
-    const _locale = document.documentElement.lang || 'es-CO';
+    // Locale-aware formatters (read from <html lang>; 'en' covers a page without one).
+    const _locale = document.documentElement.lang || 'en';
     this._locale = _locale;
     this._fmt  = new Intl.NumberFormat(_locale);
     this._pr   = new Intl.PluralRules(_locale.split('-')[0]);
@@ -273,15 +388,11 @@ class PlaceExplorer {
       console.warn('PlaceExplorer: could not parse data-i18n');
     }
 
-    this.placeTypes = {};
-    try {
-      this.placeTypes = JSON.parse(container.dataset.placeTypes || '{}');
-    } catch (e) {
-      console.warn('PlaceExplorer: could not parse data-place-types');
-    }
+    this.placeTypes = parseLabelMap(container.dataset.placeTypes);
 
     this.maptilerKey = container.dataset.maptilerKey || '';
     this.maptilerStyleId = container.dataset.maptilerStyleId || '';
+    this.initialBounds = container.dataset.initialBounds || '';
 
     this.state = {
       q: '',
@@ -510,15 +621,24 @@ class PlaceExplorer {
     this.map = new maplibregl.Map({
       container: 'explorer-map',
       style: style,
-      center: [-74.0, 5.5],
-      zoom: 5,
+      center: [0, 20],
+      zoom: 1,
       renderWorldCopies: false
     });
 
-    this.map.fitBounds([[-83.0, -5.0], [-60.0, 15.0]], { padding: 20, animate: false });
+    // Fit the view to the site's configured bounds, else to its own places;
+    // with neither, the world view above stays.
+    var extent = resolveInitialBounds(this.initialBounds, this.allPlaces);
+    if (extent) {
+      this.map.fitBounds(extent, { padding: MAP_FIT_PADDING, maxZoom: MAP_FIT_MAX_ZOOM, animate: false });
+    }
 
     this.map.on('load', () => {
       this.mapReady = true;
+
+      // Marker colour from the theme tokens (theme-colors.js; the grey
+      // stands in if a layout omits that script)
+      var markerColor = window.zasquaThemeColor ? window.zasquaThemeColor('map-marker') : '#888';
 
       // GeoJSON source with clustering enabled
       this.map.addSource('places', {
@@ -536,7 +656,7 @@ class PlaceExplorer {
         source: 'places',
         filter: ['has', 'point_count'],
         paint: {
-          'circle-color': '#8B2942',
+          'circle-color': markerColor,
           'circle-radius': [
             'step', ['get', 'point_count'],
             14,
@@ -573,7 +693,7 @@ class PlaceExplorer {
         source: 'places',
         filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-color': '#8B2942',
+          'circle-color': markerColor,
           'circle-radius': 6,
           'circle-stroke-width': 1.5,
           'circle-stroke-color': '#fff'
@@ -651,25 +771,15 @@ class PlaceExplorer {
 
   // ─── Example place buttons (in header intro text) ───────────────────────────
 
+  // The buttons come from the site's place_examples setting and carry a place
+  // code in data-place; a click selects that place on the map.
   initExampleButtons() {
     var buttons = document.querySelectorAll('.explorer-page-intro button[data-place]');
     buttons.forEach((btn) => {
       btn.addEventListener('click', () => {
-        var slug = btn.getAttribute('data-place');
-        if (!slug) return;
-        var found = this.allPlaces.find(function(p) {
-          var normalised = p.display_name
-            .toLowerCase()
-            .replace(/\s+/g, '-')
-            .replace(/[áä]/g, 'a')
-            .replace(/[éë]/g, 'e')
-            .replace(/[íï]/g, 'i')
-            .replace(/[óö]/g, 'o')
-            .replace(/[úü]/g, 'u')
-            .replace(/ñ/g, 'n')
-            .replace(/[^a-z0-9-]/g, '');
-          return normalised === slug || normalised.startsWith(slug);
-        });
+        var code = btn.getAttribute('data-place');
+        if (!code) return;
+        var found = this.allPlaces.find(function(p) { return p.place_code === code; });
         if (found) {
           this.highlightPlace(found);
         }
@@ -983,17 +1093,7 @@ class PlaceExplorer {
             p.longitude >= vpBounds.getWest() && p.longitude <= vpBounds.getEast() &&
             p.latitude >= vpBounds.getSouth() && p.latitude <= vpBounds.getNorth();
         });
-        var vpFacets = { place_type: {}, has_coordinates: {}, has_authority: {} };
-        for (var vi = 0; vi < vpPlaces.length; vi++) {
-          var vp = vpPlaces[vi];
-          var pt = vp.place_type || 'unknown';
-          vpFacets.place_type[pt] = (vpFacets.place_type[pt] || 0) + 1;
-          var hasCoords = (vp.latitude != null && vp.longitude != null) ? 'true' : 'false';
-          vpFacets.has_coordinates[hasCoords] = (vpFacets.has_coordinates[hasCoords] || 0) + 1;
-          var hasAuth = (vp.has_wikidata || vp.has_tgn || vp.has_whg || vp.has_hgis) ? 'true' : 'false';
-          vpFacets.has_authority[hasAuth] = (vpFacets.has_authority[hasAuth] || 0) + 1;
-        }
-        scopedFilters = vpFacets;
+        scopedFilters = viewportFacetsFromPlaces(vpPlaces);
       }
 
       this.renderResultsInfo(total, allResults.length);
@@ -1175,7 +1275,7 @@ class PlaceExplorer {
       if (hasCoords) {
         var pin = document.createElement('span');
         pin.className = 'material-symbols-outlined';
-        pin.style.cssText = 'font-size:1.3rem;color:var(--color-burgundy);font-variation-settings:"wght" 200';
+        pin.style.cssText = 'font-size:1.3rem;color:var(--map-marker);font-variation-settings:"wght" 200';
         pin.textContent = 'location_on';
         pin.title = this._i18n.coordsTitle;
         indicators.appendChild(pin);
@@ -1273,30 +1373,7 @@ class PlaceExplorer {
       has_coordinates: this.state.hasCoords === true ? ['true'] : [],
       has_authority: this.state.hasAuthority === true ? ['true'] : []
     };
-    var out = {};
-    if (searchResult) {
-      var keys = {};
-      var srcFilters = searchResult.filters || {};
-      var srcTotal = searchResult.totalFilters || {};
-      for (var k1 in srcFilters) keys[k1] = true;
-      for (var k2 in srcTotal) keys[k2] = true;
-      for (var fk in keys) {
-        out[fk] = {};
-        var values = {};
-        var fkF = srcFilters[fk] || {};
-        var fkT = srcTotal[fk] || {};
-        for (var v1 in fkF) values[v1] = true;
-        for (var v2 in fkT) values[v2] = true;
-        for (var v in values) {
-          out[fk][v] = selectFacetCounts(searchResult, fk, v, activeFilters);
-        }
-      }
-    }
-    if (Object.keys(out).length === 0) {
-      var gf = this.globalFilters || {};
-      for (var gk in gf) out[gk] = gf[gk];
-    }
-    return out;
+    return scopedFacetCountsPure(searchResult, activeFilters, this.globalFilters);
   }
 
   renderFacets(filters) {
@@ -1554,7 +1631,7 @@ if (typeof document !== 'undefined') {
 // so the block is a no-op. Kept symmetric with the same footer in
 // `static/js/search.js` and `static/js/entity-explorer.js`.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS };
+  module.exports = { selectFacetCounts, buildPivotScopedFiltersPure, PIVOT_KEYS, computeMapExtent, parseBounds, resolveInitialBounds, MAP_FIT_MAX_ZOOM, viewportFacetsFromPlaces, scopedFacetCountsPure };
 }
 
-// Version: v1.4.0
+// Version: v1.6.0

@@ -7,7 +7,7 @@
  * array and returns a Map of parent-id → shard object plus an array of orphan
  * warnings.
  *
- * Five behaviors covered:
+ * Six behaviors covered:
  *
  *   1. Shard grouping — deriveChildren groups children under the correct
  *      integer parent_id and emits one shard per parent-with-children.
@@ -32,10 +32,15 @@
  *      number of that item's own children in the input (passed through from
  *      descriptions).
  *
+ *   6. local_identifier — passed through as a tenth field when the record
+ *      carries it (including null and the empty string), and left out when
+ *      the record does not, so the tree can tell an older export from a
+ *      record with no identifier.
+ *
  * Tests operate entirely on synthetic in-memory arrays — no file I/O,
  * no full corpus, no real exports/ directory required.
  *
- * @version v0.1.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
@@ -410,4 +415,38 @@ describe('deriveChildren — parent_reference_code fallback', () => {
   });
 });
 
-// Version: v1.3.0
+// ---------------------------------------------------------------------------
+// Behavior 6: local_identifier passes through when the record carries it
+// ---------------------------------------------------------------------------
+
+describe('deriveChildren — local_identifier', () => {
+  const parent = makeDesc({ id: 1, reference_code: 'xx-arch-001', child_count: 1 });
+
+  it('passes a local_identifier through as the last field', () => {
+    const child = makeDesc({
+      id: 2, parent_id: 1, reference_code: 'xx-arch-001-d003', description_level: 'item',
+      local_identifier: 'D 3',
+    });
+    const { shards } = deriveChildren([parent, child]);
+    const out = shards.get(1).results[0];
+    expect(out.local_identifier).toBe('D 3');
+    expect(Object.keys(out).pop()).toBe('local_identifier');
+  });
+
+  it('keeps null and empty string as they are, so the tree shows no number', () => {
+    const a = makeDesc({ id: 2, parent_id: 1, reference_code: 'xx-arch-001-a', local_identifier: null });
+    const b = makeDesc({ id: 3, parent_id: 1, reference_code: 'xx-arch-001-b', local_identifier: '' });
+    const { shards } = deriveChildren([parent, a, b]);
+    const [outA, outB] = shards.get(1).results;
+    expect(outA.local_identifier).toBeNull();
+    expect(outB.local_identifier).toBe('');
+  });
+
+  it('leaves the field out when the record does not carry it', () => {
+    const child = makeDesc({ id: 2, parent_id: 1, reference_code: 'xx-arch-001-d003' });
+    const { shards } = deriveChildren([parent, child]);
+    expect('local_identifier' in shards.get(1).results[0]).toBe(false);
+  });
+});
+
+// Version: v1.6.0

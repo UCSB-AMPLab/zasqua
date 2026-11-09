@@ -1,0 +1,558 @@
+{
+  "entity_types": [
+    {
+      "code": "person",
+      "label": {
+        "es": "Persona",
+        "en": "Person"
+      }
+    },
+    {
+      "code": "family",
+      "label": {
+        "es": "Familia",
+        "en": "Family"
+      }
+    },
+    {
+      "code": "corporate",
+      "label": {
+        "es": "Entidad corporativa",
+        "en": "Corporate body"
+      }
+    }
+  ],
+  "place_types": [
+    {
+      "code": "country",
+      "label": {
+        "es": "País",
+        "en": "Country"
+      }
+    },
+    {
+      "code": "region",
+      "label": {
+        "es": "Región",
+        "en": "Region"
+      },
+      "external": {
+        "scheme": "aat",
+        "uri": "http://vocab.getty.edu/aat/300182722",
+        "label": "regions (geographic)"
+      }
+    },
+    {
+      "code": "department",
+      "label": {
+        "es": "Departamento",
+        "en": "Department"
+      }
+    },
+    {
+      "code": "province",
+      "label": {
+        "es": "Provincia",
+        "en": "Province"
+      }
+    },
+    {
+      "code": "partido",
+      "label": {
+        "es": "Partido",
+        "en": "Partido"
+      }
+    },
+    {
+      "code": "city",
+      "label": {
+        "es": "Ciudad",
+        "en": "City"
+      },
+      "external": {
+        "scheme": "aat",
+        "uri": "http://vocab.getty.edu/aat/300008347",
+        "label": "inhabited places"
+      }
+    },
+    {
+      "code": "town",
+      "label": {
+        "es": "Pueblo",
+        "en": "Town"
+      }
+    },
+    {
+      "code": "parish",
+      "label": {
+        "es": "Parroquia",
+        "en": "Parish"
+      }
+    },
+    {
+      "code": "hacienda",
+      "label": {
+        "es": "Hacienda",
+        "en": "Hacienda"
+      }
+    },
+    {
+      "code": "mine",
+      "label": {
+        "es": "Mina",
+        "en": "Mine"
+      }
+    },
+    {
+      "code": "river",
+      "label": {
+        "es": "Río",
+        "en": "River"
+      },
+      "external": {
+        "scheme": "aat",
+        "uri": "http://vocab.getty.edu/aat/300008707",
+        "label": "rivers"
+      }
+    },
+    {
+      "code": "other",
+      "label": {
+        "es": "Otro",
+        "en": "Other"
+      }
+    }
+  ],
+  "role_groups": [
+    {
+      "code": "production",
+      "label": {
+        "es": "Producción y menciones",
+        "en": "Production & mentions"
+      },
+      "order": 1
+    },
+    {
+      "code": "correspondence",
+      "label": {
+        "es": "Correspondencia",
+        "en": "Correspondence"
+      },
+      "order": 2
+    },
+    {
+      "code": "notarial",
+      "label": {
+        "es": "Actuación notarial",
+        "en": "Notarial attestation"
+      },
+      "order": 3
+    },
+    {
+      "code": "legal",
+      "label": {
+        "es": "Procedimientos judiciales",
+        "en": "Legal proceedings"
+      },
+      "order": 4
+    },
+    {
+      "code": "family",
+      "label": {
+        "es": "Familia y herencia",
+        "en": "Family & inheritance"
+      },
+      "order": 5
+    },
+    {
+      "code": "transactions",
+      "label": {
+        "es": "Transacciones",
+        "en": "Transactions"
+      },
+      "order": 6
+    },
+    {
+      "code": "visual",
+      "label": {
+        "es": "Materiales visuales",
+        "en": "Visual materials"
+      },
+      "order": 7
+    }
+  ],
+  "entity_roles": [
+    {
+      "code": "creator",
+      "label": {
+        "es": "Creador",
+        "en": "Creator"
+      },
+      "group": "production"
+    },
+    {
+      "code": "grantor",
+      "label": {
+        "es": "Otorgante",
+        "en": "Grantor"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "heir",
+      "label": {
+        "es": "Heredero",
+        "en": "Heir"
+      },
+      "group": "family"
+    },
+    {
+      "code": "photographer",
+      "label": {
+        "es": "Fotógrafo",
+        "en": "Photographer"
+      },
+      "group": "visual"
+    },
+    {
+      "code": "plaintiff",
+      "label": {
+        "es": "Demandante",
+        "en": "Plaintiff"
+      },
+      "group": "legal"
+    },
+    {
+      "code": "scribe",
+      "label": {
+        "es": "Escribano",
+        "en": "Scribe"
+      },
+      "group": "notarial"
+    },
+    {
+      "code": "sender",
+      "label": {
+        "es": "Remitente",
+        "en": "Sender"
+      },
+      "group": "correspondence"
+    },
+    {
+      "code": "albacea",
+      "label": {
+        "es": "Albacea",
+        "en": "Executor"
+      },
+      "group": "family"
+    },
+    {
+      "code": "artist",
+      "label": {
+        "es": "Artista",
+        "en": "Artist"
+      },
+      "group": "visual"
+    },
+    {
+      "code": "author",
+      "label": {
+        "es": "Autor",
+        "en": "Author"
+      },
+      "group": "production"
+    },
+    {
+      "code": "defendant",
+      "label": {
+        "es": "Demandado",
+        "en": "Defendant"
+      },
+      "group": "legal"
+    },
+    {
+      "code": "donor",
+      "label": {
+        "es": "Donante",
+        "en": "Donor"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "recipient",
+      "label": {
+        "es": "Destinatario",
+        "en": "Recipient"
+      },
+      "group": "correspondence"
+    },
+    {
+      "code": "witness",
+      "label": {
+        "es": "Testigo",
+        "en": "Witness"
+      },
+      "group": "notarial"
+    },
+    {
+      "code": "editor",
+      "label": {
+        "es": "Editor",
+        "en": "Editor"
+      },
+      "group": "production"
+    },
+    {
+      "code": "notary",
+      "label": {
+        "es": "Notario",
+        "en": "Notary"
+      },
+      "group": "notarial"
+    },
+    {
+      "code": "petitioner",
+      "label": {
+        "es": "Peticionario",
+        "en": "Petitioner"
+      },
+      "group": "legal"
+    },
+    {
+      "code": "seller",
+      "label": {
+        "es": "Vendedor",
+        "en": "Seller"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "spouse",
+      "label": {
+        "es": "Cónyuge",
+        "en": "Spouse"
+      },
+      "group": "family"
+    },
+    {
+      "code": "buyer",
+      "label": {
+        "es": "Comprador",
+        "en": "Buyer"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "judge",
+      "label": {
+        "es": "Juez",
+        "en": "Judge"
+      },
+      "group": "legal"
+    },
+    {
+      "code": "publisher",
+      "label": {
+        "es": "Editor (publicación)",
+        "en": "Publisher"
+      },
+      "group": "production"
+    },
+    {
+      "code": "appellant",
+      "label": {
+        "es": "Apelante",
+        "en": "Appellant"
+      },
+      "group": "legal"
+    },
+    {
+      "code": "mentioned",
+      "label": {
+        "es": "Mencionado",
+        "en": "Mentioned"
+      },
+      "group": "production"
+    },
+    {
+      "code": "mortgagor",
+      "label": {
+        "es": "Deudor hipotecario",
+        "en": "Mortgagor"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "fiador",
+      "label": {
+        "es": "Fiador",
+        "en": "Surety"
+      },
+      "group": "legal"
+    },
+    {
+      "code": "mortgagee",
+      "label": {
+        "es": "Acreedor hipotecario",
+        "en": "Mortgagee"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "subject",
+      "label": {
+        "es": "Tema",
+        "en": "Subject"
+      },
+      "group": "production"
+    },
+    {
+      "code": "apoderado",
+      "label": {
+        "es": "Apoderado",
+        "en": "Attorney-in-Fact"
+      },
+      "group": "legal"
+    },
+    {
+      "code": "creditor",
+      "label": {
+        "es": "Acreedor",
+        "en": "Creditor"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "official",
+      "label": {
+        "es": "Funcionario",
+        "en": "Official"
+      },
+      "group": "production"
+    },
+    {
+      "code": "debtor",
+      "label": {
+        "es": "Deudor",
+        "en": "Debtor"
+      },
+      "group": "transactions"
+    },
+    {
+      "code": "victim",
+      "label": {
+        "es": "Víctima",
+        "en": "Victim"
+      },
+      "group": "legal"
+    }
+  ],
+  "place_roles": [
+    {
+      "code": "created",
+      "label": {
+        "es": "Creado",
+        "en": "Created"
+      }
+    },
+    {
+      "code": "subject",
+      "label": {
+        "es": "Tema",
+        "en": "Subject"
+      }
+    },
+    {
+      "code": "mentioned",
+      "label": {
+        "es": "Mencionado",
+        "en": "Mentioned"
+      }
+    },
+    {
+      "code": "sent_from",
+      "label": {
+        "es": "Enviado desde",
+        "en": "Sent from"
+      }
+    },
+    {
+      "code": "sent_to",
+      "label": {
+        "es": "Recibido en",
+        "en": "Sent to"
+      }
+    },
+    {
+      "code": "published",
+      "label": {
+        "es": "Publicado",
+        "en": "Published"
+      }
+    },
+    {
+      "code": "venue",
+      "label": {
+        "es": "Lugar",
+        "en": "Venue"
+      }
+    }
+  ],
+  "authority_sources": [
+    {
+      "key": "wikidata",
+      "label": {
+        "es": "Wikidata",
+        "en": "Wikidata"
+      },
+      "url_template": "https://www.wikidata.org/wiki/{id}",
+      "applies_to": [
+        "entity"
+      ]
+    },
+    {
+      "key": "viaf",
+      "label": {
+        "es": "VIAF",
+        "en": "VIAF"
+      },
+      "url_template": "https://viaf.org/viaf/{id}",
+      "applies_to": [
+        "entity"
+      ]
+    },
+    {
+      "key": "tgn",
+      "label": {
+        "es": "TGN",
+        "en": "TGN"
+      },
+      "url_template": "https://vocab.getty.edu/tgn/{id}",
+      "applies_to": [
+        "place"
+      ]
+    },
+    {
+      "key": "hgis",
+      "label": {
+        "es": "HGIS",
+        "en": "HGIS"
+      },
+      "url_template": "https://hgis-indias.net/place/{id}",
+      "applies_to": [
+        "place"
+      ]
+    },
+    {
+      "key": "whg",
+      "label": {
+        "es": "WHG",
+        "en": "WHG"
+      },
+      "url_template": "https://whgazetteer.org/places/{id}",
+      "applies_to": [
+        "place"
+      ]
+    }
+  ]
+}

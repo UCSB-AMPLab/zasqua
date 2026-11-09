@@ -15,7 +15,7 @@
 # Copy discipline: idiomatic US English, no contractions. Agentless passive
 # is acceptable for institutional statements where the actor is irrelevant.
 #
-# Version: v1.1.0
+# Version: v1.6.0
 
 [nav]
 home = "Home"
@@ -51,7 +51,7 @@ dateFrom = "From"
 dateTo = "To"
 viewAll = "View all"
 loadingFilters = "Loading additional filters…"
-landingP1 = "Zasqua has a flexible, filter-based search system: type a term or select a filter in the filter panel to begin exploring the catalog. Then add more until you find what you are looking for. The system ignores accents and diacritics, and it matches related terms that share the same root."
+landingP1 = "{{ .Site }} has a flexible, filter-based search system: type a term or select a filter in the filter panel to begin exploring the catalog. Then add more until you find what you are looking for. The system ignores accents and diacritics, and it matches related terms that share the same root."
 landingP2 = "Add terms by typing them into the filter panel — select <em>yes</em> or <em>no</em> to include or exclude, then press <em>+</em> or Enter. Each term or filter appears as a tag that you can remove and replace with ease, so feel free to experiment."
 browsePromptCount = "{count} records match these filters."
 refinePlaceholder = "Search..."
@@ -64,7 +64,7 @@ advancedActivate = "Activate additional filters (repository, date, and so on)"
 advancedActivateNote = " — this may take a few seconds"
 dateInitial = "Date (start)"
 notPrefix = "Not: "
-onlyNotMessage = "Add at least one positive term to combine with the exclusions (for example, \"cacique -tunja\")."
+onlyNotMessage = "Add at least one positive term to combine with the exclusions (for example, \"letter -draft\")."
 resultsCount = "{count} results"
 retry = "Try again"
 facetAncestor = "Ancestor"
@@ -72,6 +72,8 @@ facetEntity = "Entity"
 
 [search.digitalStatus]
 group = "Available images"
+hosted = "Yes, available on {{ .Site }}"
+# Deprecated, removed in 2.0.0: replaced by `hosted`, which names the site by its title.
 inZasqua = "Yes, available in Zasqua"
 external = "Yes, in an external repository"
 none = "No, not digitized"
@@ -79,6 +81,8 @@ none = "No, not digitized"
 # Active-filter pill labels — shorter variants of the [search.digitalStatus]
 # option labels, used when the choice is shown as a removable filter tag.
 [search.digitalStatusPill]
+hosted = "Available on {{ .Site }}"
+# Deprecated, removed in 2.0.0: replaced by `hosted`.
 inZasqua = "Available in Zasqua"
 external = "External repository"
 none = "Not digitized"
@@ -123,10 +127,12 @@ externalDigital = "Digital copy available"
 externalDigitalText = "This document has been digitized and is available through the holding institution's repository."
 viewAllChildren = "View all {count} documents"
 catalogSubheading = "Catalogs and descriptions"
-catalogFreeAccess = "Zasqua's catalogs and descriptions are freely accessible."
+catalogFreeAccess = "{{ .Site }}'s catalogs and descriptions are freely accessible."
+catalogLicense = "{{ .Site }}'s catalogs and descriptions are published under the {{ .License }} license."
+citeHeader = "How to cite"
 imagesSubheading = "Images"
-reuseBlurbIiif = "Zasqua is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its collections more open and reusable. It uses the <a href=\"https://www.loc.gov/standards/mets/\" target=\"_blank\" rel=\"noopener\">METS</a> standard for metadata and <a href=\"https://iiif.io\" target=\"_blank\" rel=\"noopener\">IIIF</a> for images. Copy the IIIF manifest address below to open or embed this document in another compatible viewer or platform, such as <a href=\"https://telar.org\" target=\"_blank\" rel=\"noopener\">Telar</a>."
-reuseBlurb = "Zasqua is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its collections more open and reusable. It uses the <a href=\"https://www.loc.gov/standards/mets/\" target=\"_blank\" rel=\"noopener\">METS</a> standard for metadata."
+reuseBlurbIiif = "{{ .Site }} is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its collections more open and reusable. It uses the <a href=\"https://www.loc.gov/standards/mets/\" target=\"_blank\" rel=\"noopener\">METS</a> standard for metadata and <a href=\"https://iiif.io\" target=\"_blank\" rel=\"noopener\">IIIF</a> for images. Copy the IIIF manifest address below to open or embed this document in another compatible viewer or platform, such as <a href=\"https://telar.org\" target=\"_blank\" rel=\"noopener\">Telar</a>."
+reuseBlurb = "{{ .Site }} is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its collections more open and reusable. It uses the <a href=\"https://www.loc.gov/standards/mets/\" target=\"_blank\" rel=\"noopener\">METS</a> standard for metadata."
 originalsSubheading = "Original documents"
 searchUnit = "Search this unit"
 copyButton = "Copy"
@@ -146,12 +152,12 @@ noLinkedDescriptions = "No descriptions linked to this record were found."
 shardError = "Could not load linked descriptions. Try reloading the page."
 noDateLabel = "Undated"
 explorerTitle = "Browse entities"
-explorerIntro = "Explore the {count} entities linked to Zasqua's archival descriptions. Search by name, filter by type, date, or role."
+explorerIntro = "Explore the {count} entities linked to {{ .Site }}'s archival descriptions. Search by name, filter by type, date, or role."
 selectPrompt = "Select an entity to view details"
 viewportFilterLabel = "Filter by explorer view"
 viewportFilterActive = "Filtering by explorer view"
 viewInExplorer = "View in explorer"
-reuseBlurb = "Zasqua is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its authority records more open and reusable. It uses the <a href=\"https://eac.staatsbibliothek-berlin.de/\" target=\"_blank\" rel=\"noopener\">EAC-CPF</a> standard to publish authority records in an interoperable format."
+reuseBlurb = "{{ .Site }} is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its authority records more open and reusable. It uses the <a href=\"https://eac.staatsbibliothek-berlin.de/\" target=\"_blank\" rel=\"noopener\">EAC-CPF</a> standard to publish authority records in an interoperable format."
 comingSoon = "Coming soon"
 timelineTab = "Timeline"
 graphTab = "Connection network"
@@ -207,7 +213,10 @@ viaf = "View in VIAF"
 
 [entity.emptyState]
 prose1 = "Every entity in the archive — persons, families, and institutions — is connected to the documents where it appears. Select an entity to view its linked documents; click a document to discover the other entities that appear in it, and follow the thread through the archive: from the notary to the witness, from the plaintiff to the judge, from a convent to its executors."
-prose2 = "Scroll down to search for an entity by name or filter the index by type and date. Or start with one of these examples:"
+prose2 = "Scroll down to search for an entity by name or filter the index by type and date."
+examplesIntro = "Or start with one of these examples:"
+examplesConj = "or"
+examplesConjBeforeO = "or"
 
 [entity.legend]
 person = "Person"
@@ -219,12 +228,15 @@ docFilled = "Description with more connections"
 doc = "Description without more connections"
 
 [entity.focal]
-intro = "This {type} is linked to <strong>{count} descriptions</strong> in the archive.<br>View it as "
 viewTimeline = "a timeline"
 viewGraph = "a network"
 viewSearch = "a search filter"
 sep = ", or "
-tail = " in Zasqua."
+tail = " in {{ .Site }}."
+
+[entity.focal.intro]
+one = "This {type} is linked to <strong>{count} description</strong> in the archive.<br>View it as "
+other = "This {type} is linked to <strong>{count} descriptions</strong> in the archive.<br>View it as "
 
 [place]
 breadcrumbParent = "Places"
@@ -237,14 +249,15 @@ noDateLabel = "Undated"
 noCoordinatesTitle = "Location unavailable"
 noCoordinatesText = "This place does not have geographic coordinates in the authority record."
 explorerTitle = "Browse places"
-explorerIntro = "Explore the {count} places linked to Zasqua's archival descriptions. Search by name, filter by type, or select a place on the map."
+explorerIntro = "Explore the {count} places linked to {{ .Site }}'s archival descriptions. Search by name, filter by type, or select a place on the map."
 explorerExamplesPrefix = "Try"
 explorerExamplesConj = "or"
+explorerExamplesConjBeforeO = "or"
 selectPrompt = "Select a place to view details"
 viewportFilterLabel = "Filter by map view"
 viewportFilterActive = "Filtering by map view"
 viewInExplorer = "View in explorer"
-reuseBlurb = "Zasqua is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its authority records more open and reusable. It uses the <a href=\"https://github.com/LinkedPasts/linked-places-format\" target=\"_blank\" rel=\"noopener\">Linked Places</a> format to publish geographic records in an interoperable format."
+reuseBlurb = "{{ .Site }} is inspired by the <a href=\"https://journal.code4lib.org/articles/13427\" target=\"_blank\" rel=\"noopener\">FAIR principles</a> to make its authority records more open and reusable. It uses the <a href=\"https://github.com/LinkedPasts/linked-places-format\" target=\"_blank\" rel=\"noopener\">Linked Places</a> format to publish geographic records in an interoperable format."
 comingSoon = "Coming soon"
 associatedTo = "Associated with {count} documents"
 loadingPlaces = "Loading places…"
@@ -320,11 +333,60 @@ dateRange = "Date range"
 collections = "Fonds and collections"
 noCollections = "No collections available"
 searchCollection = "Search this collection"
+exploreCollections = "Explore collections"
+aboutToggle = "About the repository"
+# Hugo reserves "description" in a translation table, so this one key is
+# written flat; it resolves as repository.sections.description.
+"sections.description" = "Description"
+
+[repository.sections]
+identity = "Identification"
+access = "Access"
+services = "Services"
+reuse = "Reuse"
+funders = "Funders and projects"
+control = "Control"
+contact = "Contact"
+
+[repository.fields]
+authorizedName = "Authorized form of name"
+otherNames = "Other forms of name"
+institutionType = "Type of institution"
+code = "Code"
+holdings = "Holdings"
+history = "History of the institution"
+openingTimes = "Opening hours"
+accessConditions = "Access conditions"
+accessibility = "Accessibility"
+reproductionServices = "Reproduction services"
+imageLicense = "Image license"
+attribution = "Attribution"
+descriptionLanguage = "Language of description"
 
 [footer]
 copyright = "© {year}"
+copyrightHolder = "© {year} {holder}"
 colofon_link_text = "Colophon"
 sourceLink = "Source code"
+
+# Publisher block of the colophon page (publisher.json).
+[colophon]
+publisherHeader = "Publisher"
+creditsHeader = "Credits"
+archivesHeader = "Represented archives"
+citeHeader = "How to cite"
+licenseHeader = "License"
+privacyHeader = "Privacy and data"
+takedownHeader = "Takedown policy"
+engineHeader = "The Zasqua engine"
+engineText = "This site is built with Zasqua, version {{ .Version }}, <a href=\"{{ .SourceURL }}\" target=\"_blank\" rel=\"noopener\">open-source</a> software (AGPL-3.0) for publishing digital archives. It is developed by the <a href=\"{{ .LabURL }}\" target=\"_blank\" rel=\"noopener\">Archives, Memory, and Preservation Lab (AMPL)</a> at the University of California, Santa Barbara."
+contactHeader = "Contact"
+
+[colophon.creditRole]
+partner = "Partner"
+funder = "Funder"
+developer = "Developer"
+host = "Host"
 
 [general]
 loading = "Loading..."
@@ -360,14 +422,6 @@ viewRecord = "View record →"
 one = "unit"
 other = "units"
 
-[tree.childUnitCompuesta]
-one = "composite unit"
-other = "composite units"
-
-[tree.childUnitSimple]
-one = "simple unit"
-other = "simple units"
-
 [graph]
 expand = "Expand"
 loading = "Loading…"
@@ -382,6 +436,11 @@ overflowDocs = "+{count} documents"
 one = "Connected to {count} more entity."
 other = "Connected to {count} more entities."
 
+[graph.connectedToSite]
+one = "Connected to {count} more entity in {{ .Site }}."
+other = "Connected to {count} more entities in {{ .Site }}."
+
+# Deprecated, removed in 2.0.0: replaced by `connectedToSite`.
 [graph.connectedToZasqua]
 one = "Connected to {count} more entity in Zasqua."
 other = "Connected to {count} more entities in Zasqua."
@@ -398,8 +457,8 @@ one = "Connected to {name} through {count} document."
 other = "Connected to {name} through {count} documents."
 
 [entity.connectedOtherDocs]
-one = "This {type} is connected to {count} other document in Zasqua. "
-other = "This {type} is connected to {count} other documents in Zasqua. "
+one = "This {type} is connected to {count} other document in {{ .Site }}. "
+other = "This {type} is connected to {count} other documents in {{ .Site }}. "
 
 [entity.resultDocCount]
 one = "Associated with {count} document"
@@ -409,4 +468,4 @@ other = "Associated with {count} documents"
 one = "{count} entity"
 other = "{count} entities"
 
-# Version: v1.1.0
+# Version: v1.6.0

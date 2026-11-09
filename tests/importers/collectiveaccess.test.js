@@ -19,7 +19,7 @@
  *      records use opaque CollectiveAccess ids, so the adapter assigns its own
  *      sequential ids.
  *
- * @version v0.1.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
@@ -294,4 +294,52 @@ describe('ca adapter — auto-generated integer ids', () => {
   });
 });
 
-// Version: v0.1.0
+// ---------------------------------------------------------------------------
+// Code prefixes are options; the old defaults stay, with one deprecation notice
+// ---------------------------------------------------------------------------
+
+describe('ca adapter — entity and place code prefixes', () => {
+  async function runWith(extra) {
+    const stagingDir = makeStagingDir('prefix');
+    await runCaImport({ src: FIXTURE_SRC, stagingDir, standard: 'isadg', ...extra });
+    return stagingDir;
+  }
+
+  it('uses the given prefixes for entity and place codes and in the link files', async () => {
+    const dir = await runWith({ entityPrefix: 'xe-', placePrefix: 'xp-' });
+    const entities = readJson(path.join(dir, 'entities.json'));
+    const eLinks = readJson(path.join(dir, 'entity_links.json'));
+    const places = readJson(path.join(dir, 'places.json'));
+    const pLinks = readJson(path.join(dir, 'place_links.json'));
+    expect(entities.length).toBeGreaterThan(0);
+    expect(places.length).toBeGreaterThan(0);
+    for (const e of entities) expect(e.entity_code).toMatch(/^xe-/);
+    for (const l of eLinks) expect(l.entity_code).toMatch(/^xe-/);
+    for (const p of places) expect(p.place_code).toMatch(/^xp-/);
+    for (const l of pLinks) expect(l.place_code).toMatch(/^xp-/);
+  });
+
+  it('keeps ne- and nl- when the options are absent and warns once', async () => {
+    const warnings = [];
+    const orig = console.warn;
+    console.warn = (...a) => warnings.push(a.join(' '));
+    let dir;
+    try { dir = await runWith({}); } finally { console.warn = orig; }
+    const entities = readJson(path.join(dir, 'entities.json'));
+    const places = readJson(path.join(dir, 'places.json'));
+    for (const e of entities) expect(e.entity_code).toMatch(/^ne-/);
+    for (const p of places) expect(p.place_code).toMatch(/^nl-/);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/2\.0\.0/);
+  });
+
+  it('does not warn when both prefixes are given', async () => {
+    const warnings = [];
+    const orig = console.warn;
+    console.warn = (...a) => warnings.push(a.join(' '));
+    try { await runWith({ entityPrefix: 'ne-', placePrefix: 'nl-' }); } finally { console.warn = orig; }
+    expect(warnings).toHaveLength(0);
+  });
+});
+
+// Version: v1.6.0

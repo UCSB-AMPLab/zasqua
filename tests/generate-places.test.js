@@ -24,7 +24,10 @@
  *      is not an NMTOKEN, throws.
  *   7. No institution string and no date in the output.
  *   8. Types — city, river and region map to Getty AAT feature types; any
- *      other place_type leaves types out.
+ *      other place_type leaves types out. A vocabulary.json place_types
+ *      entry with an http(s) external.uri replaces the table's term, matched
+ *      case-insensitively; an entry without external, or with a URI of any
+ *      other scheme, falls back to the table.
  *   9. Further names — label (when it differs from display_name) and the
  *      name variants, trimmed and deduplicated, without citations; a
  *      non-array name_variants throws, naming the record.
@@ -45,7 +48,7 @@
  *  16. readDescriptionDates — descriptions.json parsed keeping only the
  *      fields attestedYears reads.
  *
- * @version v1.5.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -58,6 +61,7 @@ const require = createRequire(import.meta.url);
 const {
   buildPlaceFeature, attestedYears, readPlacesConfig, placesSlug, planPlaceRecord,
   buildFeatureCollection, serialize, LPF_CONTEXT, isUnderPublic, readDescriptionDates,
+  placeTypeTerms, readPlaceTypeTerms,
 } = require('../scripts/generate-places.js');
 const { isUnderDir } = require('../lib/under-dir.js');
 
@@ -144,6 +148,76 @@ describe('buildPlaceFeature — types', () => {
     expect(buildPlaceFeature({ ...PLACE, place_type: 'other' }, OPTS)).not.toHaveProperty('types');
   });
 });
+describe('placeTypeTerms and buildPlaceFeature — types from the vocabulary', () => {
+  const VOCAB = {
+    place_types: [
+      { code: 'City', label: { es: 'Ciudad', en: 'City' },
+        external: { scheme: 'aat', uri: 'https://example.org/concept/1', label: 'settlements' } },
+      { code: 'river', label: { es: 'Río', en: 'River' } },
+      { code: 'hamlet', label: { es: 'Caserío', en: 'Hamlet' },
+        external: { scheme: 'aat', uri: 'https://example.org/concept/2', label: null } },
+      { code: 'region', label: { es: 'Región', en: 'Region' },
+        external: { scheme: 'aat', uri: 'javascript:alert(1)', label: 'regions' } },
+    ],
+  };
+  const terms = placeTypeTerms(VOCAB, 'es');
+
+  it('replaces the table term with the vocabulary URI, matching codes case-insensitively', () => {
+    expect(buildPlaceFeature({ ...PLACE, place_type: 'city' }, { ...OPTS, placeTypes: terms }).types)
+      .toEqual([{ identifier: 'https://example.org/concept/1', label: 'settlements' }]);
+  });
+  it('labels the term with the entry label in the site language when external has no label', () => {
+    expect(buildPlaceFeature({ ...PLACE, place_type: 'Hamlet' }, { ...OPTS, placeTypes: terms }).types)
+      .toEqual([{ identifier: 'https://example.org/concept/2', label: 'Caserío' }]);
+    expect(placeTypeTerms(VOCAB, 'en').get('hamlet').label).toBe('Hamlet');
+  });
+  it('falls back to the table for an entry without external', () => {
+    expect(terms.has('river')).toBe(false);
+    expect(buildPlaceFeature({ ...PLACE, place_type: 'river', fclass: 'H' }, { ...OPTS, placeTypes: terms }).types)
+      .toEqual([{ identifier: 'http://vocab.getty.edu/aat/300008707', label: 'rivers' }]);
+  });
+  it('ignores a URI that is not http(s), so the table term stays', () => {
+    expect(terms.has('region')).toBe(false);
+    expect(buildPlaceFeature({ ...PLACE, place_type: 'region', fclass: 'A' }, { ...OPTS, placeTypes: terms }).types)
+      .toEqual([{ identifier: 'http://vocab.getty.edu/aat/300182722', label: 'regions (geographic)' }]);
+  });
+  it('accepts only an http(s) URI with a host', () => {
+    const term = (uri) => placeTypeTerms({ place_types: [{ code: 'city', label: { en: 'City' }, external: { uri } }] }, 'en').get('city');
+    for (const uri of ['https://#', 'https://', 'http:/x', 'ftp://example.org/x', 'https://example.org/a b', 'https://example.org/a\tb']) {
+      expect(term(uri), uri).toBeUndefined();
+      expect(buildPlaceFeature(PLACE, { ...OPTS, placeTypes: placeTypeTerms({ place_types: [{ code: 'city', label: { en: 'City' }, external: { uri } }] }, 'en') }).types, uri)
+        .toEqual([{ identifier: 'http://vocab.getty.edu/aat/300008347', label: 'inhabited places' }]);
+    }
+    expect(term('http://example.org/concept/9')).toEqual({ identifier: 'http://example.org/concept/9', label: 'City' });
+  });
+  it('builds the same feature as before without a vocabulary', () => {
+    for (const place_type of ['city', 'river', 'region', 'other', '']) {
+      const input = { ...PLACE, place_type };
+      expect(buildPlaceFeature(input, { ...OPTS, placeTypes: placeTypeTerms(null, 'es') })).toEqual(buildPlaceFeature(input, OPTS));
+    }
+  });
+  it('reads no terms when the export has no vocabulary.json', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zasqua-places-vocab-'));
+    try {
+      expect(readPlaceTypeTerms(dir, dir).size).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it('reads the terms from vocabulary.json in the language of the manifest', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'zasqua-places-vocab-'));
+    try {
+      fs.writeFileSync(path.join(dir, 'vocabulary.json'), JSON.stringify(VOCAB));
+      fs.writeFileSync(path.join(dir, 'zasqua.manifest.toml'), '[ui]\nlanguage = "en-US"\n');
+      const read = readPlaceTypeTerms(dir, dir);
+      expect([...read.keys()].sort()).toEqual(['city', 'hamlet']);
+      expect(read.get('hamlet').label).toBe('Hamlet');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('buildPlaceFeature — further names', () => {
   it('adds label when it differs from display_name, then variants, deduplicated and trimmed, without citations', () => {
     const f = buildPlaceFeature({ ...PLACE, label: 'Abades (Pasto)', name_variants: [' Abades ', 'Abadés', 'Abadés', '', null] }, OPTS);
@@ -351,4 +425,4 @@ describe('readDescriptionDates', () => {
   });
 });
 
-// Version: v1.5.0
+// Version: v1.6.0

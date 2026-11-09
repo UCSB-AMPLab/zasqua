@@ -29,7 +29,7 @@
  * countries, and so on), so `suppressSingleValuedFacets` returns the tally
  * unchanged. The suppression logic runs but finds nothing to suppress.
  *
- * @version v0.1.0
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
@@ -83,10 +83,10 @@ describe('suppressSingleValuedFacets — 0 distinct values', () => {
 describe('suppressSingleValuedFacets — 2 or more distinct values', () => {
   it('preserves a key with exactly 2 distinct values unchanged', () => {
     const tally = {
-      digital_status: { zasqua: 80, none: 20 },
+      digital_status: { hosted: 80, none: 20 },
     };
     const result = suppressSingleValuedFacets(tally, []);
-    expect(result.digital_status).toEqual({ zasqua: 80, none: 20 });
+    expect(result.digital_status).toEqual({ hosted: 80, none: 20 });
   });
 
   it('preserves a key with many distinct values unchanged', () => {
@@ -99,7 +99,7 @@ describe('suppressSingleValuedFacets — 2 or more distinct values', () => {
   it('all-multi-valued tally passes through entirely (real-corpus scenario)', () => {
     const tally = {
       country: { Colombia: 100, Perú: 50 },
-      digital_status: { zasqua: 80, none: 70 },
+      digital_status: { hosted: 80, none: 70 },
       level: { Expediente: 60, Fondo: 40, Serie: 30 },
       repository: { AHR: 50, AGN: 40, BNC: 30 },
       year: { '1780': 10, '1790': 12 },
@@ -139,7 +139,7 @@ describe('suppressSingleValuedFacets — force_keep override', () => {
   it('force_keep does not affect keys not in the list', () => {
     const tally = {
       country: { Colombia: 42 }, // 1 distinct value
-      digital_status: { zasqua: 5 }, // 1 distinct value — NOT in force_keep
+      digital_status: { hosted: 5 }, // 1 distinct value — NOT in force_keep
     };
     const result = suppressSingleValuedFacets(tally, ['country']);
     expect(Object.prototype.hasOwnProperty.call(result, 'country')).toBe(true);
@@ -156,4 +156,4 @@ describe('suppressSingleValuedFacets — force_keep override', () => {
   });
 });
 
-// Version: v0.1.0
+// Version: v1.6.0

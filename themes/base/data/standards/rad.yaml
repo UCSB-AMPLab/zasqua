@@ -20,6 +20,28 @@
 # instance/themes/{name}/data/standards/rad.yaml and edit it. Hugo replaces
 # whole top-level keys across the theme chain, so a partial override would
 # silently drop the sibling language block — always ship the full file.
+#
+# `levels` holds the capitalized singular label used as a heading;
+# `levelsPlural` and `levelsSingular` hold the lowercase plural and singular
+# forms the collection tree uses for child counts ("1 file", "12 files").
+# A profile copied from an earlier release that lacks `levelsSingular` still
+# works: the engine falls back to the lowercased `levels` label.
+
+# Language-independent level data, read by the search page (level order) and
+# the METS generator (Dublin Core type). `level_order` is a list because Hugo
+# does not keep the order of a YAML map. `dc_types` maps a level code to the
+# Dublin Core type: aggregate levels are Collection, leaf levels are Text.
+level_order: [fonds, subfonds, collection, section, series, subseries, file, volume, item]
+dc_types:
+  fonds:      Collection
+  subfonds:   Collection
+  series:     Collection
+  subseries:  Collection
+  collection: Collection
+  section:    Collection
+  file:       Collection
+  item:       Text
+  volume:     Text
 
 # English RAD profile — placeholder. ISAD(G) English labels stand in until
 # verified RAD English terminology is supplied.
@@ -56,6 +78,20 @@ en:
     carpeta:    "[STUB] folders"
     legajo:     "[STUB] bundles"
     tomo:       "[STUB] volumes"
+  levelsSingular:
+    fonds:      "[STUB] fonds"
+    subfonds:   "[STUB] subfonds"
+    series:     "[STUB] series"
+    subseries:  "[STUB] subseries"
+    file:       "[STUB] file"
+    item:       "[STUB] item"
+    collection: "[STUB] collection"
+    section:    "[STUB] section"
+    volume:     "[STUB] volume"
+    caja:       "[STUB] box"
+    carpeta:    "[STUB] folder"
+    legajo:     "[STUB] bundle"
+    tomo:       "[STUB] volume"
   fields:
     - key: repository
       label: "[STUB] Repository"
@@ -225,6 +261,20 @@ es:
     carpeta:    "[STUB] carpetas"
     legajo:     "[STUB] legajos"
     tomo:       "[STUB] tomos"
+  levelsSingular:
+    fonds:      "[STUB] fondo"
+    subfonds:   "[STUB] subfondo"
+    series:     "[STUB] serie"
+    subseries:  "[STUB] subserie"
+    file:       "[STUB] expediente"
+    item:       "[STUB] documento"
+    collection: "[STUB] colección"
+    section:    "[STUB] sección"
+    volume:     "[STUB] tomo"
+    caja:       "[STUB] caja"
+    carpeta:    "[STUB] carpeta"
+    legajo:     "[STUB] legajo"
+    tomo:       "[STUB] tomo"
   fields:
     - key: repository
       label: "[STUB] Repositorio"
@@ -359,4 +409,4 @@ es:
       show: true
       required: false
 
-# Version: v1.1.0
+# Version: v1.6.0

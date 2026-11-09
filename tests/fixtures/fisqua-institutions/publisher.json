@@ -1,0 +1,37 @@
+{
+  "federation": "example",
+  "legal_name": "Fundación Archivo de Ejemplo",
+  "display_name": "Archivo de Ejemplo",
+  "tax_id": "NIT 000.000.000-0",
+  "location": "Bogotá, Colombia",
+  "website": "https://example.org",
+  "email": "contacto@example.org",
+  "logo_url": null,
+  "description": {
+    "es": null,
+    "en": null
+  },
+  "terms_of_use": {
+    "es": null,
+    "en": null
+  },
+  "privacy": {
+    "es": null,
+    "en": null
+  },
+  "takedown": {
+    "es": null,
+    "en": null
+  },
+  "citation_template": {
+    "site": {
+      "es": null,
+      "en": null
+    },
+    "record": {
+      "es": null,
+      "en": null
+    }
+  },
+  "credits": []
+}

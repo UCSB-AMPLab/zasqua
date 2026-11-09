@@ -2,37 +2,170 @@
  * Miller Columns Tree Navigation
  *
  * Drives the lazy-loading hierarchical tree used on repository
- * landing pages to browse an archival fonds top-down. Each column
- * lists the children of the item selected in the previous column;
- * clicking an item reveals the next column to its right. Children
- * are fetched on demand from per-parent JSON shards emitted by the
- * build pipeline, and responses are cached so back-navigation in
- * the tree is instantaneous.
+ * landing pages and on description pages that have children, to browse
+ * an archival fonds top-down. Each column lists the children of the item
+ * selected in the previous column; clicking an item reveals the next column
+ * to its right. Children are fetched on demand from per-parent JSON shards
+ * emitted by the build pipeline, and responses are cached so
+ * back-navigation in the tree is instantaneous.
  *
  * Pipeline context:
  *   Loaded as a classic `<script>` tag from the repository landing
- *   template. Reads per-parent child listings from the repository's
- *   Hugo-rendered data shards; render targets are inside the
- *   template's `.miller-columns` host. Level labels (fonds, series,
- *   item, …) are injected via the host's data attributes so the UI
- *   copy stays in one place.
+ *   template and from the description template. Reads per-parent child
+ *   listings from the build's data shards; render targets are inside the
+ *   template's `.miller-columns` host. The interface strings and the level
+ *   labels (plural and singular, from the active standards profile) arrive
+ *   in a `<script type="application/json" id="tree-strings">` block that the
+ *   `tree-strings` partial writes into the page, so the UI copy stays in the
+ *   i18n bundles and the profiles and this file holds none.
  *
- * @version v1.1.0
+ * Two rules decide what the tree prints for an item:
+ *
+ *   - The number before a leaf item's title is the record's
+ *     `local_identifier`. Null or an empty string means no number. A record
+ *     that does not carry the field at all, as in an export made before the
+ *     field existed, gets the number parsed from its reference code instead
+ *     (`deprecatedNumberFromReferenceCode`, removed in 2.0.0).
+ *
+ *   - The count under a container ("12 files") names the level in
+ *     `children_level`. When the record has none, the most common
+ *     `description_level` among the children the tree has already loaded is
+ *     used; when that is unknown too, the generic unit string from i18n.
+ *
+ * The rule functions are plain functions at the top of the file, and they are
+ * exported for Node when `module` exists, so tests can run them without a DOM.
+ *
+ * @version v1.6.0
  */
+
+// ---------------------------------------------------------------------------
+// Rules
+// ---------------------------------------------------------------------------
+
+/**
+ * Deprecated: parse an item number out of a reference code. It assumes one
+ * publisher's code grammar and is kept only for exports that predate the
+ * `local_identifier` field. It will be removed in 2.0.0.
+ *
+ * Scans the dash-separated segments from the end:
+ *   1. "dNNN" or "nNNN" (for example `d003`) returns the digits, "003".
+ *   2. Otherwise the last purely numeric segment is returned as it is.
+ * An example code: `xx-arch-001-d003` gives "003".
+ *
+ * @param {string|null|undefined} refCode
+ * @returns {string|null}
+ */
+function deprecatedNumberFromReferenceCode(refCode) {
+  if (!refCode) return null;
+
+  const parts = refCode.split('-');
+
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (/^[dn]\d+$/.test(parts[i])) {
+      return parts[i].substring(1);
+    }
+  }
+
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (/^\d+$/.test(parts[i])) {
+      return parts[i];
+    }
+  }
+
+  return null;
+}
+
+/**
+ * The number shown before a leaf item's title.
+ *
+ * A record that carries `local_identifier` uses it: null, an empty string
+ * or whitespace alone gives no number, and the reference code is not
+ * consulted. Only a record without the key at all falls back to the
+ * deprecated reference-code parse.
+ *
+ * @param {object} item
+ * @returns {string|null}
+ */
+function itemNumber(item) {
+  if (item && item.local_identifier !== undefined) {
+    const value = item.local_identifier;
+    if (value === null) return null;
+    const text = String(value).trim();
+    return text === '' ? null : text;
+  }
+  return deprecatedNumberFromReferenceCode(item && item.reference_code);
+}
+
+/**
+ * The level key that names an item's children: `children_level` from the
+ * record, else the most common `description_level` among the children
+ * already loaded, else null. Ties go to the level seen first.
+ *
+ * @param {object} item
+ * @param {Array|undefined} loadedChildren
+ * @returns {string|null}
+ */
+function childLevelKey(item, loadedChildren) {
+  if (item && item.children_level) return item.children_level;
+
+  const counts = new Map();
+  for (const child of loadedChildren || []) {
+    const level = child && child.description_level;
+    if (level) counts.set(level, (counts.get(level) || 0) + 1);
+  }
+  let best = null;
+  let bestCount = 0;
+  for (const [level, n] of counts) {
+    if (n > bestCount) {
+      best = level;
+      bestCount = n;
+    }
+  }
+  return best;
+}
+
+/**
+ * The count text under a container, for example "12 files" or "1 expediente".
+ *
+ * `strings` carries `locale`, `i18n` (with the generic `childUnit` one/other
+ * pair), `levelsSingular` and `levelsPlural`. A level the profile does not
+ * name, or a page with no level labels, uses the generic unit; a page with no
+ * strings at all gets the bare number.
+ *
+ * @param {number} count
+ * @param {string|null} levelKey
+ * @param {object} strings
+ * @returns {string}
+ */
+function childCountText(count, levelKey, strings) {
+  const locale = strings.locale || 'en';
+  const form = new Intl.PluralRules(locale.split('-')[0]).select(count) === 'one' ? 'one' : 'other';
+  const number = new Intl.NumberFormat(locale).format(count);
+
+  const labels = (form === 'one' ? strings.levelsSingular : strings.levelsPlural) || {};
+  let label = levelKey ? labels[levelKey] : null;
+  if (!label) {
+    const unit = (strings.i18n && strings.i18n.childUnit) || {};
+    label = unit[form] || unit.other || '';
+  }
+  return label ? `${number} ${label}` : number;
+}
 
 class MillerColumnsTree {
   constructor(container, options = {}) {
     this.container = container;
     this.repoCode = options.repoCode || '';
-    this.levelLabels = options.levelLabels || {};
     this.i18n = options.i18n || {};
     this.columns = [];
     this.cache = new Map(); // Cache fetched children
 
-    // Locale-aware formatters (read from <html lang>; fallback es-CO)
-    const locale = options.locale || document.documentElement.lang || 'es-CO';
-    this._fmt = new Intl.NumberFormat(locale);
-    this._pr  = new Intl.PluralRules(locale.split('-')[0]);
+    // Locale and level labels for the child-count text (see childCountText)
+    this.strings = {
+      locale: options.locale || document.documentElement.lang || 'en',
+      i18n: this.i18n,
+      levelsPlural: options.levelsPlural || {},
+      levelsSingular: options.levelsSingular || {},
+    };
 
     this.init();
   }
@@ -48,7 +181,7 @@ class MillerColumnsTree {
    */
   async loadRoot(rootDescriptions) {
     this.clearColumns();
-    const column = this.createColumn(rootDescriptions, 0, this.i18n.contentLabel || 'Contenido');
+    const column = this.createColumn(rootDescriptions, 0, this.i18n.contentLabel || '');
     this.wrapper.appendChild(column);
     this.columns.push(column);
   }
@@ -75,7 +208,7 @@ class MillerColumnsTree {
     // Filter input (shown in rightmost/active column)
     const filterInput = document.createElement('input');
     filterInput.type = 'text';
-    filterInput.placeholder = this.i18n.filterPlaceholder || 'Filtrar...';
+    filterInput.placeholder = this.i18n.filterPlaceholder || '';
     filterInput.className = 'column-filter';
     filterInput.addEventListener('input', (e) => this.filterColumn(column, e.target.value));
     filterInput.addEventListener('click', (e) => e.stopPropagation());
@@ -100,27 +233,11 @@ class MillerColumnsTree {
       const titleSpan = document.createElement('span');
       titleSpan.className = 'miller-item-title';
 
-      // Container words - skip number prefix if title contains these
-      const containerWords = /\b(legajo|caja|tomo|carpeta|vol\.|volumen|expediente|sección|seccion|subsección|subseccion|serie|subserie|fondo|subfondo|unidad|protocolo|capítulo|capitulo)\b/i;
-
-      if (item.child_count > 0) {
-        // Container: show just title in main row
-        titleSpan.textContent = item.title;
-        content.appendChild(titleSpan);
-      } else if (containerWords.test(item.title)) {
-        // Leaf item but title suggests it's a container (e.g., empty Legajo)
-        titleSpan.textContent = item.title;
-        content.appendChild(titleSpan);
-      } else {
-        // Leaf item: show "### - Title" format if we can extract a number
-        const docNum = this.extractDocNumber(item.reference_code);
-        if (docNum) {
-          titleSpan.textContent = `${docNum} - ${item.title}`;
-        } else {
-          titleSpan.textContent = item.title;
-        }
-        content.appendChild(titleSpan);
-      }
+      // Containers show the title alone; a leaf shows its number first.
+      // Without a number the title stands alone.
+      const number = item.child_count > 0 ? null : itemNumber(item);
+      titleSpan.textContent = number ? `${number} - ${item.title}` : item.title;
+      content.appendChild(titleSpan);
 
       // Main row with content and arrow
       const main = document.createElement('div');
@@ -190,6 +307,7 @@ class MillerColumnsTree {
 
       try {
         const children = await this.fetchChildren(item.id);
+        this.refreshChildCount(element, item, children);
         const newColumn = this.createColumn(children, depth + 1, item.title);
         this.wrapper.appendChild(newColumn);
         this.columns.push(newColumn);
@@ -334,26 +452,7 @@ class MillerColumnsTree {
       const count = document.createElement('p');
       count.className = 'metadata-count';
 
-      // Container types that indicate children are "unidades compuestas"
-      const containerTypes = ['caja', 'carpeta', 'tomo', 'legajo', 'volume', 'serie', 'subserie', 'section', 'fonds', 'subfonds', 'file'];
-
-      const _prForm = this._pr.select(item.child_count);  // 'one' or 'other'
-      let label;
-      if (!item.children_level) {
-        // Mixed or unknown → generic "unidades"
-        const _u = this.i18n.childUnit || {};
-        label = _u[_prForm] || (item.child_count === 1 ? 'unidad' : 'unidades');
-      } else if (containerTypes.includes(item.children_level)) {
-        // Children are containers
-        const _uc = this.i18n.childUnitCompuesta || {};
-        label = _uc[_prForm] || (item.child_count === 1 ? 'unidad compuesta' : 'unidades compuestas');
-      } else {
-        // Children are items/documents
-        const _us = this.i18n.childUnitSimple || {};
-        label = _us[_prForm] || (item.child_count === 1 ? 'unidad simple' : 'unidades simples');
-      }
-
-      count.textContent = `(${this._fmt.format(item.child_count)} ${label})`;
+      count.textContent = this.childCountLabel(item, this.cache.get(item.id));
       metadata.appendChild(count);
     }
 
@@ -361,69 +460,60 @@ class MillerColumnsTree {
     const link = document.createElement('a');
     link.href = `/${item.reference_code.replace(/[?#]/g, '')}/`;
     link.className = 'metadata-link';
-    link.textContent = this.i18n.viewRecord || 'Ver registro →';
+    link.textContent = this.i18n.viewRecord || item.reference_code;
     metadata.appendChild(link);
 
     return metadata;
   }
 
   /**
-   * Extract document number from reference code for leaf items.
-   * Scans backwards to find a document-number segment:
-   *   1. "dNNN" or "nNNN" prefix (e.g., d005, n003) — strip the letter, return "005"/"003"
-   *   2. Pure numeric (e.g., 001) — return as-is
-   * e.g., "co-ahrb-aht-009-d005" -> "005"
-   * e.g., "co-ahr-gob-caj001-car001-001" -> "001"
+   * The text in parentheses under a container's metadata, for example
+   * "(12 files)". `loadedChildren` is whatever the tree holds for the item.
    */
-  extractDocNumber(refCode) {
-    if (!refCode) return null;
+  childCountLabel(item, loadedChildren) {
+    const levelKey = childLevelKey(item, loadedChildren);
+    return `(${childCountText(item.child_count, levelKey, this.strings)})`;
+  }
 
-    const parts = refCode.split('-');
-
-    // First pass: look for dNNN or nNNN segments (document identifiers)
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (/^[dn]\d+$/.test(parts[i])) {
-        return parts[i].substring(1);
-      }
-    }
-
-    // Second pass: last purely numeric segment
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (/^\d+$/.test(parts[i])) {
-        return parts[i];
-      }
-    }
-
-    return null;
+  /**
+   * Redraw the count once the item's children are loaded, because the most
+   * common child level is only known from then on.
+   */
+  refreshChildCount(element, item, children) {
+    const count = element.querySelector('.metadata-count');
+    if (count) count.textContent = this.childCountLabel(item, children);
   }
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize when DOM is ready (browsers only; Node loads this file for tests)
+if (typeof document !== 'undefined') document.addEventListener('DOMContentLoaded', () => {
   const treeContainer = document.getElementById('collection-tree');
   if (!treeContainer) return;
 
-  const locale = document.documentElement.lang || 'es-CO';
+  const locale = document.documentElement.lang || 'en';
 
-  let levelLabels = {};
-  try {
-    levelLabels = JSON.parse(treeContainer.dataset.levelLabels || '{}');
-  } catch (e) {
-    console.warn('Could not parse level labels');
-  }
-
-  let i18n = {};
-  try {
-    i18n = JSON.parse(treeContainer.dataset.i18n || '{}');
-  } catch (e) {
-    console.warn('Could not parse i18n strings');
-  }
+  // The tree-strings partial writes the strings into the page. The host's
+  // data attributes are still read and take precedence, for a site template
+  // that passes its own.
+  const parseJson = (text, what) => {
+    try {
+      return JSON.parse(text || '{}') || {};
+    } catch (e) {
+      console.warn(`Could not parse ${what}`);
+      return {};
+    }
+  };
+  const pageStrings = parseJson(
+    document.getElementById('tree-strings')?.textContent, 'tree strings');
+  const levelLabels = parseJson(treeContainer.dataset.levelLabels, 'level labels');
+  const hostI18n = parseJson(treeContainer.dataset.i18n, 'i18n strings');
 
   const tree = new MillerColumnsTree(treeContainer, {
     repoCode: treeContainer.dataset.repoCode || '',
-    levelLabels,
     locale,
-    i18n
+    i18n: { ...(pageStrings.i18n || {}), ...hostI18n },
+    levelsPlural: { ...(pageStrings.levelsPlural || {}), ...levelLabels },
+    levelsSingular: pageStrings.levelsSingular || {},
   });
 
   // Case 1: Repository page — root data embedded in page
@@ -448,4 +538,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Version: v1.1.0
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    deprecatedNumberFromReferenceCode,
+    itemNumber,
+    childLevelKey,
+    childCountText,
+  };
+}
+
+// Version: v1.6.0
