@@ -123,7 +123,7 @@
              "legendDocExpandable"  (i18n "entity.legend.docExpandable")
              "legendDocPlain"       (i18n "entity.legend.docPlain")
              "dateConnector"        (i18n "ui.dateConnector")
-           )) | safeHTMLAttr }}></div>
+           ) | replaceRE "'" `\u0027`) | safeHTMLAttr }}></div>
       <div id="graph-legend" class="graph-legend"></div>
       <div id="graph-tooltip" class="graph-tooltip" style="display:none"></div>
 
@@ -159,7 +159,7 @@
               {{ printf `data-i18n='%s'` (jsonify (dict
                 "viewportFilterLabel"  (i18n "entity.viewportFilterLabel")
                 "viewportFilterActive" (i18n "entity.viewportFilterActive")
-              )) | safeHTMLAttr }}>
+              ) | replaceRE "'" `\u0027`) | safeHTMLAttr }}>
         <svg class="viewport-filter-icon" viewBox="0 0 16 16" aria-hidden="true">
           <path d="M5 2.5 L5 13.5 M2.5 5 L5 2.5 L7.5 5 M11 13.5 L11 2.5 M8.5 11 L11 13.5 L13.5 11"
                 stroke="currentColor" stroke-width="1.6" fill="none"
@@ -179,7 +179,7 @@
            {{ printf `data-role-labels='%s'` (replace (jsonify $vocab.roles) "'" `\u0027`) | safeHTMLAttr }}
            {{ printf `data-role-group-labels='%s'` (replace (jsonify $vocab.roleGroups) "'" `\u0027`) | safeHTMLAttr }}
            {{ printf `data-role-groups='%s'` (replace (jsonify $vocab.roleGroupOrder) "'" `\u0027`) | safeHTMLAttr }}
-           {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}></div>
+           {{ printf `data-i18n='%s'` (jsonify $i18n | replaceRE "'" `\u0027`) | safeHTMLAttr }}></div>
     </div>
 
   </div>

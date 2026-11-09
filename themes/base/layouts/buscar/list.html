@@ -91,10 +91,10 @@
 {{ $defaultProfile := partial "resolve-profile.html" (dict "Params" (dict "repository" (dict))) }}
 <div class="container font-sans">
   <div id="search-page"
-       {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levels) | safeHTMLAttr }}
-       {{ printf `data-level-order='%s'` (jsonify (index hugo.Data.standards.isadg "level_order")) | safeHTMLAttr }}
-       {{ printf `data-facet-labels='%s'` (jsonify $facetLabels) | safeHTMLAttr }}
-       {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}
+       {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levels | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+       {{ printf `data-level-order='%s'` (jsonify (index hugo.Data.standards.isadg "level_order") | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+       {{ printf `data-facet-labels='%s'` (jsonify $facetLabels | replaceRE "'" `\u0027`) | safeHTMLAttr }}
+       {{ printf `data-i18n='%s'` (jsonify $i18n | replaceRE "'" `\u0027`) | safeHTMLAttr }}
        {{ with site.Params.logo }}data-logo="{{ . }}"{{ end }}>
   </div>
 </div>

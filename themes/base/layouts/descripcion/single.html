@@ -399,7 +399,7 @@
                    "tifyFullscreen"      (i18n "description.tifyFullscreen")
                    "tifyExitFullscreen"  (i18n "description.tifyExitFullscreen")
                    "tifyThumbnails"      (i18n "description.tifyThumbnails")
-                 )) | safeHTMLAttr }}></div>
+                 ) | replaceRE "'" `\u0027`) | safeHTMLAttr }}></div>
           {{ else }}
             <div class="desc-notice">
               <span class="material-symbols-outlined desc-notice-icon">inventory_2</span>
@@ -427,7 +427,7 @@
         </div>
         <div id="collection-tree"
              data-parent-id="{{ .Params.id }}"
-             {{ printf `data-level-labels='%s'` (jsonify $profile.levelsPlural) | safeHTMLAttr }}>
+             {{ printf `data-level-labels='%s'` (jsonify $profile.levelsPlural | replaceRE "'" `\u0027`) | safeHTMLAttr }}>
         </div>
       </div>
     {{ end }}

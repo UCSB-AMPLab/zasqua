@@ -276,7 +276,7 @@
                    "selectedClose" (i18n "ui.selectedClose")
                    "dateConnector" (i18n "ui.dateConnector")
                    "linkedDescriptionsCount" (dict "one" (i18n "place.linkedDescriptionsCount" 1) "other" (i18n "place.linkedDescriptionsCount" 2))
-                 )) | safeHTMLAttr }}>
+                 ) | replaceRE "'" `\u0027`) | safeHTMLAttr }}>
               <p class="text-stone-500 text-sm">{{ i18n "general.loading" }}</p>
             </div>
           </div>

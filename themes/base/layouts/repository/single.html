@@ -322,7 +322,7 @@
       {{ if and .Params.root_descriptions (gt (len .Params.root_descriptions) 0) }}
         <div id="collection-tree"
              data-repo-code="{{ .Params.code }}"
-             {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levelsPlural) | safeHTMLAttr }}>
+             {{ printf `data-level-labels='%s'` (jsonify $defaultProfile.levelsPlural | replaceRE "'" `\u0027`) | safeHTMLAttr }}>
         </div>
 
         <script type="application/json" id="root-descriptions-data">

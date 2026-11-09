@@ -85,6 +85,16 @@ describe('institution schemas: accept', () => {
     expect(check('publisher', pub).ok).toBe(true);
   });
 
+  it('accepts null in every field the 1.1 repository record adds', () => {
+    const fields = ['subtitle', 'other_names', 'contact', 'holdings', 'history', 'access',
+      'reproduction_services', 'image_licence', 'catalogue_licence', 'funders', 'attribution'];
+    const repos = read(FIXTURE, 'repositories.json');
+    for (const f of fields) repos[0][f] = null;
+    const r = check('repositories', repos);
+    expect(r.errors).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
+
   it('accepts a subtitle sent as a plain string, as 1.0 exports do', () => {
     const repos = read(FIXTURE, 'repositories.json');
     repos[0].subtitle = 'Legacy subtitle';

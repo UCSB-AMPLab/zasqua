@@ -258,7 +258,7 @@
                "dateConnector"    (i18n "ui.dateConnector")
                "sharedDocsSentence" (dict "one" (i18n "entity.sharedDocsSentence" 1) "other" (i18n "entity.sharedDocsSentence" 2))
                "connectedOtherDocs" (dict "one" (i18n "entity.connectedOtherDocs" (dict "Count" 1 "Site" site.Title)) "other" (i18n "entity.connectedOtherDocs" (dict "Count" 2 "Site" site.Title)))
-             )) | safeHTMLAttr }}>
+             ) | replaceRE "'" `\u0027`) | safeHTMLAttr }}>
           </p>
 
           <div class="entity-view-toggle" id="entity-view-toggle">

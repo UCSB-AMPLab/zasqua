@@ -69,6 +69,19 @@ describe('METS generator', () => {
     expect(loadStandardData('isadg', root).level_order).toEqual(PREVIOUS_ORDER);
     clearCache();
   });
+  it('reads the site copies in the order hugo.toml lists the themes', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'zasqua-std-order-'));
+    const write = (dir, type) => {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'isadg.yaml'), `dc_types:\n  item: ${type}\nes: {}\n`);
+    };
+    write(path.join(root, 'themes', 'aaa', 'data', 'standards'), 'FromAaa');
+    write(path.join(root, 'themes', 'zzz', 'data', 'standards'), 'FromZzz');
+    fs.writeFileSync(path.join(root, 'hugo.toml'), 'title = "t"\ntheme = ["zzz", "aaa", "base"]\n');
+    clearCache();
+    expect(dcTypeFor('isadg', 'item', root)).toBe('FromZzz');
+    clearCache();
+  });
   it('falls back to isadg for an unknown standard', () => {
     expect(dcTypeFor('nope', 'fonds')).toBe('Collection');
   });

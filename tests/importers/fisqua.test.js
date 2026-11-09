@@ -26,7 +26,12 @@
  *      already trusted and the curly-brace sequences are real transcription
  *      content, not template syntax.
  *
- * @version v0.1.0
+ *   4. publisher.json and vocabulary.json: copied unchanged when the export
+ *      has them, reported absent when it lacks them, sanitized when the
+ *      import is not trusted, and removed from staging by a re-import that
+ *      lacks them.
+ *
+ * @version v1.6.0
  */
 
 import { describe, it, expect } from 'vitest';
@@ -222,4 +227,53 @@ describe('fisqua adapter — module contract', () => {
   });
 });
 
-// Version: v0.1.0
+describe('fisqua adapter — publisher.json and vocabulary.json', () => {
+  const INSTITUTIONS = path.join(__dirname, '../fixtures/fisqua-institutions');
+
+  function makeSrcWithInstitutionFiles() {
+    const src = makeStagingDir('src');
+    for (const f of CONTRACT_FILES) fs.copyFileSync(path.join(FIXTURE_DIR, f), path.join(src, f));
+    for (const f of ['publisher.json', 'vocabulary.json']) {
+      fs.copyFileSync(path.join(INSTITUTIONS, f), path.join(src, f));
+    }
+    return src;
+  }
+
+  it('copies both files when the export has them, unchanged', async () => {
+    const src = makeSrcWithInstitutionFiles();
+    const stagingDir = makeStagingDir('institutions');
+    const result = await runFisqua({ src, stagingDir });
+    expect(result.copied).toContain('publisher.json');
+    expect(result.copied).toContain('vocabulary.json');
+    for (const f of ['publisher.json', 'vocabulary.json']) {
+      expect(readJson(path.join(stagingDir, f))).toEqual(readJson(path.join(src, f)));
+    }
+  });
+
+  it('reports both as absent when the export lacks them', async () => {
+    const result = await runFisqua({ src: FIXTURE_DIR, stagingDir: makeStagingDir('no-institutions') });
+    expect(result.absent).toEqual(['publisher.json', 'vocabulary.json']);
+  });
+
+  it('sanitizes their strings when the import is not trusted', async () => {
+    const src = makeSrcWithInstitutionFiles();
+    const publisher = readJson(path.join(src, 'publisher.json'));
+    publisher.display_name = 'Archivo <script>alert(1)</script>de Ejemplo';
+    fs.writeFileSync(path.join(src, 'publisher.json'), JSON.stringify(publisher), 'utf8');
+    const stagingDir = makeStagingDir('institutions-untrusted');
+    await runFisqua({ src, stagingDir, trusted: false });
+    expect(readJson(path.join(stagingDir, 'publisher.json')).display_name).not.toContain('<script>');
+  });
+
+  it('a re-import without them removes the copies an earlier import left', async () => {
+    const { runImport } = require('../../lib/importers/dispatch.js');
+    const stagingDir = makeStagingDir('reimport');
+    await runImport({ format: 'fisqua', src: makeSrcWithInstitutionFiles(), stagingDir, instanceRoot: stagingDir });
+    expect(fs.existsSync(path.join(stagingDir, 'publisher.json'))).toBe(true);
+    await runImport({ format: 'fisqua', src: FIXTURE_DIR, stagingDir, instanceRoot: stagingDir });
+    expect(fs.existsSync(path.join(stagingDir, 'publisher.json'))).toBe(false);
+    expect(fs.existsSync(path.join(stagingDir, 'vocabulary.json'))).toBe(false);
+  });
+});
+
+// Version: v1.6.0

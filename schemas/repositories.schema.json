@@ -52,7 +52,8 @@
       "subtitle": {
         "anyOf": [
           { "$ref": "#/definitions/bilingual" },
-          { "type": "string" }
+          { "type": "string" },
+          { "type": "null" }
         ]
       },
       "hero_image_url": {
@@ -62,7 +63,7 @@
         ]
       },
       "other_names": {
-        "type": "array",
+        "type": ["array", "null"],
         "items": {
           "type": "string"
         }
@@ -80,7 +81,7 @@
         ]
       },
       "contact": {
-        "type": "object",
+        "type": ["object", "null"],
         "properties": {
           "street_address": {
             "type": [
@@ -169,13 +170,19 @@
         ]
       },
       "holdings": {
-        "$ref": "#/definitions/bilingual"
+        "anyOf": [
+          { "$ref": "#/definitions/bilingual" },
+          { "type": "null" }
+        ]
       },
       "history": {
-        "$ref": "#/definitions/bilingual"
+        "anyOf": [
+          { "$ref": "#/definitions/bilingual" },
+          { "type": "null" }
+        ]
       },
       "access": {
-        "type": "object",
+        "type": ["object", "null"],
         "properties": {
           "opening_times": {
             "$ref": "#/definitions/bilingual"
@@ -189,10 +196,13 @@
         }
       },
       "reproduction_services": {
-        "$ref": "#/definitions/bilingual"
+        "anyOf": [
+          { "$ref": "#/definitions/bilingual" },
+          { "type": "null" }
+        ]
       },
       "image_licence": {
-        "type": "object",
+        "type": ["object", "null"],
         "properties": {
           "uri": {
             "type": [
@@ -206,7 +216,7 @@
         }
       },
       "catalogue_licence": {
-        "type": "object",
+        "type": ["object", "null"],
         "properties": {
           "uri": {
             "type": [
@@ -220,7 +230,7 @@
         }
       },
       "funders": {
-        "type": "array",
+        "type": ["array", "null"],
         "items": {
           "type": "object",
           "required": [
@@ -252,7 +262,10 @@
         }
       },
       "attribution": {
-        "$ref": "#/definitions/bilingual"
+        "anyOf": [
+          { "$ref": "#/definitions/bilingual" },
+          { "type": "null" }
+        ]
       },
       "description_language": {
         "type": [

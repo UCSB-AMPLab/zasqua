@@ -143,11 +143,11 @@
       ) }}
       <div id="place-explorer"
            {{ printf `data-place-types='%s'` (replace (jsonify $vocab.placeTypes) "'" `\u0027`) | safeHTMLAttr }}
-           {{ printf `data-i18n='%s'` (jsonify $i18n) | safeHTMLAttr }}
+           {{ printf `data-i18n='%s'` (jsonify $i18n | replaceRE "'" `\u0027`) | safeHTMLAttr }}
            {{ printf `data-place-role-labels='%s'` (replace (jsonify $vocab.placeRoles) "'" `\u0027`) | safeHTMLAttr }}
            data-maptiler-key="{{ site.Params.maptiler_key }}"
            data-maptiler-style-id="{{ site.Params.maptiler_style_id }}"
-           {{ with site.Params.place_explorer_bounds }}{{ printf `data-initial-bounds='%s'` (jsonify .) | safeHTMLAttr }}{{ end }}></div>
+           {{ with site.Params.place_explorer_bounds }}{{ printf `data-initial-bounds='%s'` (jsonify . | replaceRE "'" `\u0027`) | safeHTMLAttr }}{{ end }}></div>
     </div>
 
   </div>
