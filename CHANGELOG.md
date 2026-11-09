@@ -10,7 +10,7 @@ validation tooling. The engine is versioned independently of any deployment; the
 release history of the zasqua.org reference archive lives with that instance, not
 here.
 
-## [Unreleased]
+## [1.6.0] — 2026-11-08
 
 ### Added
 
@@ -495,6 +495,7 @@ the infrastructure needs to outlast the projects and grants that funded it.
   field reference (`docs/data-contract.md`), and per-format importer mapping
   references for CSV, EAD3, and CollectiveAccess.
 
+[1.6.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.6.0
 [1.5.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.5.0
 [1.4.1]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.4.1
 [1.4.0]: https://github.com/UCSB-AMPLab/zasqua/releases/tag/v1.4.0
